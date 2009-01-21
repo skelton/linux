@@ -30,7 +30,12 @@
 
 #include "smd_private.h"
 #include "acpuclock.h"
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+#include "proc_comm_wince.h"
+#else
 #include "proc_comm.h"
+#endif
+
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
 #endif
@@ -415,7 +420,14 @@ static uint32_t restart_reason = 0x776655AA;
 
 static void msm_pm_power_off(void)
 {
+#ifdef CONFIG_MSM_AMSS_VERSION_WINCE
+	printk("power down\n");
+	if (msm_hw_reset_hook)
+		msm_hw_reset_hook();
+	msm_proc_comm_wince(PCOM_POWER_OFF, 0, 0);
+#else
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
+#endif
 	for (;;) ;
 }
 
@@ -425,11 +437,17 @@ static void msm_pm_restart(char str)
 	 * is the default, prefer that to the (slower) proc_comm
 	 * reset command.
 	 */
+#ifdef CONFIG_MSM_AMSS_VERSION_WINCE
+	printk("Soft reset\n");
+	if (msm_hw_reset_hook)
+		msm_hw_reset_hook();
+#else
 	if ((restart_reason == 0x776655AA) && msm_hw_reset_hook) {
 		msm_hw_reset_hook();
 	} else {
 		msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
 	}
+#endif
 	for (;;) ;
 }
 

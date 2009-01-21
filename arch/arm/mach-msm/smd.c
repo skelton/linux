@@ -33,7 +33,11 @@
 #include <mach/system.h>
 
 #include "smd_private.h"
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+#include "proc_comm_wince.h"
+#else
 #include "proc_comm.h"
+#endif
 
 void (*msm_hw_reset_hook)(void);
 
@@ -1236,7 +1240,12 @@ static int debug_read_alloc_tbl(char *buf, int max)
 static int debug_boom(char *buf, int max)
 {
 	unsigned ms = 5000;
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+	if (msm_check_for_modem_crash)
+		msm_check_for_modem_crash();
+#else
 	msm_proc_comm(PCOM_RESET_MODEM, &ms, 0);
+#endif
 	return 0;
 }
 

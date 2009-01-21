@@ -61,8 +61,10 @@ static int enable_mdp_irq(struct mdp_info *mdp, uint32_t mask)
 	/* if the mask bits are already set return an error, this interrupt
 	 * is already enabled */
 	if (mdp_irq_mask & mask) {
+#if !defined(CONFIG_MACH_HTCRAPHAEL) && !defined(CONFIG_MACH_HTCRAPHAEL_CDMA) && !defined(CONFIG_MACH_HTCDIAMOND) && !defined(CONFIG_MACH_HTCDIAMOND_CDMA)
 		printk(KERN_ERR "mdp irq already on already on %x %x\n",
 		       mdp_irq_mask, mask);
+#endif
 		ret = -1;
 	}
 	/* if the mdp irq is not already enabled enable it */
@@ -201,7 +203,9 @@ void mdp_dma_to_mddi(struct mdp_info *mdp, uint32_t addr, uint32_t stride,
 	uint16_t ld_param = 0; /* 0=PRIM, 1=SECD, 2=EXT */
 
 	if (enable_mdp_irq(mdp, DL0_DMA2_TERM_DONE)) {
+#if !defined(CONFIG_MACH_HTCRAPHAEL) && !defined(CONFIG_MACH_HTCRAPHAEL_CDMA) && !defined(CONFIG_MACH_HTCDIAMOND) && !defined(CONFIG_MACH_HTCDIAMOND_CDMA)
 		printk(KERN_ERR "mdp_dma_to_mddi: busy\n");
+#endif
 		return;
 	}
 

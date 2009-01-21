@@ -5,6 +5,7 @@ config MSM_AMSS_VERSION
 	default 6210 if MSM_AMSS_VERSION_6210
 	default 6220 if MSM_AMSS_VERSION_6220
 	default 6225 if MSM_AMSS_VERSION_6225
+        default 7000 if MSM_AMSS_VERSION_WINCE
 
 choice
 	prompt "AMSS modem firmware version"
@@ -19,6 +20,10 @@ choice
 
 	config MSM_AMSS_VERSION_6225
 		bool "6.2.20 + New ADSP"
+
+        config MSM_AMSS_VERSION_WINCE
+                bool "WinCE compatible AMSS"
+
 endchoice
 
 config MSM_DEBUG_UART
@@ -59,6 +64,34 @@ config MACH_TROUT
 	depends on ARCH_MSM
 	default y
 	bool "Trout"
+
+config MACH_HTCRAPHAEL
+        depends on ARCH_MSM
+        default y
+        bool "HTC Raphael GSM phone (aka HTC Touch Pro)"
+        help
+          Support for the HTC Raphael GSM phone.
+
+config MACH_HTCRAPHAEL_CDMA
+        depends on ARCH_MSM
+        default y
+        bool "HTC Raphael CDMA phone (aka HTC Touch Pro)"
+        help
+          Support for the HTC Raphael CDMA phone.
+
+config MACH_HTCDIAMOND
+        depends on ARCH_MSM
+        default y
+        bool "HTC Diamond GSM phone (aka HTC Touch Diamond)"
+        help
+          Support for the HTC Diamond GSM phone.
+
+config MACH_HTCDIAMOND_CDMA
+        depends on ARCH_MSM
+        default y
+        bool "HTC Diamond CDMA phone (aka HTC Touch Diamond)"
+        help
+          Support for the HTC Diamond CDMA phone.
 
 config TROUT_H2W
 	tristate "HTC 2 Wire detection driver"
@@ -306,6 +339,20 @@ config MSM_ADSP
 	help
 	  Provides access to registers needed by the userspace aDSP library.
 
+config HTC_FB_CONSOLE
+        bool "Boot console for HTC phones (needs a font which has width <= 8)"
+        default n
+
+config HTC_FB_CONSOLE_DELAY
+        bool "Wait some time after each message is printed"
+        default n
+        depends on HTC_FB_CONSOLE
+
+config HTC_FB_CONSOLE_BOOT
+        bool "Use console only during boot"
+        default n
+        depends on HTC_FB_CONSOLE
+
 config WIFI_CONTROL_FUNC
 	bool "Enable WiFi control function abstraction"
 	help
@@ -316,4 +363,6 @@ config WIFI_MEM_PREALLOC
 	bool "Preallocate memory for WiFi buffers"
 	help
 	  Preallocates memory buffers for WiFi driver
+
 endif
+

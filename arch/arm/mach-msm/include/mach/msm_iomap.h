@@ -59,6 +59,22 @@
 #define MSM_DMOV_PHYS         0xA9700000
 #define MSM_DMOV_SIZE         SZ_4K
 
+#define MSM_UART1_BASE        IOMEM(0xE0003000)
+#define MSM_UART1_PHYS        0xA9A00000
+#define MSM_UART1_SIZE        SZ_4K
+
+#define MSM_UART2_BASE        IOMEM(0xE0004000)
+#define MSM_UART2_PHYS        0xA9B00000
+#define MSM_UART2_SIZE        SZ_4K
+
+#define MSM_UART3_BASE        IOMEM(0xE0005000)
+#define MSM_UART3_PHYS        0xA9C00000
+#define MSM_UART3_SIZE        SZ_4K
+
+#define MSM_I2C_BASE          IOMEM(0xE0006000)
+#define MSM_I2C_PHYS          0xA9900000
+#define MSM_I2C_SIZE          SZ_4K
+
 #define MSM_GPIO1_BASE        IOMEM(0xE0003000)
 #define MSM_GPIO1_PHYS        0xA9200000
 #define MSM_GPIO1_SIZE        SZ_4K
@@ -70,6 +86,18 @@
 #define MSM_CLK_CTL_BASE      IOMEM(0xE0005000)
 #define MSM_CLK_CTL_PHYS      0xA8600000
 #define MSM_CLK_CTL_SIZE      SZ_4K
+
+#define MSM_PMDH_BASE         IOMEM(0xE000B000)
+#define MSM_PMDH_PHYS         0xAA600000
+#define MSM_PMDH_SIZE         SZ_4K
+
+#define MSM_EMDH_BASE         IOMEM(0xE000C000)
+#define MSM_EMDH_PHYS         0xAA700000
+#define MSM_EMDH_SIZE         SZ_4K
+
+#define MSM_MDP_BASE          IOMEM(0xE0010000)
+#define MSM_MDP_PHYS          0xAA200000
+#define MSM_MDP_SIZE          0x000F0000
 
 #define MSM_SHARED_RAM_BASE   IOMEM(0xE0100000)
 #define MSM_SHARED_RAM_PHYS   0x01F00000
@@ -96,18 +124,25 @@
 #define MSM_DEBUG_UART_SIZE   SZ_4K
 #endif
 
-
+#define MSM_SDC1_BASE         IOMEM(0xE1000000)
 #define MSM_SDC1_PHYS         0xA0400000
 #define MSM_SDC1_SIZE         SZ_4K
 
+#define MSM_SDC2_BASE         IOMEM(0xE1001000)
 #define MSM_SDC2_PHYS         0xA0500000
 #define MSM_SDC2_SIZE         SZ_4K
 
+#define MSM_SDC3_BASE         IOMEM(0xE1002000)
 #define MSM_SDC3_PHYS         0xA0600000
 #define MSM_SDC3_SIZE         SZ_4K
 
+#define MSM_SDC4_BASE         IOMEM(0xE1003000)
 #define MSM_SDC4_PHYS         0xA0700000
 #define MSM_SDC4_SIZE         SZ_4K
+
+#define MSM_TS_BASE           IOMEM(0xE1008000)
+#define MSM_TS_PHYS           0xAA300000
+#define MSM_TS_SIZE           SZ_4K
 
 #define MSM_I2C_PHYS          0xA9900000
 #define MSM_I2C_SIZE          SZ_4K

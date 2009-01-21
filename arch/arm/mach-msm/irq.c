@@ -443,7 +443,18 @@ void __init msm_init_irq(void)
 	for (n = 0; n < NR_MSM_IRQS; n++) {
 		set_irq_chip(n, &msm_irq_chip);
 		set_irq_handler(n, handle_level_irq);
+#if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA)
+               if (n == INT_DEBUG_TIMER_EXP)
+               {
+                       set_irq_flags(n, IRQF_NOAUTOEN);
+               }
+               else
+               {
+                       set_irq_flags(n, IRQF_VALID);
+               }
+#else
 		set_irq_flags(n, IRQF_VALID);
+#endif
 	}
 }
 

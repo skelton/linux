@@ -32,6 +32,7 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
+#include <asm/mach-types.h>
 
 #define MSMFB_DEBUG 1
 #ifdef CONFIG_FB_MSM_LOGO
@@ -176,6 +177,9 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	y = msmfb->update_info.top;
 	w = msmfb->update_info.eright - x;
 	h = msmfb->update_info.ebottom - y;
+#if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA)
+	x = 0; y = 0; w = 480; h = 640;
+#endif
 	yoffset = msmfb->yoffset;
 	msmfb->update_info.left = msmfb->xres + 1;
 	msmfb->update_info.top = msmfb->yres + 1;
@@ -345,7 +349,7 @@ restart:
 	}
 }
 
-static void msmfb_update(struct fb_info *info, uint32_t left, uint32_t top,
+void msmfb_update(struct fb_info *info, uint32_t left, uint32_t top,
 			 uint32_t eright, uint32_t ebottom)
 {
 	msmfb_pan_update(info, left, top, eright, ebottom, 0, 0);
@@ -635,15 +639,28 @@ static void setup_fb_info(struct msmfb_info *msmfb)
 	fb_info->var.reserved[2] = (uint16_t)msmfb->xres |
 				   ((uint32_t)msmfb->yres << 16);
 
-	fb_info->var.red.offset = 11;
-	fb_info->var.red.length = 5;
-	fb_info->var.red.msb_right = 0;
-	fb_info->var.green.offset = 5;
-	fb_info->var.green.length = 6;
-	fb_info->var.green.msb_right = 0;
-	fb_info->var.blue.offset = 0;
-	fb_info->var.blue.length = 5;
-	fb_info->var.blue.msb_right = 0;
+	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) {
+		fb_info->var.red.offset = 10;
+		fb_info->var.red.length = 4;
+		fb_info->var.red.msb_right = 0;
+		fb_info->var.green.offset = 6;
+		fb_info->var.green.length = 4;
+		fb_info->var.green.msb_right = 0;
+		fb_info->var.blue.offset = 0;
+		fb_info->var.blue.length = 4;
+		fb_info->var.blue.msb_right = 0;
+	}
+	else {
+		fb_info->var.red.offset = 11;
+		fb_info->var.red.length = 5;
+		fb_info->var.red.msb_right = 0;
+		fb_info->var.green.offset = 5;
+		fb_info->var.green.length = 6;
+		fb_info->var.green.msb_right = 0;
+		fb_info->var.blue.offset = 0;
+		fb_info->var.blue.length = 5;
+		fb_info->var.blue.msb_right = 0;
+	}
 
 	r = fb_alloc_cmap(&fb_info->cmap, 16, 0);
 	fb_info->pseudo_palette = PP;

@@ -381,4 +381,13 @@ config TOUCHSCREEN_TOUCHIT213
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchit213.
 
+config TOUCHSCREEN_MSM
+	default n
+	bool "MSM touchscreen"
+
+config MSM_VIRTUAL_KEYBOARD
+	default n
+	bool "On-screen virtual keyboard using MSM touchscreen"
+	depends on FB_MSM && TOUCHSCREEN_MSM
+
 endif

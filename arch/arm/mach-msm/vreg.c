@@ -20,7 +20,11 @@
 #include <linux/debugfs.h>
 #include <mach/vreg.h>
 
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+#include "proc_comm_wince.h"
+#else
 #include "proc_comm.h"
+#endif
 
 struct vreg {
 	const char *name;
@@ -80,21 +84,36 @@ void vreg_put(struct vreg *vreg)
 int vreg_enable(struct vreg *vreg)
 {
 	unsigned id = vreg->id;
-	unsigned enable = 1;
-	return msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+	id = 1U << id;
+        return msm_proc_comm_wince(PCOM_PMIC_REG_ON, &id, 0);
+#else
+        unsigned enable = 1;
+        return msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+#endif
 }
 
 void vreg_disable(struct vreg *vreg)
 {
 	unsigned id = vreg->id;
-	unsigned enable = 0;
-	msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+	id = 1U << id;
+        msm_proc_comm_wince(PCOM_PMIC_REG_OFF, &id, 0);
+#else
+        unsigned enable = 0;
+        msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+#endif
 }
 
 int vreg_set_level(struct vreg *vreg, unsigned mv)
 {
 	unsigned id = vreg->id;
-	return msm_proc_comm(PCOM_VREG_SET_LEVEL, &id, &mv);
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+	id = 1U << id;
+        return msm_proc_comm_wince(PCOM_PMIC_REG_VOLTAGE, &id, &mv);
+#else
+        return msm_proc_comm(PCOM_VREG_SET_LEVEL, &id, &mv);
+#endif
 }
 
 #if defined(CONFIG_DEBUG_FS)

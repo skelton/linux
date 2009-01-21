@@ -117,6 +117,7 @@ static struct cpufreq_frequency_table freq_table[] = {
 
 static int pc_pll_request(unsigned id, unsigned on)
 {
+#if 0
 	int res;
 	on = !!on;
 
@@ -138,6 +139,8 @@ static int pc_pll_request(unsigned id, unsigned on)
 		printk(KERN_DEBUG "PLL %d disabled\n", id);
 #endif
 	return res;
+#endif
+	return 0;
 }
 
 

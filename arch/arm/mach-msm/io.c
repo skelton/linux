@@ -40,9 +40,16 @@ static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE(CSR),
 	MSM_DEVICE(GPT),
 	MSM_DEVICE(DMOV),
+        MSM_DEVICE(UART1),
+        MSM_DEVICE(UART2),
+        MSM_DEVICE(UART3),
+        MSM_DEVICE(I2C),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
 	MSM_DEVICE(CLK_CTL),
+        MSM_DEVICE(PMDH),
+        MSM_DEVICE(EMDH),
+        MSM_DEVICE(MDP),
 	MSM_DEVICE(AD5),
 	MSM_DEVICE(MDC),
 #ifdef CONFIG_MSM_DEBUG_UART
@@ -54,6 +61,11 @@ static struct map_desc msm_io_desc[] __initdata = {
 		.length =   MSM_SHARED_RAM_SIZE,
 		.type =     MT_DEVICE,
 	},
+        MSM_DEVICE(SDC1),
+        MSM_DEVICE(SDC2),
+        MSM_DEVICE(SDC3),
+        MSM_DEVICE(SDC4),
+	MSM_DEVICE(TS),
 };
 
 void __init msm_map_common_io(void)

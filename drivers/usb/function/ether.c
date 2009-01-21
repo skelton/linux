@@ -207,7 +207,11 @@ static struct usb_function usb_func_ether = {
 	.name = "ether",
 
 	.ifc_class = 0x02,
+#if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA)
+	.ifc_subclass = 0x00,
+#else
 	.ifc_subclass = 0x0a,
+#endif
 	.ifc_protocol = 0x00,
 
 	.ifc_name = "ether",

@@ -69,6 +69,10 @@ static int proc_comm_wait_for(void __iomem *addr, unsigned value)
 
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2)
 {
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+  #warning WinCE compatible AMSS version selected. Default proc_comm implementation is disabled and stubbed to return -EIO.
+       return -ENOTSUPP;
+#else
 	void __iomem *base = MSM_SHARED_RAM_BASE;
 	unsigned long flags;
 	int ret;
@@ -105,6 +109,7 @@ int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2)
 	spin_unlock_irqrestore(&proc_comm_lock, flags);
 
 	return ret;
+#endif
 }
 
 
