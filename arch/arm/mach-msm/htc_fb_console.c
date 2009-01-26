@@ -50,6 +50,12 @@
  * It should work pretty early in the boot process, that why we use it */
 extern void create_mapping(struct map_desc *md);
 
+/* Defined in include/linux/fb.h. When, on write, a registered framebuffer device is detected,
+ * we immediately unregister ourselves. */
+#ifndef CONFIG_HTC_FB_CONSOLE_BOOT
+extern int num_registered_fb;
+#endif
+
 /* Green message (color = 2), the reset color to white (color = 6) */
 #define HTC_FB_MSG		("\n\n" "\x1b" "2" "HTC Linux framebuffer console by druidu" "\x1b" "7" "\n\n")
 
@@ -182,7 +188,7 @@ static void htc_fb_console_update(void)
 	writel(0, MSM_MDP_BASE + MDP_DMA_START);
 
 	/* Wait a bit to let the transfer finish */
-	mdelay(100);
+	mdelay(16);
 }
 
 /* Clear screen and buffers */
@@ -207,6 +213,16 @@ static void htc_fb_console_write(struct console *console, const char *s, unsigne
 {
 	unsigned int i, j, k, scroll;
 	const char *p;
+
+#ifndef CONFIG_HTC_FB_CONSOLE_BOOT
+	// See if a framebuffer has been registered. If so, we disable this console to prevent conflict with
+	// other FB devices (i.e. msm_fb).
+	if (num_registered_fb > 0) {
+		printk(KERN_INFO "htc_fb_console: framebuffer device detected, disabling boot console\n");
+		console->flags = 0;
+		return;
+	}
+#endif
 
 	scroll = 0;
 	for (k = 0, p = s; k < count; k++, p++) {
