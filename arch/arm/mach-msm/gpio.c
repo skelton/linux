@@ -55,6 +55,7 @@ struct msm_gpio_regs
 	void __iomem *int_edge;
 	void __iomem *int_pos;
 	void __iomem *oe;
+	void __iomem *owner;
 };
 
 struct msm_gpio_chip {
@@ -78,6 +79,7 @@ struct msm_gpio_chip msm_gpio_chips[] = {
 			.int_edge =    GPIO_INT_EDGE_0,
 			.int_pos =     GPIO_INT_POS_0,
 			.oe =          GPIO_OE_0,
+			.owner =       GPIO_OWNER_0,
 		},
 		.chip = {
 			.start = 0,
@@ -100,6 +102,7 @@ struct msm_gpio_chip msm_gpio_chips[] = {
 			.int_edge =    GPIO_INT_EDGE_1,
 			.int_pos =     GPIO_INT_POS_1,
 			.oe =          GPIO_OE_1,
+			.owner =       GPIO_OWNER_1,
 		},
 		.chip = {
 			.start = 16,
@@ -122,6 +125,7 @@ struct msm_gpio_chip msm_gpio_chips[] = {
 			.int_edge =    GPIO_INT_EDGE_2,
 			.int_pos =     GPIO_INT_POS_2,
 			.oe =          GPIO_OE_2,
+			.owner =       GPIO_OWNER_2,
 		},
 		.chip = {
 			.start = 43,
@@ -144,6 +148,7 @@ struct msm_gpio_chip msm_gpio_chips[] = {
 			.int_edge =    GPIO_INT_EDGE_3,
 			.int_pos =     GPIO_INT_POS_3,
 			.oe =          GPIO_OE_3,
+			.owner =       GPIO_OWNER_3,
 		},
 		.chip = {
 			.start = 68,
@@ -166,6 +171,7 @@ struct msm_gpio_chip msm_gpio_chips[] = {
 			.int_edge =    GPIO_INT_EDGE_4,
 			.int_pos =     GPIO_INT_POS_4,
 			.oe =          GPIO_OE_4,
+			.owner =       GPIO_OWNER_4,
 		},
 		.chip = {
 			.start = 95,
@@ -188,6 +194,7 @@ struct msm_gpio_chip msm_gpio_chips[] = {
 			.int_edge =    GPIO_INT_EDGE_5,
 			.int_pos =     GPIO_INT_POS_5,
 			.oe =          GPIO_OE_5,
+			.owner =       GPIO_OWNER_5,
 		},
 		.chip = {
 			.start = 107,
@@ -287,6 +294,15 @@ int msm_gpio_configure(struct gpio_chip *chip, unsigned int gpio, unsigned long 
 			writel(v | b, msm_chip->regs.oe);
 		} else {
 			writel(v & (~b), msm_chip->regs.oe);
+		}
+	}
+
+	if (flags & (GPIOF_OWNER_ARM9 | GPIOF_OWNER_ARM11)) {
+		v = readl(msm_chip->regs.owner);
+		if (flags & GPIOF_OWNER_ARM11) {
+			writel(v | b, msm_chip->regs.owner);
+		} else {
+			writel(v & ~b, msm_chip->regs.owner);
 		}
 	}
 

@@ -40,6 +40,9 @@ int gpio_to_irq(unsigned gpio);
 
 #define GPIOIRQF_SHARED         0x00000001 /* the irq line is shared with other inputs */
 
+#define GPIOF_OWNER_ARM9        0x00200000 /* Set owner to arm9 */
+#define GPIOF_OWNER_ARM11       0x00400000 /* Set owner to arm11 */
+
 struct msm_gpio_config {
         unsigned gpio:10;
         unsigned dir:1;

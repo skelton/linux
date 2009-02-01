@@ -97,4 +97,11 @@
 #define GPIO_INT_STATUS_4  GPIO1_REG(0xAC)
 #define GPIO_INT_STATUS_5  GPIO1_REG(0xB0)
 
+#define GPIO_OWNER_0       GPIO1_REG(0x100)
+#define GPIO_OWNER_1       GPIO2_REG(0x504)
+#define GPIO_OWNER_2       GPIO1_REG(0x108)
+#define GPIO_OWNER_3       GPIO1_REG(0x10c)
+#define GPIO_OWNER_4       GPIO1_REG(0x110)
+#define GPIO_OWNER_5       GPIO1_REG(0x114)
+
 #endif
