@@ -291,6 +291,9 @@ static void __init halibut_init_mmc(void)
 
 static void __init halibut_init(void)
 {
+	int i;
+	struct msm_dex_command vibra = { .cmd = 0, };
+
 	// Fix data in arrays depending on GSM/CDMA version
 	htcdiamond_device_specific_fixes();
 
@@ -313,13 +316,14 @@ static void __init halibut_init(void)
 	msm_hsusb_set_vbus_state(1);
 
 	/* A little vibrating welcome */
-	msm_proc_comm_wince(PCOM_PMIC_VIBRA_ON, 0, 0);
-	mdelay(150);
-	msm_proc_comm_wince(PCOM_PMIC_VIBRA_OFF, 0, 0);
-	mdelay(75);
-	msm_proc_comm_wince(PCOM_PMIC_VIBRA_ON, 0, 0);
-	mdelay(150);
-	msm_proc_comm_wince(PCOM_PMIC_VIBRA_OFF, 0, 0);
+	for (i=0; i<2; i++) {
+		vibra.cmd = PCOM_VIBRA_ON;
+		msm_proc_comm_wince(&vibra, 0);
+		mdelay(150);
+		vibra.cmd = PCOM_VIBRA_OFF;
+		msm_proc_comm_wince(&vibra, 0);
+		mdelay(75);
+	}
 }
 
 static void __init halibut_map_io(void)

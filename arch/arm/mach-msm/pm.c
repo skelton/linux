@@ -424,7 +424,8 @@ static void msm_pm_power_off(void)
 	printk("power down\n");
 	if (msm_hw_reset_hook)
 		msm_hw_reset_hook();
-	msm_proc_comm_wince(PCOM_POWER_OFF, 0, 0);
+	else
+		printk(KERN_ERR "No msm_hw_reset_hook() available! System halted.\n");
 #else
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 #endif
@@ -438,9 +439,10 @@ static void msm_pm_restart(char str)
 	 * reset command.
 	 */
 #ifdef CONFIG_MSM_AMSS_VERSION_WINCE
-	printk("Soft reset\n");
 	if (msm_hw_reset_hook)
 		msm_hw_reset_hook();
+	else
+		printk(KERN_ERR "No msm_hw_reset_hook() available! System halted.\n");
 #else
 	if ((restart_reason == 0x776655AA) && msm_hw_reset_hook) {
 		msm_hw_reset_hook();

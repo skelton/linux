@@ -140,6 +140,14 @@
 #define MSM_SDC4_PHYS         0xA0700000
 #define MSM_SDC4_SIZE         SZ_4K
 
+#define MSM_GPIOCFG1_BASE     IOMEM(0xE1004000)
+#define MSM_GPIOCFG1_PHYS     0xA9000000
+#define MSM_GPIOCFG1_SIZE     SZ_4K
+
+#define MSM_GPIOCFG2_BASE     IOMEM(0xE1005000)
+#define MSM_GPIOCFG2_PHYS     0xA9100000
+#define MSM_GPIOCFG2_SIZE     SZ_4K
+
 #define MSM_TS_BASE           IOMEM(0xE1008000)
 #define MSM_TS_PHYS           0xAA300000
 #define MSM_TS_SIZE           SZ_4K

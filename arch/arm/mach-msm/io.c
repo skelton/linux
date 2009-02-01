@@ -65,6 +65,8 @@ static struct map_desc msm_io_desc[] __initdata = {
         MSM_DEVICE(SDC2),
         MSM_DEVICE(SDC3),
         MSM_DEVICE(SDC4),
+        MSM_DEVICE(GPIOCFG1),
+        MSM_DEVICE(GPIOCFG2),
 	MSM_DEVICE(TS),
 };
 

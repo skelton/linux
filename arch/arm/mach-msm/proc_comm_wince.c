@@ -17,6 +17,8 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/module.h>
+#include <linux/gpio.h>
 #include <linux/spinlock.h>
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
@@ -36,11 +38,15 @@ static inline void notify_other_proc_comm(void)
 #define PC_STATUS       0x04
 #define PC_SERIAL       0x08
 #define PC_SERIAL_CHECK 0x0C
+#define PC_DATA         0x20
+#define PC_DATA_RESULT  0x24
 
-#define PC_DATA1        0x20
-#define PC_DATA_RESULT1 0x24
-#define PC_DATA2        0x30
-#define PC_DATA_RESULT2 0x34
+#if (PC_DEBUG > 0)
+ #define DDEX(fmt, arg...) printk(KERN_DEBUG "[DEX] %s: " fmt "\n", __FUNCTION__, ## arg)
+#else
+ #define DDEX(fmt, arg...) do {} while (0)
+#endif
+
 
 static DEFINE_SPINLOCK(proc_comm_lock);
 
@@ -51,33 +57,7 @@ int (*msm_check_for_modem_crash)(void);
 
 #define TIMEOUT (10000000) /* 10s in microseconds */
 
-/* Poll for a state change, checking for possible
- * modem crashes along the way (so we don't wait
- * forever while the ARM9 is blowing up.
- *
- * Return an error in the event of a modem crash and
- * restart so the msm_proc_comm() routine can restart
- * the operation from the beginning.
- */
-static int proc_comm_wince_wait_for(unsigned addr, unsigned value)
-{
-	unsigned timeout = TIMEOUT;
-
-	do {
-		if (readl(addr) == value)
-			return 0;
-
-		if (msm_check_for_modem_crash)
-			if (msm_check_for_modem_crash())
-				return -EAGAIN;
-
-		udelay(1);
-	} while (--timeout != 0);
-	printk(KERN_WARNING "proc_comm_wince_wait_for: timed out\n");
-	return -EAGAIN;
-}
-
-int msm_proc_comm_wince(unsigned cmd, unsigned *data1, unsigned *data2)
+int msm_proc_comm_wince(struct msm_dex_command * in, unsigned *out)
 {
 #if !defined(CONFIG_MSM_AMSS_VERSION_WINCE)
   #warning NON-WinCE compatible AMSS version selected. WinCE proc_comm implementation is disabled and stubbed to return -EIO.
@@ -88,85 +68,88 @@ int msm_proc_comm_wince(unsigned cmd, unsigned *data1, unsigned *data2)
 	unsigned timeout;
 	unsigned status;
 	unsigned num;
-	int ret;
+	unsigned base_cmd, base_status;
 
 	spin_lock_irqsave(&proc_comm_lock, flags);
 
-#if defined(PC_DEBUG) && PC_DEBUG
-	printk(KERN_INFO "%s: waiting for modem; command=0x%08x "
-		"data1=0x%08x, data2=0x%08x\n", __func__, cmd, data1 ? *data1 : 0,
-		data2 ? *data2 : 0);
-#endif
+	DDEX("waiting for modem; command=0x%02x data=0x%x", in->cmd, in->data);
 
-	if (proc_comm_wince_wait_for(base + PC_STATUS, 0))
-	{
-		printk(KERN_ERR "%s: timed out waiting for PCOMCE_CMD_READY\n", __func__);
-		return -EIO;
-	}
+	// Store original cmd byte
+	base_cmd = in->cmd & 0xff;
 
-#if defined(PC_DEBUG) && PC_DEBUG
-	printk(KERN_INFO "%s: PCOM ready, sending command.\n", __func__);
-#endif	
-	writel(cmd, base + PC_COMMAND);
-	if ( (data1 && *data1) || (data2 && *data2) )
+	// Write only lowest byte
+	writeb(base_cmd, base + PC_COMMAND);
+
+	// If we have data to pass, add 0x100 bit and store the data
+	if ( in->has_data )
 	{
-		writel(cmd | 0x100, base + PC_COMMAND);
+		writel(readl(base + PC_COMMAND) | DEX_HAS_DATA, base + PC_COMMAND);
+		writel(in->data, base + PC_DATA);
+	} else {
+		writel(readl(base + PC_COMMAND) & ~DEX_HAS_DATA, base + PC_COMMAND);
+		writel(0, base + PC_DATA);
 	}
 	
+	// Increment last serial counter
 	num = readl(base + PC_SERIAL) + 1;
 	writel(num, base + PC_SERIAL);
-	
-	writel(data1 ? *data1 : 0, base + PC_DATA1);
-	writel(data2 ? *data2 : 0, base + PC_DATA2);
 
-#if defined(PC_DEBUG) && PC_DEBUG
-	printk(KERN_INFO "%s: command and data sent (id=0x%x) ...\n", __func__, num);
-#endif
+	DDEX("command and data sent (cntr=0x%x) ...", num);
+
+	// Notify ARM9 with int6
 	notify_other_proc_comm();
 
+	// Wait for response...  XXX: check irq stat?
 	timeout = TIMEOUT;
 	while ( --timeout && readl(base + PC_SERIAL_CHECK) != num )
 		udelay(1);
 
 	if ( ! timeout )
 	{
-		printk(KERN_ERR "%s: command timed out waiting for modem response. "
-			"status=0x%08x\n", __func__,  readl(base + PC_STATUS));
-		writel(0, base + PC_STATUS);
-		writel(0, base + PC_COMMAND);
-		return -EIO;
+		printk(KERN_WARNING "%s: DEX cmd timed out. status=0x%x, A2Mcntr=%x, M2Acntr=%x\n", 
+			__func__, readl(base + PC_STATUS), num, readl(base + PC_SERIAL_CHECK));
+		goto end;
 	}
 	
-	
+	DDEX("command result status = 0x%08x", readl(base + PC_STATUS));
+
+	// Read status of command
 	status = readl(base + PC_STATUS);
-#if defined(PC_DEBUG) && PC_DEBUG
-	printk(KERN_INFO "%s: command status = 0x%08x\n", __func__, status);
-#endif
-	status ^= cmd;
-	writel( status, base + PC_STATUS);
-	
-	if ( status == 0x100 || status == 0 )
+	writeb(0, base + PC_STATUS);
+	base_status = status & 0xff;
+	DDEX("status new = 0x%x; status base = 0x%x", 
+		readl(base + PC_STATUS), base_status);
+
+
+	if ( base_status == base_cmd )
 	{
-		if (data1)
-			*data1 = readl(base + PC_DATA_RESULT1);
-		if (data2)
-			*data2 = readl(base + PC_DATA_RESULT2);
-		ret = 0;
-#if defined(PC_DEBUG) && PC_DEBUG
-		printk(KERN_INFO "%s: success. data1=0x%08x, data2=0x%08x\n", __func__, data1 ? *data1 : 0, data2 ? *data2 : 0);
-#endif
+		if ( status & DEX_STATUS_FAIL )
+		{
+			DDEX("DEX cmd failed; status=%x, result=%x",
+				readl(base + PC_STATUS),
+				readl(base + PC_DATA_RESULT));
+
+			writel(readl(base + PC_STATUS) & ~DEX_STATUS_FAIL, base + PC_STATUS);
+		}
+		else if ( status & DEX_HAS_DATA )
+		{
+			writel(readl(base + PC_STATUS) & ~DEX_HAS_DATA, base + PC_STATUS);
+			if (out)
+				*out = readl(base + PC_DATA_RESULT);
+			DDEX("DEX output data = 0x%x", 
+				readl(base + PC_DATA_RESULT));
+		}
 	} else {
-		ret = -EIO;
+		printk(KERN_WARNING "%s: DEX Code not match! a2m[0x%x], m2a[0x%x], a2m_num[0x%x], m2a_num[0x%x]\n", 
+			__func__, base_cmd, base_status, num, readl(base + PC_SERIAL_CHECK));
 	}
 
+end:
+	writel(0, base + PC_DATA_RESULT);
 	writel(0, base + PC_STATUS);
-	writel(0, base + PC_DATA1);
-	writel(0, base + PC_DATA2);
-	writel(0, base + PC_DATA_RESULT1);
-	writel(0, base + PC_DATA_RESULT2);
-	
+
 	spin_unlock_irqrestore(&proc_comm_lock, flags);
-	return ret;
+	return 0;
 #endif
 }
 
@@ -175,7 +158,6 @@ int msm_proc_comm_wince(unsigned cmd, unsigned *data1, unsigned *data2)
 int msm_proc_comm_wince_init()
 {
 #if !defined(CONFIG_MSM_AMSS_VERSION_WINCE)
-  #warning NON-WinCE compatible AMSS version selected. WinCE proc_comm implementation is disabled and stubbed to return -EIO.
         return 0;
 #else
 	unsigned base = (unsigned)(MSM_SHARED_RAM_BASE + 0xfc100);
@@ -183,14 +165,11 @@ int msm_proc_comm_wince_init()
 
 	spin_lock_irqsave(&proc_comm_lock, flags);
 
-	writel(0, base + PC_DATA1);
-	writel(0, base + PC_DATA2);
-	writel(0, base + PC_DATA_RESULT1);
-	writel(0, base + PC_DATA_RESULT2);
+	writel(0, base + PC_DATA);
+	writel(0, base + PC_DATA_RESULT);
 	writel(0, base + PC_SERIAL);
 	writel(0, base + PC_SERIAL_CHECK);
 	writel(0, base + PC_STATUS);
-	writel(0, base + PC_COMMAND);
 
 	spin_unlock_irqrestore(&proc_comm_lock, flags);
 	printk(KERN_INFO "%s: WinCE PCOM initialized.\n", __func__);

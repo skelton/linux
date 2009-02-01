@@ -19,6 +19,9 @@
 // PCOM_* research taken from http://wiki.xda-developers.com/index.php?pagename=RaphaelDEX
 // Research by cr2
 
+#define DEX_HAS_DATA    0x100
+#define DEX_STATUS_FAIL 0x200
+
 enum {
 	PCOM_PMIC_WLAN_ON = 0x2,
 	PCOM_PMIC_WLAN_OFF = 0x3,
@@ -76,7 +79,50 @@ enum {
 	PCOM_FOTA_WRITE = 0xa5,
 };
 
-int msm_proc_comm_wince(unsigned cmd, unsigned *data1, unsigned *data2);
+/* Constants for PCOM_GPIO_CFG */
+
+// ??
+#define GPIO_ENABLE     0
+#define GPIO_DISABLE    1
+
+// .dir (1b)
+#define GPIO_INPUT      0
+#define GPIO_OUTPUT     1
+
+// .pull (2b)
+#define GPIO_NO_PULL    0
+#define GPIO_PULL_DOWN  1
+#define GPIO_KEEPER     2
+#define GPIO_PULL_UP    3
+
+// .drvstr (4b)
+#define GPIO_2MA        0
+#define GPIO_4MA        1
+#define GPIO_6MA        2
+#define GPIO_8MA        3
+#define GPIO_10MA       4
+#define GPIO_12MA       5
+#define GPIO_14MA       6
+#define GPIO_16MA       7
+
+struct msm_dex_command {
+	char cmd;
+	char has_data;
+	unsigned data;
+};
+
+#define DEX_GPIO_CFG(a, b, c, d, e, f) { \
+		.gpio = (a), \
+		.dir = (c), \
+		.out_op = (f), \
+		.config = { \
+			.pull = (d), \
+			.func = (b), \
+			.drvstr = (e) \
+		} \
+	}
+
+int msm_proc_comm_wince(struct msm_dex_command *in, unsigned *out);
 int msm_proc_comm_wince_init(void);
 
 #endif

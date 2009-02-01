@@ -18,7 +18,9 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
+#include <linux/io.h>
 #include <mach/vreg.h>
+#include <mach/msm_iomap.h>
 
 #if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
 #include "proc_comm_wince.h"
@@ -72,7 +74,10 @@ struct vreg *vreg_get(struct device *dev, const char *id)
 	int n;
 	for (n = 0; n < ARRAY_SIZE(vregs); n++) {
 		if (!strcmp(vregs[n].name, id))
+		{
+			printk(KERN_DEBUG "vreg_get: %s -> %d\n", id, vregs[n].id);
 			return vregs + n;
+		}
 	}
 	return 0;
 }
@@ -85,11 +90,15 @@ int vreg_enable(struct vreg *vreg)
 {
 	unsigned id = vreg->id;
 #if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+	struct msm_dex_command dex;
 	id = 1U << id;
-        return msm_proc_comm_wince(PCOM_PMIC_REG_ON, &id, 0);
+	dex.cmd = PCOM_PMIC_REG_ON;
+	dex.has_data = 1;
+	dex.data = id;
+	return msm_proc_comm_wince(&dex, 0);
 #else
-        unsigned enable = 1;
-        return msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+	unsigned enable = 1;
+	return msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
 #endif
 }
 
@@ -97,11 +106,15 @@ void vreg_disable(struct vreg *vreg)
 {
 	unsigned id = vreg->id;
 #if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+	struct msm_dex_command dex;
 	id = 1U << id;
-        msm_proc_comm_wince(PCOM_PMIC_REG_OFF, &id, 0);
+	dex.cmd = PCOM_PMIC_REG_OFF;
+	dex.has_data = 1;
+	dex.data = id;
+	msm_proc_comm_wince(&dex, 0);
 #else
-        unsigned enable = 0;
-        msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+	unsigned enable = 0;
+	msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
 #endif
 }
 
@@ -109,10 +122,16 @@ int vreg_set_level(struct vreg *vreg, unsigned mv)
 {
 	unsigned id = vreg->id;
 #if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
-	id = 1U << id;
-        return msm_proc_comm_wince(PCOM_PMIC_REG_VOLTAGE, &id, &mv);
+	struct msm_dex_command dex = { 
+		.cmd = PCOM_PMIC_REG_VOLTAGE,
+		.has_data = 1, 
+		.data = (1U << id) };
+	// This reg appears to only be used by vreg_set_level()
+	writel(mv, MSM_SHARED_RAM_BASE + 0xfc130);
+	printk(KERN_DEBUG "vreg_set_level %d -> %u\n", id, mv);
+	return msm_proc_comm_wince(&dex, 0);
 #else
-        return msm_proc_comm(PCOM_VREG_SET_LEVEL, &id, &mv);
+	return msm_proc_comm(PCOM_VREG_SET_LEVEL, &id, &mv);
 #endif
 }
 

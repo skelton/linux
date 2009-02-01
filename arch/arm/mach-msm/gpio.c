@@ -36,6 +36,8 @@ module_param_named(debug_mask, msm_gpio_debug_mask, int, S_IRUGO | S_IWUSR | S_I
 #define MSM_GPIOF_ENABLE_WAKE           0x40000000
 #define MSM_GPIOF_DISABLE_WAKE          0x80000000
 
+static DEFINE_SPINLOCK(msm_gpio_lock);
+
 static int msm_gpio_configure(struct gpio_chip *chip, unsigned int gpio, unsigned long flags);
 static int msm_gpio_get_irq_num(struct gpio_chip *chip, unsigned int gpio, unsigned int *irqp, unsigned long *irqnumflagsp);
 static int msm_gpio_read(struct gpio_chip *chip, unsigned n);
@@ -505,6 +507,38 @@ void msm_gpio_exit_sleep(void)
 			      smem_gpio->num_fired[0], smem_gpio->num_fired[1]);
 		tasklet_schedule(&msm_gpio_sleep_int_tasklet);
 	}
+}
+
+void msm_gpio_set_function(struct msm_gpio_config cfg)
+{
+        unsigned addr;
+        unsigned *config;
+        unsigned long flags;
+        spin_lock_irqsave(&msm_gpio_lock, flags);
+
+        if (cfg.gpio < 16 || cfg.gpio > 42)
+                addr = (unsigned)(MSM_GPIOCFG1_BASE + 0x20);
+        else
+                addr = (unsigned)(MSM_GPIOCFG2_BASE + 0x410);
+
+        if ( ! addr || ! (addr+0x04) )
+        {
+                printk(KERN_WARNING "%s: could not find addr\n", __func__);
+                spin_unlock_irqrestore(&msm_gpio_lock, flags);
+                return;
+        }
+
+        writel(cfg.gpio, addr);
+
+        config = (unsigned *) &cfg.config;
+        writel(*config, addr + 0x04);
+        if (readl(addr) != cfg.gpio)
+                printk(KERN_WARNING "%s: could not set alt func %u => %u\n", __func__, cfg.gpio, cfg.config.func);
+        if (cfg.dir)
+                gpio_direction_output(cfg.gpio, cfg.out_op);
+        else
+                gpio_direction_input(cfg.gpio);
+        spin_unlock_irqrestore(&msm_gpio_lock, flags);
 }
 
 static int __init msm_init_gpio(void)

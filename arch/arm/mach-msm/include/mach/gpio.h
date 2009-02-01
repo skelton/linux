@@ -40,8 +40,21 @@ int gpio_to_irq(unsigned gpio);
 
 #define GPIOIRQF_SHARED         0x00000001 /* the irq line is shared with other inputs */
 
+struct msm_gpio_config {
+        unsigned gpio:10;
+        unsigned dir:1;
+        unsigned out_op;
+        struct {
+                unsigned pull:2;
+                unsigned func:4;
+                unsigned drvstr:4;
+                unsigned ignore:11;
+        } config __attribute__((__packed__));
+} __attribute__((__packed__));
+
 extern int gpio_configure(unsigned int gpio, unsigned long flags);
 extern int gpio_read_detect_status(unsigned int gpio);
 extern int gpio_clear_detect_status(unsigned int gpio);
+extern void msm_gpio_set_function(struct msm_gpio_config cfg);
 
 #endif
