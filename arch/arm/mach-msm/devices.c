@@ -435,3 +435,9 @@ struct platform_device msm_device_mdp = {
 	.num_resources = ARRAY_SIZE(resources_mdp),
 	.resource = resources_mdp,
 };
+
+struct platform_device msm_device_rtc = {
+	.name = "msm_rtc",
+	.id = -1,
+};
+
