@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
@@ -24,39 +25,84 @@ static int micropklt_write(struct i2c_client *, const char *, int);
 
 #define MODULE_NAME "microp-klt"
 
+#define MICROP_DEBUG 0
+
 static struct microp_klt {
 	struct i2c_client *client;
 	struct mutex lock;
 	u16 led_states;
 	unsigned short version;
+	struct led_classdev leds[MICROP_KLT_LED_CNT];
 } * micropklt_t;
 
-int micropklt_set_ksc_notifications(int on)
+static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
+                                         enum led_brightness brightness)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	char buffer[3] = "\0\0\0";
-	int r;
-	
-	data = micropklt_t;
-	if (!data) return -EAGAIN;
+	char buffer[4] = { 0, 0, 0, 0 };
+	int idx, b, state;
+
+	if ( !strcmp(led_cdev->name, "klt::home") )
+		idx = 0;
+	else if ( !strcmp(led_cdev->name, "klt::back") )
+		idx = 1;
+	else if ( !strcmp(led_cdev->name, "klt::end") )
+		idx = 2;
+	else if ( !strcmp(led_cdev->name, "klt::send") )
+		idx = 3;
+	else if ( !strcmp(led_cdev->name, "klt::action") )
+		idx = 4;
+	else if ( !strcmp(led_cdev->name, "klt::lcd-backlight") )
+		idx = 5;
+	else if ( !strcmp(led_cdev->name, "klt::keypad-backlight") )
+		idx = 6;
+	else
+		return;
+
+	data = container_of(led_cdev, struct microp_klt, leds[idx]);
 	client = data->client;
 
 	mutex_lock(&data->lock);
-	
-	buffer[0] = MICROP_KLT_ID_KSC_NOTIFICATIONS;
-	buffer[1] = !!on;
-	
-	r = micropklt_write(client, buffer, 2);
-	if (r < 0)
-	{
-		printk(KERN_WARNING MODULE_NAME ": Error while setting KSC notification state: %u\n", r);
+
+	state = data->led_states;
+
+	// idx 5 and 6 are bits 13 and 14
+	if ( idx > 4 )
+		idx += 8;
+
+	b = 1U << idx;
+
+	if ( brightness == LED_OFF ) {
+		state &= ~b;
+	} else {
+
+		// lcd-backlight lets us do varied brightness
+		if ( idx == 5 ) {
+
+			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
+			buffer[1] = 0xff & brightness;
+			buffer[2] = 0xff & (brightness >> 8);
+
+			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x%02x\n", 
+				led_cdev->name, buffer[2], buffer[1]);
+			micropklt_write(client, buffer, 3);
+		}
+
+		state |= b;
 	}
 
+	if ( data->led_states != state ) {
+		buffer[0] = MICROP_KLT_ID_LED_STATE;
+		buffer[1] = 0xff & state;
+		buffer[2] = 0xff & (state >> 8);
+		data->led_states = state;
+	}
+
+	micropklt_write(client, buffer, 3);
+
 	mutex_unlock(&data->lock);
-	return r;
 }
-EXPORT_SYMBOL(micropklt_set_ksc_notifications);
 
 int micropklt_set_led_states(unsigned state)
 {
@@ -68,15 +114,15 @@ int micropklt_set_led_states(unsigned state)
 	data = micropklt_t;
 	if (!data) return -EAGAIN;
 	client = data->client;
-	
+
 	mutex_lock(&data->lock);
-	
+
 	buffer[0] = MICROP_KLT_ID_LED_STATE;
 	buffer[1] = 0xff & state;
 	buffer[2] = 0xff & (state >> 8);
-	
+
 	data->led_states = 0xffff & state;
-	
+
 	r = micropklt_write(client, buffer, 3);
 	mutex_unlock(&data->lock);
 	return r;
@@ -93,9 +139,9 @@ int micropklt_set_lcd_state(int on)
 	
 	if (on)
 	{
-		state = data->led_states | MICROP_KLT_LCD_BIT;
+		state = data->led_states | (1U << MICROP_KLT_BKL_LCD);
 	} else {
-		state = data->led_states & ~MICROP_KLT_LCD_BIT;
+		state = data->led_states & ~ (1U << MICROP_KLT_BKL_LCD);
 	}
 	r = micropklt_set_led_states(state);
 	return r;
@@ -109,6 +155,14 @@ static int micropklt_remove(struct i2c_client * client)
 	data = i2c_get_clientdata(client);
 	
 	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES);
+
+        led_classdev_unregister(&data->leds[0]);
+        led_classdev_unregister(&data->leds[1]);
+        led_classdev_unregister(&data->leds[2]);
+        led_classdev_unregister(&data->leds[3]);
+        led_classdev_unregister(&data->leds[4]);
+        led_classdev_unregister(&data->leds[5]);
+        led_classdev_unregister(&data->leds[6]);
 
 	kfree(data);
 	micropklt_t = NULL;
@@ -192,32 +246,102 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		r = -ENOTSUPP;
 		goto fail;
 	}
+	
+	data->led_states = MICROP_KLT_DEFAULT_LED_STATES;
+
+	data->leds[0].name = "klt::home";
+	data->leds[0].brightness = LED_OFF;
+	data->leds[0].brightness_set = micropklt_led_brightness_set;
+
+	data->leds[1].name = "klt::back";
+	data->leds[1].brightness = LED_OFF;
+	data->leds[1].brightness_set = micropklt_led_brightness_set;
+
+	data->leds[2].name = "klt::end";
+	data->leds[2].brightness = LED_OFF;
+	data->leds[2].brightness_set = micropklt_led_brightness_set;
+
+	data->leds[3].name = "klt::send";
+	data->leds[3].brightness = LED_OFF;
+	data->leds[3].brightness_set = micropklt_led_brightness_set;
+
+	data->leds[4].name = "klt::action";
+	data->leds[4].brightness = LED_OFF;
+	data->leds[4].brightness_set = micropklt_led_brightness_set;
+
+	data->leds[5].name = "klt::lcd-backlight";
+	data->leds[5].brightness = 0x90;
+	data->leds[5].brightness_set = micropklt_led_brightness_set;
+
+	data->leds[6].name = "klt::keypad-backlight";
+	data->leds[6].brightness = LED_OFF;
+	data->leds[6].brightness_set = micropklt_led_brightness_set;
+
+        r = led_classdev_register(&client->dev, &data->leds[0]);
+        if (r < 0) {
+                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
+                goto err_led0_classdev_register_failed;
+        }
+
+        r = led_classdev_register(&client->dev, &data->leds[1]);
+        if (r < 0) {
+                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
+                goto err_led1_classdev_register_failed;
+        }
+
+        r = led_classdev_register(&client->dev, &data->leds[2]);
+        if (r < 0) {
+                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
+                goto err_led2_classdev_register_failed;
+        }
+
+        r = led_classdev_register(&client->dev, &data->leds[3]);
+        if (r < 0) {
+                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
+                goto err_led3_classdev_register_failed;
+        }
+
+        r = led_classdev_register(&client->dev, &data->leds[4]);
+        if (r < 0) {
+                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
+                goto err_led4_classdev_register_failed;
+        }
+
+        r = led_classdev_register(&client->dev, &data->leds[5]);
+        if (r < 0) {
+                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
+                goto err_led5_classdev_register_failed;
+        }
+
+        r = led_classdev_register(&client->dev, &data->leds[6]);
+        if (r < 0) {
+                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
+                goto err_led6_classdev_register_failed;
+        }
 
 	mutex_unlock(&data->lock);
 
-#if 0
-// Do this via timer?
-	// A nice test sequence to run through the LEDs
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES | MICROP_KLT_LED_HOME);
-	mdelay(100);
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES | MICROP_KLT_LED_BACK);
-	mdelay(100);
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES | MICROP_KLT_LED_END);
-	mdelay(100);
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES | MICROP_KLT_LED_SEND);
-	mdelay(100);
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES | MICROP_KLT_LED_HOME |
-	                         MICROP_KLT_LED_BACK | MICROP_KLT_LED_END |
-	                         MICROP_KLT_LED_SEND | MICROP_KLT_SYSLED_ROTATE);
-	mdelay(500);
-#endif
-
 	// Set default LED state
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES);	
+	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES);
 
-	printk(MODULE_NAME ": Initialized MicroP-LED chip revision v%04x\n", data->version);
+	printk(KERN_INFO MODULE_NAME ": Initialized MicroP-LED chip revision v%04x\n", data->version);
 
 	return 0;
+
+err_led6_classdev_register_failed:
+        led_classdev_unregister(&data->leds[6]);
+err_led5_classdev_register_failed:
+        led_classdev_unregister(&data->leds[5]);
+err_led4_classdev_register_failed:
+        led_classdev_unregister(&data->leds[4]);
+err_led3_classdev_register_failed:
+        led_classdev_unregister(&data->leds[3]);
+err_led2_classdev_register_failed:
+        led_classdev_unregister(&data->leds[2]);
+err_led1_classdev_register_failed:
+        led_classdev_unregister(&data->leds[1]);
+err_led0_classdev_register_failed:
+        led_classdev_unregister(&data->leds[0]);
 fail:
 	kfree(data);
 	return r;

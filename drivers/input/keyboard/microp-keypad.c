@@ -30,11 +30,12 @@
 
 #define MODULE_NAME "microp-keypad"
 
-extern int micropklt_set_ksc_notifications(int on);
-extern int micropklt_set_led_state(unsigned short state);
+#define MICROP_DEBUG 0
 
 extern int micropksc_read_scancode(unsigned char *scancode, unsigned char *isdown);
+extern int micropksc_set_led(unsigned int led, int value);
 
+static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 
 // This is raph800's default keymap.  can be remapped by userland
 static int microp_keymap[] = {
@@ -90,7 +91,7 @@ static int microp_keymap[] = {
         KEY_RESERVED, // 0x31
         KEY_RESERVED, // 0x32
         KEY_FN,
-        KEY_TEXT,     // TXT/SMS
+        KEY_COMPOSE,  // TXT/SMS
         KEY_MINUS,
         KEY_UNKNOWN,  // SYM/Data
         KEY_SPACE,
@@ -164,26 +165,27 @@ static void microp_keypad_work(struct work_struct *work)
 
 	mutex_lock(&data->lock);
 	
-	micropksc_read_scancode(&key, &isdown);
-	if (key != 0)
+	do
 	{
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-		printk(KERN_INFO " :::   Scancode = %02x; currently pressed: %01x\n", key, isdown);
-#endif
-		if (key < ARRAY_SIZE(microp_keymap))
+		micropksc_read_scancode(&key, &isdown);
+		if (key != 0)
 		{
-			input_report_key(data->input, microp_keymap[key], isdown);
-			input_event(data->input, EV_MSC, MSC_SCAN, key);
-			input_sync(data->input);
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
-			printk(KERN_INFO "       Input keycode = %d, scancode = %d\n", microp_keymap[key], key);
+			printk(KERN_INFO " :::   Scancode = %02x; currently pressed: %01x\n", key, isdown);
 #endif
-			//XXX: do we need multiple keys?  break here?
+			// Allow input subsystem to use a scancode even if our keymap doesn't define it
+			input_event(data->input, EV_MSC, MSC_SCAN, key);
+			
+			if (key < ARRAY_SIZE(microp_keymap))
+			{
+				input_report_key(data->input, microp_keymap[key], isdown);
+				input_sync(data->input);
+#if defined(MICROP_DEBUG) && MICROP_DEBUG
+				printk(KERN_INFO "       Input keycode = %d, scancode = %d\n", microp_keymap[key], key);
+#endif
+			}
 		}
-	}
-
-	/* REQUEST_NOTIFICATIONS */
-	micropklt_set_ksc_notifications(1);
+	} while ( key != 0 );
 
 	mutex_unlock(&data->lock);
 
@@ -201,8 +203,6 @@ static int microp_keypad_remove(struct platform_device *pdev)
 	if (pdata->backlight_gpio > 0)
 		gpio_set_value(pdata->backlight_gpio, 0);
 
-	micropklt_set_ksc_notifications(0);
-
 	if (data->keypress_irq > 0)
 		free_irq(data->keypress_irq, data);
 
@@ -219,13 +219,31 @@ static int microp_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+{
+	unsigned int led;
+	if (type == EV_LED)
+	{
+		switch (code)
+		{
+			case LED_CAPSL:
+				led = MICROP_KSC_LED_CAPS; break;
+			case LED_MISC:
+				led = MICROP_KSC_LED_FN; break;
+			default:
+				return -1;
+		}
+		return micropksc_set_led(led, value);
+	}
+	return -1;
+}
+
 static int microp_keypad_probe(struct platform_device *pdev)
 {
 	struct microp_keypad *data;
 	struct input_dev *input = NULL;
 	struct microp_keypad_platform_data *pdata = pdev->dev.platform_data;
 	int r, i;
-	unsigned char key;
 	
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP keypad driver\n");
 
@@ -244,10 +262,25 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	if (!input)
 		goto fail;
 	input->name = MODULE_NAME;
+
+	// Tell input subsystem we can provide KEYs
 	set_bit(EV_KEY, input->evbit);
+
+	// Tell input subsystem we can set our own LEDs
+	set_bit(EV_LED, input->evbit);
+	set_bit(LED_CAPSL, input->ledbit);
+	set_bit(LED_MISC, input->ledbit); // Fn-lock?
+
+	// Tell input subsystem to handle auto-repeat of keys for us
+	set_bit(EV_REP, input->evbit);
+
+	// Tell input subsystem we can provide overridable scancodes
 	set_bit(EV_MSC, input->evbit);
 	set_bit(MSC_SCAN, input->mscbit);
-	
+
+	// Use our handler for LED-set callbacks
+	input->event = microp_keypad_led_event;
+
 	input->keycodesize = sizeof(microp_keymap[0]);
 	input->keycodemax = ARRAY_SIZE(microp_keymap);
 	input->keycode = microp_keymap;
@@ -296,10 +329,6 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	{
 		data->clamshell_open = !!gpio_get_value(pdata->clamshell.gpio);
 		printk(KERN_INFO MODULE_NAME ": Clamshell status: %d\n", data->clamshell_open);
-		//TODO: set this to 0, and only enable when keypad is open
-		micropklt_set_ksc_notifications(1);
-	} else {
-		micropklt_set_ksc_notifications(1);
 	}
 
 	//TODO: turn this off; on keypress, turn it on, with timeout delay after last keypress to turn it off

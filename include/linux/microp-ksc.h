@@ -2,11 +2,14 @@
 #define MICROP_KSC_RELEASED_BIT 0x80
 #define MICROP_KSC_SCANCODE_MASK (MICROP_KSC_RELEASED_BIT - 1)
 
-#define MICROP_KSC_ID_SCANCODE 0x10
-#define MICROP_KSC_ID_MODIFIER 0x11
-#define MICROP_KSC_ID_VERSION  0x12
-//XXX: This has more functions than just reset.. Rename when those other functions are identified
-#define MICROP_KSC_ID_RESET    0x13
+#define MICROP_KSC_ID_SCANCODE	0x10
+#define MICROP_KSC_ID_MODIFIER	0x11
+#define MICROP_KSC_ID_VERSION	0x12
+#define MICROP_KSC_ID_LED	0x13
 
-extern int micropklt_set_ksc_notifications(int on);
-
+enum {
+	MICROP_KSC_LED_RESET,	// Resets LEDs to off
+	MICROP_KSC_LED_CAPS,	// Caps Lock
+	MICROP_KSC_LED_FN,	// FN lock
+	MICROP_KSC_LED_MAX,
+};

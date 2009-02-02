@@ -16,7 +16,7 @@
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
-
+#include <linux/workqueue.h> /* for keyboard LED worker */
 #include <linux/microp-ksc.h>
 
 
@@ -31,6 +31,8 @@ static struct microp_ksc {
 	struct i2c_client *client;
 	struct mutex lock;
 	unsigned short version;
+	unsigned led_state:2;
+	struct work_struct work;
 } * micropksc_t;
 
 int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
@@ -62,13 +64,6 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 	//TODO: Find out what channel 0x11 is for
 	micropksc_read(client, MICROP_KSC_ID_MODIFIER, buffer, 2);
 
-	/* IOCTL_KEYPAD_REQUEST_KEYPAD_NOTIFICATIONS */
-	micropklt_set_ksc_notifications(1);
-
-	//XXX: Why do we have to do this a second time?
-	micropksc_read(client, MICROP_KSC_ID_SCANCODE, buffer, 2);
-	micropksc_read(client, MICROP_KSC_ID_MODIFIER, buffer, 2);
-
 	if (outkey)
 		*outkey = key;
 	if (outdown)
@@ -80,25 +75,45 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 }
 EXPORT_SYMBOL(micropksc_read_scancode);
 
-int micropksc_reset(void)
+int micropksc_set_led(unsigned int led, int on)
 {
 	struct microp_ksc *data;
-	struct i2c_client *client;
-	char buffer[3] = { MICROP_KSC_ID_RESET, 0x16, 0 };
-
-	int r;
+	
+	if (led >= MICROP_KSC_LED_MAX)
+	{
+		return -EINVAL;
+	}
 	
 	data = micropksc_t;
-	client = data->client;
-
+	
 	mutex_lock(&data->lock);
-	r = micropksc_write(client, buffer, 2);
-	printk(KERN_INFO MODULE_NAME ": reset\n");
-	mutex_unlock(&data->lock);
 
-	return r;
+	if (led == MICROP_KSC_LED_RESET) {
+		data->led_state = 0;
+	} else if (on) {
+		data->led_state |= led;
+	} else {
+		data->led_state &= ~led;
+	}
+
+	schedule_work(&data->work);
+
+	mutex_unlock(&data->lock);
+	
+	return 0;
 }
-EXPORT_SYMBOL(micropksc_reset);
+EXPORT_SYMBOL(micropksc_set_led);
+
+static void micropksc_led_work_func(struct work_struct *work)
+{
+        struct microp_ksc *data =
+            container_of(work, struct microp_ksc, work);
+	struct i2c_client *client;
+	char buffer[3] = { MICROP_KSC_ID_LED, 0, 0 };
+	client = data->client;
+	buffer[1] = 0x16 - (data->led_state << 1);
+	micropksc_write(client, buffer, 2);
+}
 
 /**
  * The i2c buffer holds all the keys that are pressed, 
@@ -137,9 +152,9 @@ static int micropksc_remove(struct i2c_client * client)
 	struct microp_ksc *data;
 
 	data = i2c_get_clientdata(client);
-	
-	micropklt_set_ksc_notifications(0);
 
+	cancel_work_sync(&data->work);
+	
 	kfree(data);
 	return 0;
 }
@@ -166,6 +181,7 @@ static int micropksc_probe(struct i2c_client *client, const struct i2c_device_id
 	
 	micropksc_t = data;
 
+	INIT_WORK(&data->work, micropksc_led_work_func);
 	mutex_init(&data->lock);
 	
 	data->client = client;
@@ -180,9 +196,11 @@ static int micropksc_probe(struct i2c_client *client, const struct i2c_device_id
 
 	printk(MODULE_NAME ": Initialized MicroP-KEY chip revision v%04x\n", data->version);
 	return 0;
+#if 0 // See TODO above
 fail:
 	kfree(data);
 	return -ENOSYS;
+#endif
 }
 
 static int micropksc_write(struct i2c_client *client, const char *sendbuf, int len)
@@ -236,6 +254,7 @@ static int micropksc_read(struct i2c_client *client, unsigned id, char *buf, int
 #if CONFIG_PM
 static int micropksc_suspend(struct i2c_client * client, pm_message_t mesg)
 {
+	flush_scheduled_work();
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
 	printk(KERN_INFO MODULE_NAME ": suspending device...\n");
 #endif
