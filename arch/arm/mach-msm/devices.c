@@ -363,37 +363,9 @@ static struct platform_device *msm_sdcc_devices[] __initdata = {
 	&msm_device_sdc4,
 };
 
-/* lavender.t: (temporarily) add a kernel option to select sdc. */
-/* netripper: moved to common.c to allow overriding what the board requests */
-static unsigned int msmsdcc_id = 0; // Default to a non-valid value
-static int __init msmsdcc_id_setup(char *str)
-{
-	unsigned int n;
-	int ok = 0;
-
-	n = simple_strtoul(str, NULL, 0);
-
-	if (n >= 1 && n <= 4) {
-		msmsdcc_id = n;
-		ok = 1;
-	}
-
-	return ok;
-}
-__setup("msmsdcc_id=", msmsdcc_id_setup);
-
 int __init msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat)
 {
 	struct platform_device	*pdev;
-
-	// When "msmsdcc_id" kernel param is set to a valid value, it'll override the
-	// controller id passed to this method.
-	if (msmsdcc_id >= 1 && msmsdcc_id <= 4)
-	{
-		printk(KERN_INFO "%s: Overriding controller id %d requested by the board with %d as requested in msmsdcc_id kernel param\n",
-			__func__, controller, msmsdcc_id);
-		controller = msmsdcc_id;
-	}
 
 	if (controller < 1 || controller > 4)
 		return -EINVAL;
