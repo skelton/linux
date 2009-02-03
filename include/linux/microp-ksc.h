@@ -13,3 +13,6 @@ enum {
 	MICROP_KSC_LED_FN,	// FN lock
 	MICROP_KSC_LED_MAX,
 };
+
+extern int micropksc_read_scancode(unsigned char *scancode, unsigned char *isdown);
+extern int micropksc_set_led(unsigned int led, int value);

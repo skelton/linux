@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
+#include <asm/mach-types.h>
 
 #include <linux/microp-keypad.h>
 #include <linux/microp-ksc.h>
@@ -32,13 +33,11 @@
 
 #define MICROP_DEBUG 0
 
-extern int micropksc_read_scancode(unsigned char *scancode, unsigned char *isdown);
-extern int micropksc_set_led(unsigned int led, int value);
-
 static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 
+
 // This is raph800's default keymap.  can be remapped by userland
-static int microp_keymap[] = {
+static int microp_keymap_raph800[] = {
         KEY_RESERVED, // invalid
         KEY_TAB,
         KEY_Q,
@@ -113,6 +112,81 @@ static int microp_keymap[] = {
         KEY_EMAIL,
 };
 
+// This is raph100's keymap.  can be remapped by userland
+static int microp_keymap_raph100[] = {
+        KEY_RESERVED, // invalid
+        KEY_CAPSLOCK,
+        KEY_TAB,
+        KEY_Q,
+        KEY_W,
+        KEY_E,
+        KEY_R,
+        KEY_T,
+        KEY_1,
+        KEY_RESERVED,
+        KEY_RESERVED,
+        KEY_Y,
+        KEY_U,
+        KEY_I,
+        KEY_O,
+        KEY_P,
+        KEY_EQUAL,
+        KEY_A,
+        KEY_4,
+        KEY_RESERVED,
+        KEY_RESERVED,
+        KEY_S,
+        KEY_D,
+        KEY_F,
+        KEY_G,
+        KEY_H,
+        KEY_J,
+        KEY_K,
+        KEY_7,
+        KEY_RESERVED,
+        KEY_RESERVED,
+        KEY_L,
+        KEY_ENTER,
+        KEY_LEFTSHIFT,
+        KEY_Z,
+        KEY_X,
+        KEY_C,
+        KEY_V,
+        KEY_9,
+        KEY_RESERVED,
+        KEY_RESERVED,
+        KEY_B,
+        KEY_N,
+        KEY_M,
+        KEY_RIGHTSHIFT,
+        KEY_UP,
+        KEY_0,
+        KEY_LEFTCTRL,
+        KEY_2,
+        KEY_RESERVED, // 0x31
+        KEY_RESERVED, // 0x32
+        KEY_FN,
+        KEY_TEXT,     // TXT/SMS
+        KEY_MINUS,
+        KEY_UNKNOWN,  // SYM/Data
+        KEY_SPACE,
+        KEY_COMMA,
+        KEY_DOT,
+        KEY_5,
+        KEY_RESERVED, // 0x3b
+        KEY_RESERVED, // 0x3c
+        KEY_RIGHT,
+        KEY_DOWN,
+        KEY_LEFT,
+        KEY_BACKSPACE,
+        KEY_SLASH,
+        KEY_3,
+        KEY_6,
+        KEY_8,
+        KEY_RESERVED, // 0x45
+        KEY_RESERVED, // 0x46
+        KEY_EMAIL,
+};
 
 static struct microp_keypad {
 	struct mutex lock;
@@ -123,6 +197,7 @@ static struct microp_keypad {
 	struct platform_device *pdev;
 
 	struct input_dev *input;
+	int *keymap;
 	int keycount;
 
 	int keypress_irq;
@@ -160,12 +235,12 @@ static void microp_keypad_work(struct work_struct *work)
 			// Allow input subsystem to use a scancode even if our keymap doesn't define it
 			input_event(data->input, EV_MSC, MSC_SCAN, key);
 			
-			if (key < ARRAY_SIZE(microp_keymap))
+			if (key < data->keycount)
 			{
-				input_report_key(data->input, microp_keymap[key], isdown);
+				input_report_key(data->input, data->keymap[key], isdown);
 				input_sync(data->input);
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
-				printk(KERN_INFO "       Input keycode = %d, scancode = %d\n", microp_keymap[key], key);
+				printk(KERN_INFO "       Input keycode = %d, scancode = %d\n", data->keymap[key], key);
 #endif
 			}
 		}
@@ -291,14 +366,24 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	// Use our handler for LED-set callbacks
 	input->event = microp_keypad_led_event;
 
-	input->keycodesize = sizeof(microp_keymap[0]);
-	input->keycodemax = ARRAY_SIZE(microp_keymap);
-	input->keycode = microp_keymap;
-	for (i = 0; i < ARRAY_SIZE(microp_keymap); i++)
+	input->keycodesize = sizeof(data->keymap[0]);
+	if (machine_is_htcraphael_cdma()) {
+		input->keycodemax = ARRAY_SIZE(microp_keymap_raph800);
+		input->keycode = data->keymap = microp_keymap_raph800;
+	}
+	else if (machine_is_htcraphael()) {
+		input->keycodemax = ARRAY_SIZE(microp_keymap_raph100);
+		input->keycode = data->keymap = microp_keymap_raph100;
+	}
+	else {
+		goto fail;
+	}
+
+	for (i = 0; i < input->keycodemax; i++)
 	{
-		if (microp_keymap[i] != KEY_RESERVED)
+		if (data->keymap[i] != KEY_RESERVED)
 		{
-			set_bit(microp_keymap[i], input->keybit);
+			set_bit(data->keymap[i], input->keybit);
 		}
 	}
 	data->keycount = i;
