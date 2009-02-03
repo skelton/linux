@@ -38,3 +38,4 @@ enum microp_led_t {
 
 extern int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values);
 extern int micropklt_set_lcd_state(int on);
+extern int micropklt_set_kbd_state(int on);

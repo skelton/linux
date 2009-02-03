@@ -140,6 +140,12 @@ int micropklt_set_lcd_state(int on)
 }
 EXPORT_SYMBOL(micropklt_set_lcd_state);
 
+int micropklt_set_kbd_state(int on)
+{
+	return micropklt_set_led_states(1 << MICROP_KLT_BKL_KBD,on ? 1 << MICROP_KLT_BKL_KBD : 0);
+}
+EXPORT_SYMBOL(micropklt_set_kbd_state);
+
 static int micropklt_remove(struct i2c_client * client)
 {
 	struct microp_klt *data;
