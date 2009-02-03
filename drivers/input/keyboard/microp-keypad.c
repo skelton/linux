@@ -116,7 +116,8 @@ static int microp_keymap[] = {
 
 static struct microp_keypad {
 	struct mutex lock;
-	struct delayed_work work;
+	struct delayed_work keypad_work;
+	struct delayed_work clamshell_work;
 
 	struct microp_keypad_platform_data *pdata;
 	struct platform_device *pdev;
@@ -124,8 +125,8 @@ static struct microp_keypad {
 	struct input_dev *input;
 	int keycount;
 
-	int clamshell_open:1;
 	int keypress_irq;
+	int clamshell_irq;
 } * microp_keypad_t;
 
 static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
@@ -133,34 +134,17 @@ static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
 	struct microp_keypad *data;
 	data = (struct microp_keypad *)handle;
 
-	disable_irq(data->keypress_irq);
-
-	schedule_work(&data->work.work);
+	disable_irq(data->keypress_irq);	
+	schedule_work(&data->keypad_work.work);
 	return IRQ_HANDLED;
 }
-
-#if 0
-static irqreturn_t microp_keypad_clam_interrupt(int irq, void *handle)
-{
-	struct microp_keypad *data;
-
-	data = (struct microp_keypad *)handle;
-	
-	printk("Clamshell slider interrupt %d received..\n", irq);
-
-	printk(KERN_INFO "microp_keypad: Clamshell is %s keyboard...\n", gpio_get_value(39) ? "open, resetting" : "closed, disabling");
-	return IRQ_HANDLED;
-}
-#endif
 
 static void microp_keypad_work(struct work_struct *work)
 {
 	struct microp_keypad *data;
-	struct microp_keypad_platform_data *pdata;
 	unsigned char key, isdown;
 	
-	data = container_of(work, struct microp_keypad, work.work);
-	pdata = data->pdata;
+	data = container_of(work, struct microp_keypad, keypad_work.work);
 	key = 0;
 
 	mutex_lock(&data->lock);
@@ -192,6 +176,36 @@ static void microp_keypad_work(struct work_struct *work)
 	enable_irq(data->keypress_irq);
 }
 
+static irqreturn_t microp_keypad_clamshell_interrupt(int irq, void *handle)
+{
+	struct microp_keypad *data;
+	data = (struct microp_keypad *)handle;
+
+	disable_irq(data->clamshell_irq);
+	schedule_work(&data->clamshell_work.work);
+	return IRQ_HANDLED;
+}
+
+static void microp_keypad_clamshell_work(struct work_struct *work)
+{
+	struct microp_keypad *data;
+	int closed;
+	
+	data = container_of(work, struct microp_keypad, clamshell_work.work);
+
+	mutex_lock(&data->lock);
+	closed = !gpio_get_value(data->pdata->clamshell.gpio);
+#if defined(MICROP_DEBUG) && MICROP_DEBUG
+	printk(KERN_WARNING "%s: clamshell is %s\n", __func__, 
+			closed ? "closed" : "open");
+#endif
+	micropklt_set_kbd_state(!closed);
+	input_report_switch(data->input, SW_LID, closed);
+	input_sync(data->input);
+	mutex_unlock(&data->lock);
+	enable_irq(data->clamshell_irq);
+}
+
 static int microp_keypad_remove(struct platform_device *pdev)
 {
 	struct microp_keypad *data;
@@ -206,12 +220,8 @@ static int microp_keypad_remove(struct platform_device *pdev)
 	if (data->keypress_irq > 0)
 		free_irq(data->keypress_irq, data);
 
-#if 0
 	if ( pdata->clamshell.irq > 0 )
-	{
 		free_irq(pdata->clamshell.irq, data);
-	}
-#endif
 	
 	flush_scheduled_work();
 	kfree(data);
@@ -255,7 +265,7 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	}
 	
 	mutex_init(&data->lock);
-	INIT_DELAYED_WORK(&data->work, microp_keypad_work);
+	INIT_DELAYED_WORK(&data->keypad_work, microp_keypad_work);
 	
 	// Initialize input device
 	input = input_allocate_device();
@@ -326,11 +336,27 @@ static int microp_keypad_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	if ( pdata->clamshell.gpio > 0 )
-	{
-		data->clamshell_open = !!gpio_get_value(pdata->clamshell.gpio);
-		printk(KERN_INFO MODULE_NAME ": Clamshell status: %d\n", data->clamshell_open);
-	}
+ 	{
+		gpio_request(pdata->clamshell.gpio, "microp-keypad-sw");
+		gpio_direction_input(pdata->clamshell.gpio);
+		data->clamshell_irq = gpio_to_irq(pdata->clamshell.gpio);
+		r = request_irq(data->clamshell_irq, microp_keypad_clamshell_interrupt,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				"microp-keypad-sw", data);
+		if (r < 0) {
+			printk(KERN_ERR "Couldn't request IRQ %d; error: %d\n", data->keypress_irq, r);
+			goto fail;
+		}
+		set_irq_wake(data->clamshell_irq, 1);
+		disable_irq(data->clamshell_irq);
 
+		// Tell input subsystem we can provide lid switch event
+		set_bit(EV_SW, input->evbit);
+		input_set_capability(input, EV_SW, SW_LID);
+
+		INIT_DELAYED_WORK(&data->clamshell_work, microp_keypad_clamshell_work);
+		schedule_work(&data->clamshell_work.work);
+	}
 	//TODO: turn this off; on keypress, turn it on, with timeout delay after last keypress to turn it off
 	if ( pdata->backlight_gpio > 0 )
 	{
