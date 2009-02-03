@@ -33,7 +33,7 @@ static struct microp_klt {
 	u16 led_states;
 	unsigned short version;
 	struct led_classdev leds[MICROP_KLT_LED_CNT];
-} * micropklt_t;
+} * micropklt_t = 0;
 
 static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
                                          enum led_brightness brightness)
@@ -342,6 +342,7 @@ err_led0_classdev_register_failed:
         led_classdev_unregister(&data->leds[0]);
 fail:
 	kfree(data);
+	micropklt_t = 0;
 	return r;
 }
 

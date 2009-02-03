@@ -33,7 +33,7 @@ static struct microp_ksc {
 	unsigned short version;
 	unsigned led_state:2;
 	struct work_struct work;
-} * micropksc_t;
+} * micropksc_t = 0;
 
 int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 {
@@ -79,10 +79,10 @@ int micropksc_set_led(unsigned int led, int on)
 {
 	struct microp_ksc *data;
 	
+	if (!micropksc_t)
+		return -EAGAIN;
 	if (led >= MICROP_KSC_LED_MAX)
-	{
 		return -EINVAL;
-	}
 	
 	data = micropksc_t;
 	
