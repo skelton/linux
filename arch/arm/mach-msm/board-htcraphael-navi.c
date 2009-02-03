@@ -503,23 +503,27 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	i2c_set_clientdata(client, navi);
 //	local_irq_save(irq_flags);
 
-	gpio_request(navi->info->gpio_tp, "raphnavi_tp");
+	if (gpio_request(navi->info->gpio_tp, "raphnavi_tp") != 0)
+		goto fail_tp_gpio;
 	gpio_direction_input(navi->info->gpio_tp);
 	navi->tp_irq = gpio_to_irq(navi->info->gpio_tp);
-	request_irq(navi->tp_irq, raphnavi_irq_handler,
+	if (request_irq(navi->tp_irq, raphnavi_irq_handler,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW, 
-			"raphnavi_tp", navi);
+			"raphnavi_tp", navi) != 0)
+		goto fail_tp_irq;
 	set_irq_wake(navi->tp_irq, 1);
 	disable_irq(navi->tp_irq);
 
 #ifdef RAPHNAVI_LID_SWITCH
 	if (machine_is_htcraphael() || machine_is_htcraphael_cdma()) {
-		gpio_request(navi->info->gpio_lid, "raphnavi_lid");
+		if (gpio_request(navi->info->gpio_lid, "raphnavi_lid") != 0)
+			goto fail_sw_gpio;
 		gpio_direction_input(navi->info->gpio_lid);
 		navi->sw_irq = gpio_to_irq(navi->info->gpio_lid);
-		request_irq(navi->sw_irq, raphnavi_irq_handler,
+		if (request_irq(navi->sw_irq, raphnavi_irq_handler,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				"raphnavi_lid", navi);
+				"raphnavi_lid", navi) != 0)
+			goto fail_sw_irq;
 		set_irq_wake(navi->sw_irq, 1);
 		disable_irq(navi->sw_irq);
 	}
@@ -530,16 +534,19 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	navi->btns_prev = kzalloc(sizeof (unsigned long) * BITS_TO_LONGS(btn_count), GFP_KERNEL);
 
 	for(i = 0; i < navi->info->nrows; i++) {
-		gpio_request(navi->info->rows[i], "raphnavi_row");
+		if (gpio_request(navi->info->rows[i], "raphnavi_row") != 0)
+			goto fail_gpio_row;
 		gpio_configure(navi->info->rows[i], GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
 	}
 	for(i = 0; i < navi->info->ncols; i++) {
-		gpio_request(navi->info->cols[i], "raphnavi_col");
+		if (gpio_request(navi->info->cols[i], "raphnavi_col") != 0)
+			goto fail_gpio_col;
 		gpio_direction_input(navi->info->cols[i]);
 	}
 	for(i = 0; i < navi->info->ncols; i++) {
 		irq = gpio_to_irq(navi->info->cols[i]);
-		request_irq(irq, raphnavi_irq_handler, IRQF_TRIGGER_LOW, "raphnavi_gpio", navi);
+		if (request_irq(irq, raphnavi_irq_handler, IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
+			goto fail_gpio_irq;
 		set_irq_wake(irq, 1);
 		disable_irq(irq);
 	}
@@ -571,9 +578,10 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		if (!input_register_device(idev)) {
 			navi->inputdev = idev;
 		} else {
-			navi->inputdev = 0;
+			goto fail_idev_reg;
 		}
 	} else {
+		goto fail_idev_alloc;
 	}
 //	local_irq_restore(irq_flags);
 #ifdef CONFIG_ANDROID_POWER
@@ -590,6 +598,33 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	navi->timer.function = raphnavi_kp_timer;
 	hrtimer_start(&navi->timer, ktime_set(0, 0), HRTIMER_MODE_REL);
 	return 0;
+
+fail_idev_reg:
+	input_unregister_device(idev);
+fail_idev_alloc:
+	i = navi->info->ncols;
+fail_gpio_irq:
+	while (i >= 0)
+		free_irq(gpio_to_irq(navi->info->cols[i--]),navi);
+	i = navi->info->ncols - 1;
+fail_gpio_col:
+	while (i >= 0)
+		gpio_free(navi->info->cols[i--]);
+	i = navi->info->nrows - 1;
+fail_gpio_row:
+	while (i >= 0)
+		gpio_free(navi->info->rows[i--]);
+#ifdef RAPHNAVI_LID_SWITCH
+	free_irq(navi->sw_irq,navi);
+fail_sw_irq:
+	gpio_free(navi->info->gpio_lid);
+fail_sw_gpio:
+#endif
+	free_irq(navi->tp_irq,navi);
+fail_tp_irq:
+	gpio_free(navi->info->gpio_tp);
+fail_tp_gpio:
+	return -EINVAL;
 }
 
 static int raphnavi_remove(struct i2c_client * client)
