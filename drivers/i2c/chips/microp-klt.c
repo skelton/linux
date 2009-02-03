@@ -104,10 +104,11 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 	mutex_unlock(&data->lock);
 }
 
-int micropklt_set_led_states(unsigned state)
+int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
+	unsigned state;
 	char buffer[4] = { 0, 0, 0, 0 };
 	int r;
 
@@ -116,14 +117,18 @@ int micropklt_set_led_states(unsigned state)
 	client = data->client;
 
 	mutex_lock(&data->lock);
-
-	buffer[0] = MICROP_KLT_ID_LED_STATE;
-	buffer[1] = 0xff & state;
-	buffer[2] = 0xff & (state >> 8);
-
-	data->led_states = 0xffff & state;
-
-	r = micropklt_write(client, buffer, 3);
+	state = data->led_states | (leds_mask & leds_values);
+	state &= MICROP_KLT_ALL_LEDS & ~(leds_mask & ~leds_values);
+	if (data->led_states != state) {
+		data->led_states = state;
+		buffer[0] = MICROP_KLT_ID_LED_STATE;
+		buffer[1] = 0xff & state;
+		buffer[2] = 0xff & (state >> 8);
+		data->led_states = state;
+		r = micropklt_write(client, buffer, 3);
+	} else {
+		r = 0;
+	}
 	mutex_unlock(&data->lock);
 	return r;
 }
@@ -131,20 +136,7 @@ EXPORT_SYMBOL(micropklt_set_led_states);
 
 int micropklt_set_lcd_state(int on)
 {
-	struct microp_klt *data;
-	unsigned state, r;
-
-	data = micropklt_t;
-	if (!data) return -EAGAIN;
-	
-	if (on)
-	{
-		state = data->led_states | (1U << MICROP_KLT_BKL_LCD);
-	} else {
-		state = data->led_states & ~ (1U << MICROP_KLT_BKL_LCD);
-	}
-	r = micropklt_set_led_states(state);
-	return r;
+	return micropklt_set_led_states(1 << MICROP_KLT_BKL_LCD,on ? 1 << MICROP_KLT_BKL_LCD : 0);
 }
 EXPORT_SYMBOL(micropklt_set_lcd_state);
 
@@ -154,7 +146,7 @@ static int micropklt_remove(struct i2c_client * client)
 
 	data = i2c_get_clientdata(client);
 	
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES);
+	micropklt_set_led_states(MICROP_KLT_ALL_LEDS, MICROP_KLT_DEFAULT_LED_STATES);
 
         led_classdev_unregister(&data->leds[0]);
         led_classdev_unregister(&data->leds[1]);
@@ -322,7 +314,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	mutex_unlock(&data->lock);
 
 	// Set default LED state
-	micropklt_set_led_states(MICROP_KLT_DEFAULT_LED_STATES);
+	micropklt_set_led_states(MICROP_KLT_ALL_LEDS, MICROP_KLT_DEFAULT_LED_STATES);
 
 	printk(KERN_INFO MODULE_NAME ": Initialized MicroP-LED chip revision v%04x\n", data->version);
 

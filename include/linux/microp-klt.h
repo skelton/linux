@@ -27,6 +27,7 @@ enum microp_led_t {
 
 // Default state is LCD backlight on, LEDs off
 #define MICROP_KLT_DEFAULT_LED_STATES ( (1U << MICROP_KLT_BKL_LCD) | MICROP_KLT_LEDS_OFF)
+#define MICROP_KLT_ALL_LEDS	0xffff
 
 /**
  * I2C data address IDs
@@ -34,3 +35,6 @@ enum microp_led_t {
 #define MICROP_KLT_ID_VERSION           0x30 // Chip revision
 #define MICROP_KLT_ID_LED_STATE         0x40 // Set LED behavior using above bitmasks
 #define MICROP_KLT_ID_LCD_BRIGHTNESS    0x22 // Set brightness of LCD backlight
+
+extern int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values);
+extern int micropklt_set_lcd_state(int on);
