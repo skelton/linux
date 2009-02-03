@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.27
-# Wed Jan 21 14:37:59 2009
+# Tue Feb  3 01:23:58 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -405,9 +405,14 @@ CONFIG_ANDROID_PARANOID_NETWORK=y
 # Wireless
 #
 # CONFIG_CFG80211 is not set
-# CONFIG_WIRELESS_EXT is not set
+CONFIG_WIRELESS_EXT=y
+CONFIG_WIRELESS_EXT_SYSFS=y
 # CONFIG_MAC80211 is not set
-# CONFIG_IEEE80211 is not set
+CONFIG_IEEE80211=y
+# CONFIG_IEEE80211_DEBUG is not set
+# CONFIG_IEEE80211_CRYPT_WEP is not set
+# CONFIG_IEEE80211_CRYPT_CCMP is not set
+# CONFIG_IEEE80211_CRYPT_TKIP is not set
 # CONFIG_RFKILL is not set
 # CONFIG_NET_9P is not set
 
@@ -494,8 +499,10 @@ CONFIG_NETDEV_10000=y
 # Wireless LAN
 #
 # CONFIG_WLAN_PRE80211 is not set
-# CONFIG_WLAN_80211 is not set
+CONFIG_WLAN_80211=y
+# CONFIG_LIBERTAS is not set
 # CONFIG_IWLWIFI_LEDS is not set
+# CONFIG_HOSTAP is not set
 # CONFIG_WAN is not set
 CONFIG_PPP=y
 # CONFIG_PPP_MULTILINK is not set

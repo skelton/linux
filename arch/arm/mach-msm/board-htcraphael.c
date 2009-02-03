@@ -77,7 +77,7 @@ module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static void htcraphael_device_specific_fixes(void);
 
 extern void htcraphael_init_keypad(void);
-extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat);
+extern int htcraphael_init_mmc(void);
 
 static struct resource raphael_keypad_resources[] = {
 	{ 
@@ -266,34 +266,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_rtc,
 };
 
-static unsigned int raphael_sdcc_slot_status(struct device *dev)
-{
-	/*
-	 * For the Raphael we check the GPIO that indicates whether an
-	 * SD card is present or not.
-	 */
-	unsigned int status;
-	status = (unsigned int) gpio_get_value(23);
-	return !status;
-}
-
-static unsigned int raphael_cdma_sdcc_slot_status(struct device *dev)
-{
-	/*
-	 * For the Raphael we check the GPIO that indicates whether an
-	 * SD card is present or not.
-	 */
-	unsigned int status;
-	status = (unsigned int) gpio_get_value(38);
-	return !status;
-}
-
-static struct mmc_platform_data halibut_sdcc_data = {
-	.ocr_mask	= MMC_VDD_28_29,
-	.status		= raphael_cdma_sdcc_slot_status, /* Modified in htcraphael_device_specific_fixes() */
-	.status_irq	= MSM_GPIO_TO_INT(38), /* card detect sd - Modified in htcraphael_device_specific_fixes() */
-};
-
 extern struct sys_timer msm_timer;
 
 static void __init halibut_init_irq(void)
@@ -314,28 +286,12 @@ void msm_serial_debug_init(unsigned int base, int irq,
 
 static void htcraphael_reset(void)
 {
-        gpio_set_value(25, 0);
-}
-
-static void __init halibut_init_mmc(void)
-{
-	struct vreg *vreg_mmc;
-	int rc;
-
-	vreg_mmc = vreg_get(0, "gp6");
-	rc = vreg_enable(vreg_mmc);
-	if (rc)
-		printk(KERN_ERR "%s: vreg enable failed (%d)\n", __func__, rc);
-
-	// Raphael's SD controller can be found on SDC2 for GSM and SDC3 for CDMA version
-	if (machine_is_htcraphael()) {
-		gpio_configure(23, IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
-		msm_add_sdcc(2, &halibut_sdcc_data);
-	}
-	else if (machine_is_htcraphael_cdma()) {
-		gpio_configure(38, IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
-		msm_add_sdcc(3, &halibut_sdcc_data);
-	}
+	struct msm_dex_command dex = { .cmd = PCOM_RESET_ARM9 };
+	msm_proc_comm_wince(&dex, 0);
+	msleep(0x15e);
+	gpio_configure(25, GPIOF_OWNER_ARM11);
+	gpio_direction_output(25, 0);
+	printk(KERN_INFO "%s: Soft reset done.\n", __func__);
 }
 
 static void __init halibut_init(void)
@@ -355,7 +311,7 @@ static void __init halibut_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
-	halibut_init_mmc();
+	htcraphael_init_mmc();
 	htcraphael_init_keypad();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
@@ -410,8 +366,6 @@ static void htcraphael_device_specific_fixes(void)
 		raphael_keypad_data.clamshell.gpio = 38;
 		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(38);
 		raphael_keypad_data.backlight_gpio = 86;
-		halibut_sdcc_data.status = raphael_sdcc_slot_status;
-		halibut_sdcc_data.status_irq = MSM_GPIO_TO_INT(23);
 	}
 	if (machine_is_htcraphael_cdma()) {
 		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
@@ -419,8 +373,6 @@ static void htcraphael_device_specific_fixes(void)
 		raphael_keypad_data.clamshell.gpio = 39;
 		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(39);
 		raphael_keypad_data.backlight_gpio = 86;
-		halibut_sdcc_data.status = raphael_cdma_sdcc_slot_status;
-		halibut_sdcc_data.status_irq = MSM_GPIO_TO_INT(38);
 	}
 }
 
