@@ -76,7 +76,6 @@ module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void htcraphael_device_specific_fixes(void);
 
-extern void htcraphael_init_keypad(void);
 extern int htcraphael_init_mmc(void);
 
 static struct resource raphael_keypad_resources[] = {
@@ -191,7 +190,11 @@ static struct i2c_board_info i2c_devices[] = {
 	{		
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
-	},	
+	},
+	{
+		// Raphael NaviPad
+		I2C_BOARD_INFO("raph_navi_pad", 0x62),
+	},
 };
 
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -312,7 +315,6 @@ static void __init halibut_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	htcraphael_init_mmc();
-	htcraphael_init_keypad();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB

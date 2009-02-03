@@ -23,10 +23,10 @@ obj-$(CONFIG_MSM_HW3D) += hw3d.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_MSM_CPU_FREQ) += cpufreq.o
 
-obj-$(CONFIG_MACH_HTCRAPHAEL) += board-htcraphael.o board-htcraphael-keypad.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
-obj-$(CONFIG_MACH_HTCRAPHAEL_CDMA) += board-htcraphael.o board-htcraphael-keypad.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
-obj-$(CONFIG_MACH_HTCDIAMOND) += board-htcdiamond.o board-htcraphael-keypad.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
-obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-keypad.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
+obj-$(CONFIG_MACH_HTCRAPHAEL) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
+obj-$(CONFIG_MACH_HTCRAPHAEL_CDMA) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
+obj-$(CONFIG_MACH_HTCDIAMOND) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
+obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
 
 obj-$(CONFIG_MACH_HALIBUT) += board-halibut.o board-halibut-keypad.o
 obj-$(CONFIG_MACH_TROUT) += board-trout.o board-trout-gpio.o
