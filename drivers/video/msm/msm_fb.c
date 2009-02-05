@@ -127,8 +127,13 @@ static void msmfb_handle_dma_interrupt(struct msmfb_callback *callback)
 	msmfb->frame_done = msmfb->frame_requested;
 	if (msmfb->sleeping == UPDATING &&
 	    msmfb->frame_done == msmfb->update_frame) {
+		msmfb->sleeping = FULL_UPDATE_DONE;
 		DLOG(SUSPEND_RESUME, "full update completed\n");
 		queue_work(msmfb->resume_workqueue, &msmfb->resume_work);
+	}
+	else {
+		/* Indicate this update has completed */
+		msmfb->sleeping = AWAKE;
 	}
 #if PRINT_FPS
 	now = ktime_get();
@@ -178,7 +183,7 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	w = msmfb->update_info.eright - x;
 	h = msmfb->update_info.ebottom - y;
 #if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA)
-	x = 0; y = 0; w = 480; h = 640;
+	x = 0; y = 0; w = msmfb->xres; h = msmfb->yres;
 #endif
 	yoffset = msmfb->yoffset;
 	msmfb->update_info.left = msmfb->xres + 1;
