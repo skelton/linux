@@ -24,6 +24,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c.h>
+#include <linux/mm.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -49,27 +50,6 @@
 #include "proc_comm_wince.h"
 #include "devices.h"
 #include "board-htcraphael.h"
-
-#define MSM_SMI_BASE            0x00000000
-#define MSM_SMI_SIZE            0x900000
-
-#define MSM_EBI_BASE            0x10000000
-#define MSM_EBI_SIZE            0x6e00000
-
-#define MSM_PMEM_GPU0_BASE      0x0
-#define MSM_PMEM_GPU0_SIZE      0x800000
-
-#define MSM_LINUX_BASE          MSM_EBI_BASE
-#define MSM_LINUX_SIZE          0x4c00000
-
-#define MSM_PMEM_MDP_BASE       MSM_LINUX_BASE + MSM_LINUX_SIZE
-#define MSM_PMEM_MDP_SIZE       0x800000
-
-#define MSM_PMEM_ADSP_BASE      MSM_PMEM_MDP_BASE + MSM_PMEM_MDP_SIZE
-#define MSM_PMEM_ADSP_SIZE      0x800000
-
-#define MSM_PMEM_GPU1_BASE      MSM_PMEM_ADSP_BASE + MSM_PMEM_ADSP_SIZE
-#define MSM_PMEM_GPU1_SIZE      0x800000
 
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
@@ -346,7 +326,7 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->nr_banks = 1;
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
-	mi->bank[0].size = (94 * 1024 * 1024);
+	mi->bank[0].size = (64 * 1024 * 1024);
 #if 1
 	mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
