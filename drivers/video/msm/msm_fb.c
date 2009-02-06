@@ -61,6 +61,8 @@ do { \
 		printk(KERN_INFO "msmfb: "fmt, ##args); \
 } while (0)
 
+static void msmfb_predma_perform_callback(struct fb_info *fb, struct msmfb_update_area *area);
+
 static int msmfb_debug_mask;
 module_param_named(msmfb_debug_mask, msmfb_debug_mask, int,
 		   S_IRUGO | S_IWUSR | S_IWGRP);
@@ -159,6 +161,7 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	uint32_t yoffset;
 	s64 time_since_request;
 	struct msm_panel_data *panel = msmfb->panel;
+	struct msmfb_update_area area;
 
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
 	time_since_request = ktime_to_ns(ktime_sub(ktime_get(),
@@ -199,6 +202,21 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	}
 	spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
 
+	/* Call our pre-dma callback to allow drivers to do last-minute framebuffer modifications */
+	area.x = x;
+	area.y = y;
+	area.width = w;
+	area.height = h;
+	msmfb_predma_perform_callback(msmfb->fb, &area);
+	if (area.x < x)
+		x = area.x;
+	if (area.y < y)
+		y = area.y;
+	if (area.width > w)
+		w = area.width;
+	if (area.height > h)
+		h = area.height;
+	
 	addr = ((msmfb->xres * (yoffset + y) + x) * 2);
 	mdp->dma(mdp, addr + msmfb->fb->fix.smem_start,
 		 msmfb->xres * 2, w, h, x, y, &msmfb->dma_callback,
@@ -354,7 +372,7 @@ restart:
 	}
 }
 
-void msmfb_update(struct fb_info *info, uint32_t left, uint32_t top,
+static void msmfb_update(struct fb_info *info, uint32_t left, uint32_t top,
 			 uint32_t eright, uint32_t ebottom)
 {
 	msmfb_pan_update(info, left, top, eright, ebottom, 0, 0);
@@ -846,3 +864,55 @@ static int __init msmfb_init(void)
 }
 
 module_init(msmfb_init);
+
+/********** Support for pre-dma callbacks **********/
+
+#define MSMFB_MAX_CALLBACKS 32
+static msmfb_predma_callback msmfb_predma_callbacks[MSMFB_MAX_CALLBACKS];
+
+/* Prototype defined in msm_fb.h */
+int msmfb_predma_register_callback(msmfb_predma_callback cb)
+{
+	static bool msmfb_predma_inited = false;
+	int i;
+
+	if (!msmfb_predma_inited) {
+		for (i=0; i < MSMFB_MAX_CALLBACKS; i++) {
+			msmfb_predma_callbacks[i] = 0;
+		}
+		msmfb_predma_inited = true;
+	}
+
+	for (i=0; i < MSMFB_MAX_CALLBACKS; i++) {
+		if (msmfb_predma_callbacks[i] == 0) {
+			msmfb_predma_callbacks[i] = cb;
+			return 0;
+		}
+	}
+	return -1;
+}
+
+/* Prototype defined in msm_fb.h */
+int msmfb_predma_unregister_callback(msmfb_predma_callback cb)
+{
+	int i;
+	for (i=0; i < MSMFB_MAX_CALLBACKS; i++) {
+		if (msmfb_predma_callbacks[i] == cb) {
+			msmfb_predma_callbacks[i] = 0;
+			return 0;
+		}
+	}
+	return -1;
+}
+
+static void msmfb_predma_perform_callback(struct fb_info *fb, struct msmfb_update_area *area)
+{
+	int i;
+	for (i=0; i < MSMFB_MAX_CALLBACKS; i++) {
+		if (msmfb_predma_callbacks[i] != 0) {
+			msmfb_predma_callbacks[i](fb, area);
+		}
+	}
+}
+
+/********** END OF Support for pre-dma callbacks **********/

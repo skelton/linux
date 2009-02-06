@@ -132,6 +132,34 @@ struct msm_mddi_bridge_platform_data {
 	struct msm_fb_data fb_data;
 };
 
+/********** Support for pre-dma callbacks **********/
 
+struct msmfb_update_area {
+	int x;
+	int y;
+	int width;
+	int height;
+};
+
+typedef void (*msmfb_predma_callback)(struct fb_info *fb, struct msmfb_update_area *area);
+
+/*
+ * Registers a pre-dma callback. Callbacks are called just before the driver
+ * initiates a dma when a pan_update has been requested. The callback occurs
+ * within a spinlock. Also note that the order in which the callbacks occur
+ * is not fixed.
+ *
+ * Returns 0 when successful, -1 when max callbacks has been reached
+ */
+int msmfb_predma_register_callback(msmfb_predma_callback cb);
+
+/*
+ * Unregisters a pre-dma callback.
+ *
+ * Returns 0 when successful, -1 when not found
+ */
+int msmfb_predma_unregister_callback(msmfb_predma_callback cb);
+
+/********** END OF Support for pre-dma callbacks **********/
 
 #endif

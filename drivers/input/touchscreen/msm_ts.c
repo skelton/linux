@@ -18,10 +18,14 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/fb.h>
+#include <linux/fb_helper.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
+#include <mach/msm_fb.h>
+
+#define MSM_TS_DEBUG		0
 
 #define MSM_TS_ABS_X_MIN	0
 #define MSM_TS_ABS_X_MAX	479
@@ -39,27 +43,24 @@
 #define TSSC_DATA_LO_AVE	0x110
 #define TSSC_DATA_UP_AVE	0x114
 
-void msmfb_update(struct fb_info *info, uint32_t left, uint32_t top,
-	uint32_t eright, uint32_t ebottom);
-void msm_vkeyb_plot(int x,int y,unsigned short c);
-
-/* Registered framebuffers */
-extern struct fb_info *registered_fb[];
-
-/* Address of video memory buffer (msm_fb transfers this on the screen using dma) */
-void __iomem *msm_ts_fbram;
-
 /* returns whether position was inside vkeyb, so as to eat event */
 typedef int msm_ts_handler_t(int, int, int);
 msm_ts_handler_t *msm_ts_handler;
 
-static void do_softint(struct work_struct *work);
+/* Work used by the polling mechanism after an interrupt has fired */
+static void msm_ts_process_irq1(struct work_struct *work);
+static void msm_ts_process_irq2(struct work_struct *work);
+static void msm_ts_process_timeout(struct work_struct *work);
+static DECLARE_WORK(msm_ts_work_irq1, msm_ts_process_irq1);
+static DECLARE_WORK(msm_ts_work_irq2, msm_ts_process_irq2);
+static DECLARE_DELAYED_WORK(msm_ts_work_timeout, msm_ts_process_timeout);
+
+/* Function which processes the touchscreen data */
+static void msm_ts_process_data(int irq);
 
 static struct input_dev *msm_ts_dev;
-static DECLARE_DELAYED_WORK(work, do_softint);
 
 static int calib_step, calib_xmin, calib_xmax, calib_ymin, calib_ymax;
-static int irq_disabled;
 
 /* lavender.t: (temporarily) add a kernel option to set calibration. */
 static int __init msmts_calib_setup(char *str)
@@ -107,38 +108,92 @@ static int __init msmts_calib_setup(char *str)
 
 __setup("msmts_calib=", msmts_calib_setup);
 
-static void do_softint(struct work_struct *tmp_work)
+static void msm_ts_predma_callback(struct fb_info *fb, struct msmfb_update_area *area)
+{
+	int x, y;
+
+	/* Draw two red dots during calibration (in upper-left and lower-right corners) */
+	if (calib_step > 0 && calib_step < 3) {
+		struct fb_info *fb = fb_helper_get_first_fb();
+		
+		for (x = 0;x < 3;x++) {
+			for (y = 0;y < 3;y++) {
+				fb_helper_plot(fb, x,y,0xF800);
+				fb_helper_plot(fb, MSM_TS_LCD_WIDTH - 1 - x, MSM_TS_LCD_HEIGHT - 1 - y, 0xF800);
+			}
+		}
+
+		/* Make it a full screen update */
+		area->x = 0;
+		area->y = 0;
+		area->width = fb->var.xres;
+		area->height = fb->var.yres;
+	}
+}
+
+static void msm_ts_process_irq1(struct work_struct *tmp_work)
+{
+	msm_ts_process_data(INT_TCHSCRN1);
+}
+
+static void msm_ts_process_irq2(struct work_struct *tmp_work)
+{
+	msm_ts_process_data(INT_TCHSCRN2);
+}
+
+static void msm_ts_process_timeout(struct work_struct *tmp_work)
+{
+#if MSM_TS_DEBUG
+	printk(KERN_DEBUG "msm_ts: release interrupt didn't fire, sending pen up event manually\n");
+#endif
+	msm_ts_process_data(0);
+}
+
+static void msm_ts_process_data(int irq)
 {
 	unsigned long status, data;
 	int absx, absy, touched, x, y;
 	int vkey;
-	static int prev_absx, prev_absy, prev_touched = 0, nrskipped = 0;
-
-	/* Draw two red dots during calibration (in upper-left and lower-right corners) */
-	if (calib_step > 0 && calib_step < 3) {
-		if (msm_ts_fbram) {
-			for (x = 0;x < 3;x++) {
-				for (y = 0;y < 3;y++) {
-					msm_vkeyb_plot(x,y,0xF800);
-					msm_vkeyb_plot(MSM_TS_LCD_WIDTH - 1 - x, MSM_TS_LCD_HEIGHT - 1 - y, 0xF800);
-					msmfb_update(registered_fb[0], 0, 0, MSM_TS_LCD_WIDTH, MSM_TS_LCD_HEIGHT);
-				}
-			}
-		}
-	}
+	static int prev_absx = -1, prev_absy = -1, prev_touched = -1, nrskipped = 0;
 
 	/* Read status and data */
 	status = readl(MSM_TS_BASE + TSSC_STATUS);
 	data = readl(MSM_TS_BASE + TSSC_DATA_LO_AVE);
 
-	/* Without next 2 lines, position won't get updated */
-	writel(readl(MSM_TS_BASE + TSSC_CTL) & ~0x400, MSM_TS_BASE + TSSC_CTL);
-	writel(readl(MSM_TS_BASE + TSSC_CTL) & ~0xc00, MSM_TS_BASE + TSSC_CTL);
-
 	/* Get stylus position and press state */
 	absx = data & 0xFFFF;
 	absy = data >> 16;
-	touched = status & 0x100 ? 1 : 0;
+	//touched = status & 0x100 ? 1 : 0;
+	touched = status & 0x200 ? 0 : 1; // The 0x200 flag seems to be more reliable
+
+	/* When pen released, we can disable our timeout */
+	if (!touched) {
+		cancel_delayed_work(&msm_ts_work_timeout);
+	}
+
+	/* When an interrupt timeout was reached, we assume pen released */
+	if (!irq) {
+		absx = absy = touched = 0;
+	}
+
+	/* Filter invalid/unreliable data. Based on:
+	 * - When touched, the 0x800 flag must be present in CTL. We remove the 0x800 flag when we're done with it.
+	 * - When touched, we verify that the 0x2000 flag is present in STATUS. When this is not the case, it has been seen there are some weird
+	 *   x/y values. Perhaps the hardware is updating while that flag is gone? The 0x800 flag is present in this case, which is why
+	 *   that check is not sufficient.
+	 */
+	if (touched && (readl(MSM_TS_BASE + TSSC_CTL) & 0x800) == 0) {
+#if MSM_TS_DEBUG
+		printk(KERN_DEBUG "msm_ts: invalid data (no 0x800 flag in CTL)\n", x, y, touched, vkey);
+#endif
+		goto skip;
+	}
+	if (touched && (status & 0x2000) == 0) {
+#if MSM_TS_DEBUG
+		printk(KERN_DEBUG "msm_ts: invalid data (no 0x2000 flag in STATUS)\n", x, y, touched, vkey);
+#endif
+		goto skip;
+	}
 
 	/* Only do something when the touch state or position have changed */
 	if (absx != prev_absx || absy != prev_absy || touched != prev_touched) {
@@ -185,6 +240,10 @@ static void do_softint(struct work_struct *tmp_work)
 				vkey = 0;
 			}
 
+#if MSM_TS_DEBUG
+			printk(KERN_DEBUG "msm_ts: x=%d,y=%d,t=%d,vkeyb=%d\n", x, y, touched, vkey);
+#endif
+			
 			/* Send data to linux input system, if not eaten by vkeyb */
 			if (touched && !vkey) {
 				input_report_abs(msm_ts_dev, ABS_X, x);
@@ -192,48 +251,45 @@ static void do_softint(struct work_struct *tmp_work)
 				input_report_abs(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MAX);
 				input_report_key(msm_ts_dev, BTN_TOUCH, 1);
 			} else {
-				input_report_abs(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MIN);
 				input_report_key(msm_ts_dev, BTN_TOUCH, 0);
+				input_report_abs(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MIN);
 			}
-
 			input_sync(msm_ts_dev);
 		}
 
+		/* Save the state so we won't report the same position and state twice */
 		prev_absx = touched ? absx : 0;
 		prev_absy = touched ? absy : 0;
 		prev_touched = touched;
-	} else {
-		/* Let the virtual keyboard redraw itself anyway */
-		if (msm_ts_handler) {
-			/* Call it at least four times per second if no updates */
-			if (nrskipped >= 5) {
-				nrskipped = 0;
-				(*msm_ts_handler)(0, 0, -1);
-			} else {
-				nrskipped++;
-			}
-		}
 	}
 
-	if (irq_disabled) {
-		enable_irq(INT_TCHSCRN1);
-		irq_disabled = 0;
+skip:
+	/* Indicate to the hardware that we have handled the data and the touchscreen may update it again */
+	if (irq) {
+		enable_irq(irq);
+		writel(readl(MSM_TS_BASE + TSSC_CTL) & ~0x800, MSM_TS_BASE + TSSC_CTL);
 	}
-
-	/* Reschedule ourselves; poll the touchscreen 20 times each second */
-	schedule_delayed_work(&work, HZ / 20);
 }
 
 static irqreturn_t msm_ts_interrupt(int irq, void *dev)
 {
-	printk(KERN_WARNING "IRQ %d fired! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n\n\n\n", irq);
+	// Disable the irq until we processed it.
+	disable_irq(irq);
 
-	if (!irq_disabled) {
-		disable_irq_nosync(irq);
-		irq_disabled = 1;
+	// Schedule work based on which irq was triggered
+	switch (irq) {
+		case INT_TCHSCRN1:
+			schedule_work(&msm_ts_work_irq1);
+			break;
+		case INT_TCHSCRN2:
+			schedule_work(&msm_ts_work_irq2);
+			break;
 	}
 
-	schedule_delayed_work(&work, HZ / 20);
+	// Reset the timeout. When we don't receive irq's for a little while, we assume the pen no longer touches the surface. As this
+	// is not always notified by an irq, we have a fallback in which we timeout.
+	cancel_delayed_work(&msm_ts_work_timeout);
+	schedule_delayed_work(&msm_ts_work_timeout, HZ / 5);
 
 	return IRQ_HANDLED;
 }
@@ -242,13 +298,17 @@ static int __init msm_ts_init(void)
 {
 	int err;
 
-	msm_ts_fbram = registered_fb[0] ? registered_fb[0]->screen_base : 0;
-	if (!msm_ts_fbram) {
-		printk(KERN_WARNING "msm_ts: no framebuffer detected!\n");
+	printk(KERN_INFO "msm_ts: initing\n");
+
+	/* We depend on a framebuffer for painting calibration dots */
+	if (num_registered_fb == 0) {
+		printk(KERN_INFO "msm_ts: no framebuffer registered, cannot paint calibration dots\n");
 	}
 
-	printk(KERN_WARNING "msm_ts: TSSC_CTL=%08x TSSC_STATUS=%08x\n", (unsigned int) readl(MSM_TS_BASE + TSSC_CTL), (unsigned int) readl(MSM_TS_BASE + TSSC_STATUS));
+	/* Remove the 0x800 flag, in case they were still set, which would prevent us from getting interrupts */
+        writel(readl(MSM_TS_BASE + TSSC_CTL) & ~0x800, MSM_TS_BASE + TSSC_CTL);
 
+	/* Configure input device */
 	msm_ts_dev = input_allocate_device();
 	if (!msm_ts_dev)
 		return -ENOMEM;
@@ -256,44 +316,58 @@ static int __init msm_ts_init(void)
 	msm_ts_dev->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
 	msm_ts_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
-	input_set_abs_params(msm_ts_dev, ABS_X,
-		MSM_TS_ABS_X_MIN, MSM_TS_ABS_X_MAX, 0, 0);
-	input_set_abs_params(msm_ts_dev, ABS_Y,
-		MSM_TS_ABS_Y_MIN, MSM_TS_ABS_Y_MAX, 0, 0);
-	input_set_abs_params(msm_ts_dev, ABS_PRESSURE,
-		MSM_TS_ABS_PRESSURE_MIN, MSM_TS_ABS_PRESSURE_MAX, 0, 0);
+	input_set_abs_params(msm_ts_dev, ABS_X, MSM_TS_ABS_X_MIN, MSM_TS_ABS_X_MAX, 0, 0);
+	input_set_abs_params(msm_ts_dev, ABS_Y, MSM_TS_ABS_Y_MIN, MSM_TS_ABS_Y_MAX, 0, 0);
+	input_set_abs_params(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MIN, MSM_TS_ABS_PRESSURE_MAX, 0, 0);
 
 	msm_ts_dev->name = "MSM touchscreen";
 	msm_ts_dev->phys = "msm_ts/input0";
 
-	if (request_irq(INT_TCHSCRN1, msm_ts_interrupt, IRQF_DISABLED, "msm_ts", 0) < 0) {
-		printk(KERN_ERR "msm_ts: Can't allocate irq %d\n", INT_TCHSCRN1);
+	/* Register the interrupt handler. This IRQ is fired when a touch is detected */
+	if (request_irq(INT_TCHSCRN1, msm_ts_interrupt, IRQF_TRIGGER_FALLING, "msm_ts", 0) < 0) {
+		printk(KERN_ERR "msm_ts: can't allocate irq %d\n", INT_TCHSCRN1);
 		err = -EBUSY;
 		goto fail1;
 	}
 
+	/* This IRQ is fired when a release is detected. It is not 100% reliable. */
+	if (request_irq(INT_TCHSCRN2, msm_ts_interrupt, IRQF_TRIGGER_FALLING, "msm_ts", 0) < 0) {
+		printk(KERN_ERR "msm_ts: can't allocate irq %d\n", INT_TCHSCRN2);
+		err = -EBUSY;
+		goto fail2;
+	}
+
+	/* Register the input device */
 	err = input_register_device(msm_ts_dev);
 	if (err)
-		goto fail2;
+		goto fail3;
 
-	/* Call our work function first time */
-	schedule_delayed_work(&work, HZ);
+	/* Register the msmfb pre-dma callback */
+	if (msmfb_predma_register_callback(msm_ts_predma_callback) != 0) {
+		printk(KERN_WARNING "msm_ts: unable to register pre-dma callback, calibration dots cannot be drawn\n");
+	}
 
-	printk(KERN_WARNING "msm_ts_init successful\n");
+	/* Done */
+	printk(KERN_WARNING "msm_ts: init successful\n");
 
 	return 0;
 
- fail2:	free_irq(INT_TCHSCRN1, NULL);
-	cancel_delayed_work(&work);
+ fail3:
+	free_irq(INT_TCHSCRN2, NULL);
+ fail2:
+	free_irq(INT_TCHSCRN1, NULL);
+	cancel_delayed_work(&msm_ts_work_timeout);
 	flush_scheduled_work();
- fail1:	input_free_device(msm_ts_dev);
+ fail1:	
+	input_free_device(msm_ts_dev);
 	return err;
 }
 
 static void __exit msm_ts_exit(void)
 {
+	msmfb_predma_unregister_callback(msm_ts_predma_callback);
 	free_irq(INT_TCHSCRN1, NULL);
-	cancel_delayed_work(&work);
+	cancel_delayed_work(&msm_ts_work_timeout);
 	flush_scheduled_work();
 	input_unregister_device(msm_ts_dev);
 }

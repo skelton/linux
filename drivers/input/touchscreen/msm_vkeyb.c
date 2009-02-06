@@ -43,11 +43,14 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/font.h>
+#include <linux/fb.h>
+#include <linux/fb_helper.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <mach/msm_iomap.h>
+#include <mach/msm_fb.h>
 
 #ifndef CONFIG_FONT_8x8
 #error "Must compile with CONFIG_FONT_8x8 (VGA 8x8 font) for this module to work"
@@ -64,7 +67,7 @@ static int MSM_VKEYB_LEFT =	85;
 static int MSM_VKEYB_TOP =	0;
 #define MSM_VKEYB_KEY_W		26
 #define MSM_VKEYB_KEY_H		13
-#define MSM_VKEYB_DRAG      30
+#define MSM_VKEYB_DRAG		30
 
 #define MSM_VKEYB_FONT_COLS	8
 #define MSM_VKEYB_FONT_ROWS	8
@@ -87,14 +90,6 @@ static int MSM_VKEYB_TOP =	0;
 #define COLOR_GREEN		RGB(0x00, 0xFF, 0x3F)
 #define COLOR_BLUE		RGB(0x00, 0x3F, 0xFF)
 
-/* Address of video memory buffer (msm_fb transfers this on the screen using dma) */
-extern void __iomem *msm_ts_fbram;
-
-/* Registered framebuffers */
-extern struct fb_info *registered_fb[];
-
-void msmfb_update(struct fb_info *info, uint32_t left, uint32_t top,
-                  uint32_t eright, uint32_t ebottom);
 void msm_vkeyb_plot(int x,int y,unsigned short c);
 
 /* Font for drawing the keyboard */
@@ -282,7 +277,6 @@ static char *vkeyb_key_shift_func[MSM_VKEYB_LAST_KEY] = {
 
 void msm_vkeyb_plot(int x,int y,unsigned short c)
 {
-	unsigned short *p;
 	int k;
 
 	/* draw keyboard rotated if landscape*/
@@ -292,18 +286,13 @@ void msm_vkeyb_plot(int x,int y,unsigned short c)
 		x = MSM_VKEYB_LCD_WIDTH - k - 1;
 	}
 
-	/* draw twice: also in the buffer 'below' */
-	p = ((unsigned short*)msm_ts_fbram) + MSM_VKEYB_LCD_WIDTH * y + x;
-	*p = c;
-	p += MSM_VKEYB_LCD_HEIGHT * MSM_VKEYB_LCD_WIDTH;
-	*p = c;
+	/* Draw the pixel */
+	fb_helper_plot(NULL, x, y, c);
 }
 
 void msm_vkeyb_putc(unsigned char ch, int x, int y, unsigned short color)
 {
 	int i, j;
-
-	if (!msm_ts_fbram) return;
 
 	for (i = 0; i < MSM_VKEYB_FONT_ROWS; i++) {
 		for (j = 0; j < MSM_VKEYB_FONT_COLS; j++) {
@@ -325,8 +314,6 @@ void msm_vkeyb_rect(int x, int y, int w, int h, unsigned short border, unsigned 
 {
 	int i, j;
 
-	if (!msm_ts_fbram) return;
-
 	for (i = y; i < y + h; i++) {
 		for (j = x; j < x + w; j++) {
 			if (i == y || j == x || i == y + h - 1 || j == x + w - 1) {
@@ -338,63 +325,120 @@ void msm_vkeyb_rect(int x, int y, int w, int h, unsigned short border, unsigned 
 	}
 }
 
-void msm_vkeyb_draw_keyboard(void)
+void msm_vkeyb_draw_keyboard(struct msmfb_update_area *area)
 {
+	static int vkeyb_landscape_prev = -1;
 	int i, j, jj, key, x, y, w;
 	char *label, tmp[2];
 	unsigned int fg, bg;
 
-	y = MSM_VKEYB_TOP;
-	for (i = 0; i < MSM_VKEYB_ROWS; i++) {
-		x = MSM_VKEYB_LEFT;
-		for (j = 0; j < MSM_VKEYB_COLS; j++) {
-			key = vkeyb_keyboard[i][j];
-			for (jj = j + 1; jj < MSM_VKEYB_COLS && vkeyb_keyboard[i][jj] == vkeyb_keyboard[i][jj - 1]; jj++) ;
-			w = MSM_VKEYB_KEY_W * (jj - j);
-			j = jj - 1;
-			if (key == vkeyb_active_key) {
-				/* Key under stylus */
-				fg = COLOR_BLACK;
-				bg = COLOR_RED;
-			} else if (vkeyb_key_state[key]) {
-				/* Sticky key that is pressed */
-				fg = COLOR_WHITE;
-				bg = COLOR_BLACK;
-			} else if (vkeyb_key_sticky[key]) {
-				/* Sticky key that is not pressed */
-				fg = COLOR_BLACK;
-				bg = COLOR_LIGHTGRAY;
-			} else {
-				/* Normal key */
-				fg = COLOR_BLACK;
-				bg = COLOR_WHITE;
-			}
-			label = SHIFTACTIVE() && vkeyb_key_shift_func[key] ? vkeyb_key_shift_func[key] : vkeyb_key_func[key];
-			if (CAPSACTIVE() && strlen(label) == 1 && ISALPHA(label[0])) {
-				tmp[0] = TOGGLECASE(label[0]);
-				tmp[1] = '\0';
-				label = tmp;
-			}
-			msm_vkeyb_rect(x, y, w + 1, MSM_VKEYB_KEY_H + 1, COLOR_GRAY, bg);
-			msm_vkeyb_puts(label, x + (w - MSM_VKEYB_FONT_COLS * strlen(label)) / 2, y + (MSM_VKEYB_KEY_H - MSM_VKEYB_FONT_ROWS) / 2, fg);
-			x += w;
-		}
-		y += MSM_VKEYB_KEY_H;
-	}
-}
-
-int msm_vkeyb_handle_ts_event(int x, int y, int touched)
-{
-	int i, j, key;
-	int res;
-
-	/* When we're dealing with raphael, we can make the virtual keyboard go landscape as well. Test the keyboard slide GPIO. */
+	/* Determine if we should draw landscape or not. Currently this is only used for the Raphael. The keyboard slide GPIO is tested. */
 	if (machine_is_htcraphael())
 		vkeyb_landscape = gpio_get_value(38);
 	else if (machine_is_htcraphael_cdma())
 		vkeyb_landscape = gpio_get_value(39);
 	else
 		vkeyb_landscape = 0;
+	
+	/* When vkeyb_landscape was modified, we make this update a full-screen one */
+	if (vkeyb_landscape != vkeyb_landscape_prev) {
+		struct fb_info *fb = fb_helper_get_first_fb();
+		area->x = 0;
+		area->y = 0;
+		area->width = fb->var.xres;
+		area->height = fb->var.yres;
+	}
+	
+	/* Draw the keyboard (if visible) */
+	if (vkeyb_toggle) {
+		y = MSM_VKEYB_TOP;
+		for (i = 0; i < MSM_VKEYB_ROWS; i++) {
+			x = MSM_VKEYB_LEFT;
+			for (j = 0; j < MSM_VKEYB_COLS; j++) {
+				key = vkeyb_keyboard[i][j];
+				for (jj = j + 1; jj < MSM_VKEYB_COLS && vkeyb_keyboard[i][jj] == vkeyb_keyboard[i][jj - 1]; jj++) ;
+				w = MSM_VKEYB_KEY_W * (jj - j);
+				j = jj - 1;
+				if (key == vkeyb_active_key) {
+					/* Key under stylus */
+					fg = COLOR_BLACK;
+					bg = COLOR_RED;
+				} else if (vkeyb_key_state[key]) {
+					/* Sticky key that is pressed */
+					fg = COLOR_WHITE;
+					bg = COLOR_BLACK;
+				} else if (vkeyb_key_sticky[key]) {
+					/* Sticky key that is not pressed */
+					fg = COLOR_BLACK;
+					bg = COLOR_LIGHTGRAY;
+				} else {
+					/* Normal key */
+					fg = COLOR_BLACK;
+					bg = COLOR_WHITE;
+				}
+				label = SHIFTACTIVE() && vkeyb_key_shift_func[key] ? vkeyb_key_shift_func[key] : vkeyb_key_func[key];
+				if (CAPSACTIVE() && strlen(label) == 1 && ISALPHA(label[0])) {
+					tmp[0] = TOGGLECASE(label[0]);
+					tmp[1] = '\0';
+					label = tmp;
+				}
+				msm_vkeyb_rect(x, y, w + 1, MSM_VKEYB_KEY_H + 1, COLOR_GRAY, bg);
+				msm_vkeyb_puts(label, x + (w - MSM_VKEYB_FONT_COLS * strlen(label)) / 2, y + (MSM_VKEYB_KEY_H - MSM_VKEYB_FONT_ROWS) / 2, fg);
+				x += w;
+			}
+			y += MSM_VKEYB_KEY_H;
+		}
+	}
+
+	/* Draw the drag and minimize/restore square */
+	msm_vkeyb_rect(MSM_VKEYB_LEFT - MSM_VKEYB_DRAG, MSM_VKEYB_TOP, MSM_VKEYB_DRAG, MSM_VKEYB_DRAG, COLOR_BLACK, 
+					vkeyb_drag_track ? COLOR_RED : vkeyb_toggle ? COLOR_GREEN : COLOR_BLUE);
+}
+
+void msm_vkeyb_issue_update(void)
+{
+	int x, y, width, height;
+	
+	/* Depending on whether the keyboard is fully visible or not, we update a large or small piece */
+	if (vkeyb_toggle) {
+		/* The keyboard is fully visible */
+		x = MSM_VKEYB_LEFT - MSM_VKEYB_DRAG;
+		y = MSM_VKEYB_TOP;
+		width = MSM_VKEYB_LEFT + (MSM_VKEYB_KEY_W * MSM_VKEYB_COLS);
+		height = MSM_VKEYB_TOP + (MSM_VKEYB_KEY_H * MSM_VKEYB_ROWS);
+	}
+	else {
+		/* Only the dragging area is visible */
+		x = MSM_VKEYB_LEFT - MSM_VKEYB_DRAG;
+		y = MSM_VKEYB_TOP;
+		width = MSM_VKEYB_DRAG;
+		height = MSM_VKEYB_DRAG;
+	}
+	
+	/* If neccesary, we rotate the coordinates to landscape */
+	if (vkeyb_landscape) {
+		// Rotate top left
+		int temp = y;
+		y = x;
+		x = MSM_VKEYB_LCD_WIDTH - temp - 1;
+		
+		// We want the "new" top left
+		x = x - (width - 1);
+		
+		// Now we turn width and heigh around
+		temp = height;
+		height = width;
+		width = temp;
+	}
+	
+	/* Perform the update */
+	fb_helper_update(NULL, x, y, width, height);
+}
+
+int msm_vkeyb_handle_ts_event(int x, int y, int touched)
+{
+	int i, j, key;
+	int res;
 
 	/* map rotated coords to vkeyb */
 	if (vkeyb_landscape) {
@@ -404,9 +448,7 @@ int msm_vkeyb_handle_ts_event(int x, int y, int touched)
 	}
 
 	res = 0;
-	if (touched < 0) {
-		/* Just redraw the keyboard */
-	} else if (x >= MSM_VKEYB_LEFT && x < MSM_VKEYB_LEFT + MSM_VKEYB_KEY_W * MSM_VKEYB_COLS
+	if (x >= MSM_VKEYB_LEFT && x < MSM_VKEYB_LEFT + MSM_VKEYB_KEY_W * MSM_VKEYB_COLS
 			&& y >= MSM_VKEYB_TOP && y < MSM_VKEYB_TOP + MSM_VKEYB_KEY_H * MSM_VKEYB_ROWS
 			&& vkeyb_toggle) {
 		res = 1;
@@ -481,45 +523,10 @@ int msm_vkeyb_handle_ts_event(int x, int y, int touched)
 	} else {
 		vkeyb_drag_track = 0;
 	}
-
-	if (vkeyb_toggle)
-		msm_vkeyb_draw_keyboard();
-
-	msm_vkeyb_rect(MSM_VKEYB_LEFT - MSM_VKEYB_DRAG, MSM_VKEYB_TOP, MSM_VKEYB_DRAG, MSM_VKEYB_DRAG, COLOR_BLACK, 
-					vkeyb_drag_track ? COLOR_RED : vkeyb_toggle ? COLOR_GREEN : COLOR_BLUE);
-
-	if (touched == -2)
-		return 0;
 	
-	if (vkeyb_toggle) {
-		x = MSM_VKEYB_LEFT;
-		y = MSM_VKEYB_TOP;
-		i = x + MSM_VKEYB_COLS * MSM_VKEYB_KEY_W + 1;
-		j = y + MSM_VKEYB_ROWS * MSM_VKEYB_KEY_H + 1;
-		if (registered_fb && registered_fb[0])
-		{
-			if (vkeyb_landscape) {
-				msmfb_update(registered_fb[0], MSM_VKEYB_LCD_WIDTH - j, x, MSM_VKEYB_LCD_WIDTH - y, i);
-			} else {
-				msmfb_update(registered_fb[0], x, y, i, j);
-			}
-		} else {
-			WARN_ONCE(1, "No framebuffers registered\n");
-		}
-	}
-	x = MSM_VKEYB_LEFT - MSM_VKEYB_DRAG;
-	y = MSM_VKEYB_TOP;
-	i = x + MSM_VKEYB_DRAG;
-	j = y + MSM_VKEYB_DRAG;
+	/* Issue the area of the keyboard to be redrawn, the callback will do the actual drawing */
+	msm_vkeyb_issue_update();
 
-	if (registered_fb && registered_fb[0])
-	{
-		if (vkeyb_landscape) {
-			msmfb_update(registered_fb[0], MSM_VKEYB_LCD_WIDTH - j, x, MSM_VKEYB_LCD_WIDTH - y, i);
-		} else {
-			msmfb_update(registered_fb[0], x, y, i, j);
-		}
-	}
 	return res;
 }
 
@@ -535,17 +542,26 @@ static int __init msmvkeyb_toggle_setup(char *str)
 }
 __setup("msmvkeyb_toggle=", msmvkeyb_toggle_setup);
 
+static void msm_vkeyb_predma_callback(struct fb_info *fb, struct msmfb_update_area *area)
+{
+	/* Draw the keyboard on the framebuffer */
+	msm_vkeyb_draw_keyboard(area);
+}
+
 static int __init msm_vkeyb_init(void)
 {
 	int err, i, j;
 
+	printk(KERN_INFO "msm_vkeyb: init\n");
+
 	/* In case vkeyb was disabled from kernel param, don't continue loading */
 	if (vkeyb_toggle == -1) {
-		printk(KERN_INFO "%s: virtual keyboard is disabled by cmdline, not loading\n", __func__);
+		printk(KERN_INFO "msm_vkeyb: virtual keyboard is disabled by cmdline, not loading\n");
 		msm_ts_handler = NULL;
 		return 0;
 	}
 
+	/* Setup the input device */
 	msm_vkeyb_dev = input_allocate_device();
 	if (!msm_vkeyb_dev)
 		return -ENOMEM;
@@ -563,19 +579,32 @@ static int __init msm_vkeyb_init(void)
 		}
 	}
 
+        /* Register the msmfb pre-dma callback */
+        if (msmfb_predma_register_callback(msm_vkeyb_predma_callback) != 0) {
+                printk(KERN_ERR "msm_ts: unable to register pre-dma callback, vkeyb is unusable without it. Bailing out.\n");
+		input_free_device(msm_vkeyb_dev);
+		return -1;
+        }
+
+	/* Register the input device */
 	err = input_register_device(msm_vkeyb_dev);
 	if (err) {
 		input_free_device(msm_vkeyb_dev);
 		return err;
 	}
 
+	/* We're depending on input from the touchscreen driver */
 	msm_ts_handler = msm_vkeyb_handle_ts_event;
+
+	/* Done */
+	printk(KERN_INFO "msm_vkeyb: loaded\n");
 
 	return 0;
 }
 
 static void __exit msm_vkeyb_exit(void)
 {
+	msmfb_predma_unregister_callback(msm_vkeyb_predma_callback);
 	msm_ts_handler = NULL;
 	input_unregister_device(msm_vkeyb_dev);
 }
