@@ -74,9 +74,9 @@ struct msm_clock_params msm_clock_parameters[] = {
 struct sdcc_clock_params msm_clock_freq_parameters[] = {
         MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
         MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
-        MSM_CLOCK_REG(19000000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19MHz */
+        MSM_CLOCK_REG(19200000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19.2MHz */
         MSM_CLOCK_REG(24000000, 1, 0x10, 0x08, 1, 3, 1, 1), /* 24MHz */
-        MSM_CLOCK_REG(48000000, 1, 0x0c, 0x06, 1, 3, 1, 1), /* 48MHz */
+        MSM_CLOCK_REG(32000000, 1, 0x0c, 0x06, 1, 3, 1, 1), /* 32MHz */
 };
 
 static inline uint32_t msm_clk_enable_bit(uint32_t id)
