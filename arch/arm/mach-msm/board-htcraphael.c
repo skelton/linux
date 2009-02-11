@@ -115,14 +115,15 @@ static void halibut_phy_reset(void)
 }
 
 static char *halibut_usb_functions[] = {
-	"diag",
-        "ether", // netripper
+        "ether",
+//	"diag",
 //	"adb",
 };
 
 static struct msm_hsusb_product halibut_usb_products[] = {
+	/* Use product_id 0x505a always, as we moved ether to the top of the list */
 	{
-		.product_id = 0x0001, // when ether is disabled
+		.product_id = 0x505a,
 		.functions = 0x01,
 	},
 	{
