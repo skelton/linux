@@ -319,15 +319,15 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
-#if 0
 static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
-	mi->bank[0].size = (64 * 1024 * 1024);
-#if 1
+	mi->bank[0].size = (89 * 1024 * 1024); // Why 89? See board-htcraphael.h
+#if 0
+	/* TODO: detect whether a 2nd memory bank is actually present, not all devices have it */
 	mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
 	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
@@ -338,7 +338,6 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 	if (mi->nr_banks > 1)
 		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
-#endif
 
 static void htcraphael_device_specific_fixes(void)
 {
@@ -359,7 +358,7 @@ static void htcraphael_device_specific_fixes(void)
 }
 
 MACHINE_START(HTCRAPHAEL, "HTC Raphael GSM phone (aka HTC Touch Pro)")
-//	.fixup 		= htcraphael_fixup,
+	.fixup 		= htcraphael_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,
@@ -368,7 +367,7 @@ MACHINE_START(HTCRAPHAEL, "HTC Raphael GSM phone (aka HTC Touch Pro)")
 MACHINE_END
 
 MACHINE_START(HTCRAPHAEL_CDMA, "HTC Raphael CDMA phone (aka HTC Touch Pro)")
-//	.fixup 		= htcraphael_fixup,
+	.fixup 		= htcraphael_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,
