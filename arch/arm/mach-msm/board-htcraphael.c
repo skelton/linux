@@ -103,15 +103,26 @@ static struct platform_device msm_serial0_device = {
 	.resource	= msm_serial0_resources,
 };
 
-static int halibut_phy_init_seq[] = { 0x40, 0x31, 0x1D, 0x0D, 0x1D, 0x10, -1 };
+static int halibut_phy_init_seq_raph100[] = {
+	0x40, 0x31, /* Leave this pair out for USB Host Mode */
+	0x1D, 0x0D,
+	0x1D, 0x10,
+	-1
+};
+
+static int halibut_phy_init_seq_raph800[] = {
+	0x04, 0x48, /* Host mode is unsure for raph800 */
+	0x3A, 0x10,
+	0x3B, 0x10,
+	-1
+};
 
 static void halibut_phy_reset(void)
 {
-	//XXX: find out how to reset usb
-	// gpio_set_value(TROUT_GPIO_USB_PHY_RST_N, 0);
-        // mdelay(10);
-        // gpio_set_value(TROUT_GPIO_USB_PHY_RST_N, 1);
-	mdelay(10);
+	gpio_set_value(0x64, 0);
+	mdelay(1);
+	gpio_set_value(0x64, 1);
+	mdelay(3);
 }
 
 static char *halibut_usb_functions[] = {
@@ -141,7 +152,7 @@ static struct msm_hsusb_product halibut_usb_products[] = {
 // orig product_id 0xd00d
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.phy_reset      = halibut_phy_reset,
-	.phy_init_seq	= halibut_phy_init_seq,
+	.phy_init_seq	= halibut_phy_init_seq_raph100, /* Modified in htcraphael_device_specific_fixes() */
 	.vendor_id      = 0x049F,
 	.product_id     = 0x0002, // by default (no funcs)
 	.version        = 0x0100,
@@ -291,7 +302,7 @@ static void __init halibut_init(void)
 
         msm_hw_reset_hook = htcraphael_reset;
 
-	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata,
+	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
@@ -348,6 +359,7 @@ static void htcraphael_device_specific_fixes(void)
 		raphael_keypad_data.clamshell.gpio = 38;
 		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(38);
 		raphael_keypad_data.backlight_gpio = 86;
+		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
 	}
 	if (machine_is_htcraphael_cdma()) {
 		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
@@ -355,6 +367,7 @@ static void htcraphael_device_specific_fixes(void)
 		raphael_keypad_data.clamshell.gpio = 39;
 		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(39);
 		raphael_keypad_data.backlight_gpio = 86;
+		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph800;
 	}
 }
 
