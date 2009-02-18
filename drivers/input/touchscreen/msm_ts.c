@@ -154,7 +154,7 @@ static void msm_ts_process_data(int irq)
 	unsigned long status, data;
 	int absx, absy, touched, x, y;
 	int vkey;
-	static int prev_absx = -1, prev_absy = -1, prev_touched = -1, nrskipped = 0;
+	static int prev_absx = -1, prev_absy = -1, prev_touched = -1;
 
 	/* Read status and data */
 	status = readl(MSM_TS_BASE + TSSC_STATUS);
@@ -184,13 +184,13 @@ static void msm_ts_process_data(int irq)
 	 */
 	if (touched && (readl(MSM_TS_BASE + TSSC_CTL) & 0x800) == 0) {
 #if MSM_TS_DEBUG
-		printk(KERN_DEBUG "msm_ts: invalid data (no 0x800 flag in CTL)\n", x, y, touched, vkey);
+		printk(KERN_DEBUG "msm_ts: invalid data (no 0x800 flag in CTL)\n");
 #endif
 		goto skip;
 	}
 	if (touched && (status & 0x2000) == 0) {
 #if MSM_TS_DEBUG
-		printk(KERN_DEBUG "msm_ts: invalid data (no 0x2000 flag in STATUS)\n", x, y, touched, vkey);
+		printk(KERN_DEBUG "msm_ts: invalid data (no 0x2000 flag in STATUS)\n");
 #endif
 		goto skip;
 	}
@@ -234,7 +234,6 @@ static void msm_ts_process_data(int irq)
 
 			/* Call our handler if it's registered -- the virtual keyboards gets data from this */
 			if (msm_ts_handler) {
-				nrskipped = 0;
 				vkey = (*msm_ts_handler)(x, y, touched);
 			} else {
 				vkey = 0;
@@ -245,16 +244,13 @@ static void msm_ts_process_data(int irq)
 #endif
 			
 			/* Send data to linux input system, if not eaten by vkeyb */
-			if (touched && !vkey) {
+			if (!vkey) {
 				input_report_abs(msm_ts_dev, ABS_X, x);
 				input_report_abs(msm_ts_dev, ABS_Y, y);
-				input_report_abs(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MAX);
-				input_report_key(msm_ts_dev, BTN_TOUCH, 1);
-			} else {
-				input_report_key(msm_ts_dev, BTN_TOUCH, 0);
-				input_report_abs(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MIN);
+				input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);
+				input_report_key(msm_ts_dev, BTN_TOUCH, touched);
+				input_sync(msm_ts_dev);
 			}
-			input_sync(msm_ts_dev);
 		}
 
 		/* Save the state so we won't report the same position and state twice */
