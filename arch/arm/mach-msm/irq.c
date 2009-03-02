@@ -135,7 +135,7 @@ static uint8_t msm_irq_to_smsm[NR_MSM_IRQS] = {
 	[INT_GPIO_GROUP2] = SMSM_FAKE_IRQ,
 	[INT_A9_M2A_0] = SMSM_FAKE_IRQ,
 	[INT_A9_M2A_1] = SMSM_FAKE_IRQ,
-#if defined(MSM_SMD_7500)
+#if defined(CONFIG_MSM_SMD_7500)
 	[INT_A9_M2A_2] = SMSM_FAKE_IRQ,
 	[INT_A9_M2A_3] = SMSM_FAKE_IRQ,
 	[INT_A9_M2A_4] = SMSM_FAKE_IRQ,
