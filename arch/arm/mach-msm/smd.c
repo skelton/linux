@@ -28,6 +28,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
+#include <asm/mach-types.h>
+
 #include <mach/msm_smd.h>
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
@@ -188,10 +190,12 @@ struct smd_channel {
 	int (*write_avail)(smd_channel_t *ch);
 
 	void (*update_state)(smd_channel_t *ch);
+	void (*check_for_data)(smd_channel_t *ch);
 	unsigned last_state;
 
 	char name[32];
 	struct platform_device pdev;
+	short * open;
 };
 
 static LIST_HEAD(smd_ch_closed_list);
@@ -201,6 +205,13 @@ static unsigned char smd_ch_allocated[64];
 static struct work_struct probe_work;
 
 static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type);
+
+
+#if defined(CONFIG_MSM_SMD_7500)
+extern void do_smd_7500_probe(unsigned char *, struct list_head *);
+#else
+static inline void do_smd_7500_probe(unsigned char * a, struct list_head * b) {}
+#endif
 
 static void smd_channel_probe_worker(struct work_struct *work)
 {
@@ -220,6 +231,15 @@ static void smd_channel_probe_worker(struct work_struct *work)
 				  shared[n].cid,
 				  shared[n].ctype);
 		smd_ch_allocated[n] = 1;
+	}
+
+	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) {
+		/* Pass whatever info we'll need in order to initialize the 7500
+		 * ports and keep them usable within smd.o
+		 */
+		mutex_lock(&smd_creation_mutex);
+		do_smd_7500_probe(smd_ch_allocated, &smd_ch_closed_list);
+		mutex_unlock(&smd_creation_mutex);
 	}
 }
 
@@ -443,6 +463,8 @@ static irqreturn_t smd_irq_handler(int irq, void *data)
 	spin_lock_irqsave(&smd_lock, flags);
 	list_for_each_entry(ch, &smd_ch_list, ch_list) {
 		ch_flags = 0;
+		if (ch->check_for_data)
+			ch->check_for_data(ch);
 		if (ch_is_open(ch)) {
 			if (ch->recv->fHEAD) {
 				ch->recv->fHEAD = 0;
@@ -763,6 +785,8 @@ int smd_open(const char *name, smd_channel_t **_ch,
 		hc_set_state(ch->send, SMD_SS_OPENING);
 	} else {
 		hc_set_state(ch->send, SMD_SS_OPENED);
+		if (ch->open)
+			*ch->open = 1;
 	}
 	spin_unlock_irqrestore(&smd_lock, flags);
 	smd_kick(ch);
@@ -774,7 +798,7 @@ int smd_close(smd_channel_t *ch)
 {
 	unsigned long flags;
 
-	pr_info("smd_close(%p)\n", ch);
+	pr_info("smd_close(%d)\n", ch->n);
 
 	if (ch == 0)
 		return -1;
@@ -783,6 +807,8 @@ int smd_close(smd_channel_t *ch)
 	ch->notify = do_nothing_notify;
 	list_del(&ch->ch_list);
 	hc_set_state(ch->send, SMD_SS_CLOSED);
+	if (ch->open)
+		*ch->open = 0;
 	spin_unlock_irqrestore(&smd_lock, flags);
 
 	mutex_lock(&smd_creation_mutex);
@@ -1068,20 +1094,35 @@ void smsm_print_sleep_info(void)
 int smd_core_init(void)
 {
 	int r;
+	int i;
+	int max_irq;
 	pr_info("smd_core_init()\n");
 
-	r = request_irq(INT_A9_M2A_0, smd_irq_handler,
-			IRQF_TRIGGER_RISING, "smd_dev", 0);
-	if (r < 0)
-		return r;
-	r = enable_irq_wake(INT_A9_M2A_0);
-	if (r < 0)
-		pr_err("smd_core_init: enable_irq_wake failed for A9_M2A_0\n");
+	// IRQs 1-4 are only needed for msm7500
+	max_irq = (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) ? 4 : 0;
+
+	for(i=0; i<=max_irq; i++) {
+		r = request_irq(INT_A9_M2A_0 + i, smd_irq_handler,
+		                IRQF_TRIGGER_RISING, "smd_dev", 0);
+		if (r < 0)
+		{
+			while (--i>=0) {
+				free_irq(INT_A9_M2A_0 + i, 0);
+			}
+			return r;
+		}
+		r = enable_irq_wake(INT_A9_M2A_0 + i);
+		if (r < 0)
+			pr_err("%s: enable_irq_wake failed for A9_M2A_%d\n", 
+			       __func__, i);
+	}
 
 	r = request_irq(INT_A9_M2A_5, smsm_irq_handler,
 			IRQF_TRIGGER_RISING, "smsm_dev", 0);
 	if (r < 0) {
-		free_irq(INT_A9_M2A_0, 0);
+		for(i=max_irq; i>=0; --i) {
+			free_irq(INT_A9_M2A_0 + i, 0);
+		}
 		return r;
 	}
 	r = enable_irq_wake(INT_A9_M2A_5);
@@ -1173,7 +1214,7 @@ static int debug_read_mem(char *buf, int max)
 		if (toc[n].allocated == 0)
 			continue;
 		i += scnprintf(buf + i, max - i,
-			       "%04d: offsed %08x size %08x\n",
+			       "%04d: offset %08x size %08x\n",
 			       n, toc[n].offset, toc[n].size);
 	}
 	return i;
