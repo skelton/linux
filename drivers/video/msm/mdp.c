@@ -31,6 +31,7 @@
 #include <mach/msm_fb.h>
 #include <linux/platform_device.h>
 
+#include <asm/mach-types.h>
 #include "mdp_hw.h"
 
 struct class *mdp_class;
@@ -231,13 +232,12 @@ void mdp_dma_to_mddi(struct mdp_info *mdp, uint32_t addr, uint32_t stride,
 	mdp_writel(mdp, addr, MDP_CMD_DEBUG_ACCESS_BASE + 0x0188);
 	mdp_writel(mdp, stride, MDP_CMD_DEBUG_ACCESS_BASE + 0x018C);
 
-#if defined(CONFIG_MACH_HTCBLACKSTONE)
-	/* 565 16BPP */
-	dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_5BITS | DMA_DSTC2R_5BITS;
-#else
-	/* 666 18BPP */
-	dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_6BITS | DMA_DSTC2R_6BITS;
-#endif
+	if ( machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma() || machine_is_htcblackstone() )
+		/* 565 16BPP */
+		dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_5BITS | DMA_DSTC2R_5BITS;
+	else
+		/* 666 18BPP */
+		dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_6BITS | DMA_DSTC2R_6BITS;
 
 	/* set y & x offset and MDDI transaction parameters */
 	mdp_writel(mdp, (y << 16) | (x), MDP_CMD_DEBUG_ACCESS_BASE + 0x0194);

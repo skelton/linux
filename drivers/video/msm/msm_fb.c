@@ -662,28 +662,15 @@ static void setup_fb_info(struct msmfb_info *msmfb)
 	fb_info->var.reserved[2] = (uint16_t)msmfb->xres |
 				   ((uint32_t)msmfb->yres << 16);
 
-	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) {
-		fb_info->var.red.offset = 10;
-		fb_info->var.red.length = 4;
-		fb_info->var.red.msb_right = 0;
-		fb_info->var.green.offset = 6;
-		fb_info->var.green.length = 4;
-		fb_info->var.green.msb_right = 0;
-		fb_info->var.blue.offset = 0;
-		fb_info->var.blue.length = 4;
-		fb_info->var.blue.msb_right = 0;
-	}
-	else {
-		fb_info->var.red.offset = 11;
-		fb_info->var.red.length = 5;
-		fb_info->var.red.msb_right = 0;
-		fb_info->var.green.offset = 5;
-		fb_info->var.green.length = 6;
-		fb_info->var.green.msb_right = 0;
-		fb_info->var.blue.offset = 0;
-		fb_info->var.blue.length = 5;
-		fb_info->var.blue.msb_right = 0;
-	}
+	fb_info->var.red.offset = 11;
+	fb_info->var.red.length = 5;
+	fb_info->var.red.msb_right = 0;
+	fb_info->var.green.offset = 5;
+	fb_info->var.green.length = 6;
+	fb_info->var.green.msb_right = 0;
+	fb_info->var.blue.offset = 0;
+	fb_info->var.blue.length = 5;
+	fb_info->var.blue.msb_right = 0;
 
 	r = fb_alloc_cmap(&fb_info->cmap, 16, 0);
 	fb_info->pseudo_palette = PP;

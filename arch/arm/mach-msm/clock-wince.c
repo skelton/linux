@@ -34,146 +34,181 @@ static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
 static LIST_HEAD(clocks);
 
-struct sdcc_clock_params
+#if 1
+#define D(x...) printk(KERN_DEBUG "clock-wince: " x)
+#else
+#define D(x...) do {} while (0)
+#endif
+
+struct mdns_clock_params
 {
-        unsigned long   freq;
-        uint32_t        md;
-        uint32_t        ns;
+	unsigned long freq;
+	uint32_t md;
+	uint32_t ns;
 };
 
 struct msm_clock_params
 {
-        unsigned clk_id;
-        unsigned idx;
-        unsigned offset;
+	unsigned clk_id;
+	unsigned idx;
+	unsigned offset;  // Offset points to .ns register
+	unsigned ns_only; // value to fill in ns register, rather than using mdns_clock_params look-up table
 };
 
 struct msm_clock_params msm_clock_parameters[] = {
-        { .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa0, },
-        { .clk_id = SDC2_CLK, .idx =  8, .offset = 0xa8, },
-        { .clk_id = SDC3_CLK, .idx = 27, .offset = 0xb0, },
-        { .clk_id = SDC4_CLK, .idx = 28, .offset = 0xb8, },
-        { .clk_id = UART1DM_CLK, .idx = 17, .offset = 0xd0, },
-        { .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xd8, },
-//        { .clk_id = MDC_CLK, .idx = 
-};
+	// Full ena/md/ns clock
+	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, },
+	{ .clk_id = SDC2_CLK, .idx =  8, .offset = 0xac, },
+	{ .clk_id = SDC3_CLK, .idx = 27, .offset = 0xb4, },
+	{ .clk_id = SDC4_CLK, .idx = 28, .offset = 0xbc, },
+	{ .clk_id = UART1DM_CLK, .idx = 17, .offset = 0xd4, },
+	{ .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xdc, },
 
+	{ .clk_id = USB_HS_CLK, .idx = 25, .offset = 0x2c0, .ns_only = 0xb00 },
+	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80 },
+
+	// MD/NS only; offset = Ns reg
+	{ .clk_id = VFE_CLK, .offset = 0x44 },
+	
+	// Enable bit only; bit = 1U << idx
+	{ .clk_id = MDP_CLK, .idx = 9, },
+	
+	// NS-reg only; offset = Ns reg, ns_only = Ns value
+	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06 },
+	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa00, },
+	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, },
+};
 
 // This formula is used to generate md and ns reg values
 #define MSM_CLOCK_REG(frequency,a1,a2,a3,a4,a5,a6,a7) { \
-        .freq = (frequency), \
-        .md = ((0xffff & (a1)) << 16) | (0xffff & ~((a3) << 1)), \
-        .ns = ((0xffff & ~((a2) - (a1))) << 16) \
-            | ((0xff & (0xa | (a7))) << 8) \
-            | ((0x7 & (a5)) << 5) \
-            | ((0x3 & (a4)) << 3) \
-            | (0x3 & (a6)), \
-        }
+	.freq = (frequency), \
+	.md = ((0xffff & (a1)) << 16) | (0xffff & ~((a3) << 1)), \
+	.ns = ((0xffff & ~((a2) - (a1))) << 16) \
+	    | ((0xff & (0xa | (a7))) << 8) \
+	    | ((0x7 & (a5)) << 5) \
+	    | ((0x3 & (a4)) << 3) \
+	    | (0x3 & (a6)), \
+}
 
 
-struct sdcc_clock_params msm_clock_freq_parameters[] = {
-        MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
-        MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
-        MSM_CLOCK_REG(19200000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19.2MHz */
-        MSM_CLOCK_REG(24000000, 1, 0x10, 0x08, 1, 3, 1, 1), /* 24MHz */
-        MSM_CLOCK_REG(32000000, 1, 0x0c, 0x06, 1, 3, 1, 1), /* 32MHz */
+struct mdns_clock_params msm_clock_freq_parameters[] = {
+	MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
+	MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
+	MSM_CLOCK_REG(19200000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19.2MHz */
+	MSM_CLOCK_REG(24000000, 1, 0x10, 0x08, 1, 3, 1, 1), /* 24MHz */
+	MSM_CLOCK_REG(32000000, 1, 0x0c, 0x06, 1, 3, 1, 1), /* 32MHz */
 };
+
+static inline struct msm_clock_params msm_clk_get_params(uint32_t id)
+{
+	int i;
+	struct msm_clock_params empty = { };
+	for (i = 0; i < ARRAY_SIZE(msm_clock_parameters); i++) {
+		if (id == msm_clock_parameters[i].clk_id) {
+			return msm_clock_parameters[i];
+		}
+	}
+	return empty;
+}
 
 static inline uint32_t msm_clk_enable_bit(uint32_t id)
 {
-        uint32_t bit;
-        int i;
-        bit = 0;
-        for (i = 0; i < ARRAY_SIZE(msm_clock_parameters); i++) {
-                if (id == msm_clock_parameters[i].clk_id) {
-                        bit = 1U << msm_clock_parameters[i].idx;
-                        break;
-                }
-        }
-
-        return bit;
+	struct msm_clock_params params;
+	params = msm_clk_get_params(id);
+	if (!params.idx) return 0;
+	return 1U << params.idx;
 }
 
 static inline unsigned msm_clk_reg_offset(uint32_t id)
 {
-        unsigned offset;
-        int i;
-        offset = -EINVAL;
-        for (i = 0; i < ARRAY_SIZE(msm_clock_parameters); i++) {
-                if (id == msm_clock_parameters[i].clk_id) {
-                        offset = msm_clock_parameters[i].offset;
-                        break;
-                }
-        }
-
-        return offset;
+	struct msm_clock_params params;
+	params = msm_clk_get_params(id);
+	return params.offset;
 }
 
-static int set_sdcc_host_clock(uint32_t id, unsigned long freq)
+static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 {
-        int n;
-        uint32_t clkbit;
-        unsigned offset;
-        int retval = -EINVAL;
+	int n;
+	unsigned offset;
+	int retval;
 	bool found;
-
+	struct msm_clock_params params;
 	found = 0;
-        clkbit = msm_clk_enable_bit(id);
-        offset = msm_clk_reg_offset(id);
+	retval = -EINVAL;
+	
+	params = msm_clk_get_params(id);
+	offset = params.offset;
 
-        if (clkbit == 0 || offset == 0) {
-                return -EINVAL;
-        }
+	D("set mdns: %u, %lu; bitidx=%u, offset=%x, ns=%x\n", id, freq, 
+	  params.idx, params.offset, params.ns_only);
 
-        for (n = 0; n < ARRAY_SIZE(msm_clock_freq_parameters); n++) {
-                if (freq <= msm_clock_freq_parameters[n].freq) {
-			// Turn off GlblClkEna
-			writel(readl(MSM_CLK_CTL_BASE) & ~clkbit, MSM_CLK_CTL_BASE);
-			// Set SdxMdReg and SdxNsReg
-			writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset);
-			writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset + 4);
-			// Turn GlblClkEna back on
-			writel(readl(MSM_CLK_CTL_BASE) | clkbit, MSM_CLK_CTL_BASE);
-			msleep(50);
-			printk( "clock-wince: set_sdcc_host_clock( %u, %lu )\n",
-				id,  msm_clock_freq_parameters[n].freq );
-                        retval = 0;
-			found = 1;
-                        break;
-                }
-        }
-
-	if (!found) {
-		printk("clock-wince: set_sdcc_host_clock could not find suitable parameter for freq %lu\n", freq);
+	if (!params.offset)
+	{
+		printk(KERN_WARNING "%s: Don't know how to set clock %u - no known Md/Ns reg\n", __func__, id);
+		return -ENOTSUPP;
 	}
 
-        return retval;
+	// Turn off clock-enable bit if supported
+	if (params.idx > 0)
+		writel(readl(MSM_CLK_CTL_BASE) & ~(1U << params.idx), MSM_CLK_CTL_BASE);
+
+	if (params.ns_only > 0)
+	{
+		writel(params.ns_only, MSM_CLK_CTL_BASE + offset);
+		found = 1;
+		retval = 0;
+	} else {
+		for (n = ARRAY_SIZE(msm_clock_freq_parameters); n >= 0; n--) {
+			if (freq >= msm_clock_freq_parameters[n].freq) {
+				// This clock requires MD and NS regs to set frequency:
+				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
+				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
+				msleep(5);
+				D("%s: %u, freq=%lu\n", __func__, id, 
+				  msm_clock_freq_parameters[n].freq );
+				retval = 0;
+				found = 1;
+				break;
+			}
+		}
+	}
+
+	// Turn clock-enable bit back on, if supported
+	if (params.idx > 0)
+		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
+
+	if (!found) {
+		printk(KERN_WARNING "clock-wince: set_sdcc_host_clock could not "
+		       "find suitable parameter for freq %lu\n", freq);
+	}
+
+	return retval;
 }
 
-static unsigned long get_sdcc_host_clock(uint32_t id)
+static unsigned long get_mdns_host_clock(uint32_t id)
 {
-        int n;
-        unsigned offset;
-        uint32_t mdreg;
-        uint32_t nsreg;
-        unsigned long freq = 0;
+	int n;
+	unsigned offset;
+	uint32_t mdreg;
+	uint32_t nsreg;
+	unsigned long freq = 0;
 
-        offset = msm_clk_reg_offset(id);
-        if (offset == 0)
-                return -EINVAL;
+	offset = msm_clk_reg_offset(id);
+	if (offset == 0)
+		return -EINVAL;
 
-        mdreg = readl(MSM_CLK_CTL_BASE + offset);
-        nsreg = readl(MSM_CLK_CTL_BASE + offset + 4);
+	mdreg = readl(MSM_CLK_CTL_BASE + offset - 4);
+	nsreg = readl(MSM_CLK_CTL_BASE + offset);
 
-        for (n = 0; n < ARRAY_SIZE(msm_clock_freq_parameters); n++) {
-                if (msm_clock_freq_parameters[n].md == mdreg &&
-                        msm_clock_freq_parameters[n].ns == nsreg) {
-                                freq = msm_clock_freq_parameters[n].freq;
-                                break;
-                }
-        }
+	for (n = 0; n < ARRAY_SIZE(msm_clock_freq_parameters); n++) {
+		if (msm_clock_freq_parameters[n].md == mdreg &&
+			msm_clock_freq_parameters[n].ns == nsreg) {
+			freq = msm_clock_freq_parameters[n].freq;
+			break;
+		}
+	}
 
-        return freq;
+	return freq;
 }
 
 #ifndef CONFIG_MSM_AMSS_VERSION_WINCE
@@ -232,115 +267,120 @@ static inline int pc_pll_request(unsigned id, unsigned on)
 
 static int pc_clk_enable(uint32_t id)
 {
-        unsigned bit;
-        bit = msm_clk_enable_bit(id);
-        if (bit > 0)
-                writel(readl(MSM_CLK_CTL_BASE) | bit, MSM_CLK_CTL_BASE);
-        return 0;
+	struct msm_clock_params params;
+	params = msm_clk_get_params(id);
+
+	//XXX: too spammy, extreme debugging only: D(KERN_DEBUG "%s: %d\n", __func__, id);
+
+	if (params.idx)
+	{
+		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
+		return 0;
+	} else if (params.ns_only > 0 && params.offset)
+	{
+		writel(readl(MSM_CLK_CTL_BASE + params.offset) | params.ns_only, MSM_CLK_CTL_BASE + params.offset);
+		return 0;
+	}
+	printk(KERN_WARNING "%s: enabling a clock that doesn't have an ena bit "
+	       "or ns-only offset: %u\n", __func__, id);
+	return -1;
 }
 
 static void pc_clk_disable(uint32_t id)
 {
-        unsigned bit;
-        bit = msm_clk_enable_bit(id);
-        if (bit > 0)
-                writel(readl(MSM_CLK_CTL_BASE) & ~bit, MSM_CLK_CTL_BASE);
+	struct msm_clock_params params;
+	params = msm_clk_get_params(id);
+
+	//XXX: D(KERN_DEBUG "%s: %d\n", __func__, id);
+
+	if (params.idx)
+	{
+		writel(readl(MSM_CLK_CTL_BASE) & ~(1U << params.idx), MSM_CLK_CTL_BASE);
+	} else if (params.ns_only > 0 && params.offset)
+	{
+		writel(readl(MSM_CLK_CTL_BASE + params.offset) & ~params.ns_only, MSM_CLK_CTL_BASE + params.offset);
+	} else {
+		printk(KERN_WARNING "%s: disabling a clock that doesn't have an "
+		       "ena bit: %u\n", __func__, id);
+	}
 }
 
 static int pc_clk_set_rate(uint32_t id, unsigned long rate)
 {
-        int retval = 0;
+	int retval;
+	retval = 0;
 
-        printk("clk_set_rate %u:%lu\n", id, rate);
+	D("%s: id=%u rate=%lu\n", __func__, id, rate);
 
-        switch (id) {
-        case SDC1_CLK:
-        case SDC2_CLK:
-        case SDC3_CLK:
-        case SDC4_CLK:
-                retval = set_sdcc_host_clock(id, rate);
-                break;
+	retval = set_mdns_host_clock(id, rate);
 
-        case SDC1_PCLK:
-        case SDC2_PCLK:
-        case SDC3_PCLK:
-        case SDC4_PCLK:
-                printk("cannot set pclk rate!\n");
-                retval = -EINVAL;
-                break;
-
-        default:
-                //TODO: Support all clocks
-                printk(KERN_DEBUG "unknown clock!\n");
-                retval = 0;
-        }
-
-        return retval;
+	return retval;
 }
 
 static int pc_clk_set_min_rate(uint32_t id, unsigned long rate)
 {
-        printk("clk_set_min_rate %u:%lu\n", id, rate);
-        return 0;
+	printk(KERN_WARNING "clk_set_min_rate not implemented; %u:%lu\n", id, rate);
+	return 0;
 }
 
 static int pc_clk_set_max_rate(uint32_t id, unsigned long rate)
 {
-        printk("clk_set_max_rate %u:%lu\n", id, rate);
-        return 0;
+	printk(KERN_WARNING "clk_set_max_rate not implemented; %u:%lu\n", id, rate);
+	return 0;
 }
 
 static unsigned long pc_clk_get_rate(uint32_t id)
 {
-        unsigned long rate = 0;
+	unsigned long rate = 0;
 
-        switch (id) {
-        case SDC1_CLK:
-        case SDC2_CLK:
-        case SDC3_CLK:
-        case SDC4_CLK:
-                rate = get_sdcc_host_clock(id);
-                break;
+	switch (id) {
+		case SDC1_CLK:
+		case SDC2_CLK:
+		case SDC3_CLK:
+		case SDC4_CLK:
+			rate = get_mdns_host_clock(id);
+			break;
 
-        case SDC1_PCLK:
-        case SDC2_PCLK:
-        case SDC3_PCLK:
-        case SDC4_PCLK:
-                rate = 66000000;
-                break;
+		case SDC1_PCLK:
+		case SDC2_PCLK:
+		case SDC3_PCLK:
+		case SDC4_PCLK:
+			rate = 66000000;
+			break;
 
-        default:
-                //TODO: support all clocks
-                printk("unknown clock: %u\n", id);
-                rate = 0;
-        }
+		default:
+			//TODO: support all clocks
+			printk("unknown clock: %u\n", id);
+			rate = 0;
+	}
 
-        return rate;
+	return rate;
 }
 
 static int pc_clk_set_flags(uint32_t id, unsigned long flags)
 {
-        return 0;
+	printk(KERN_WARNING "%s not implemented; id=%u, flags=%lu\n", __func__, id, flags);
+	return 0;
 }
 
 static int pc_clk_is_enabled(uint32_t id)
 {
-        int is_enabled = 0;
-        unsigned bit;
-        bit = msm_clk_enable_bit(id);
-        if (bit > 0)
-        {
-                is_enabled = (readl(MSM_CLK_CTL_BASE) & bit) != 0;
-        }
-        //XXX: is this necessary?
-        if (id==SDC1_PCLK || id==SDC2_PCLK || id==SDC3_PCLK || id==SDC4_PCLK)
-                is_enabled = 1;
-        return is_enabled;
+	int is_enabled = 0;
+	unsigned bit;
+	bit = msm_clk_enable_bit(id);
+	if (bit > 0)
+	{
+		is_enabled = (readl(MSM_CLK_CTL_BASE) & bit) != 0;
+	}
+	//XXX: is this necessary?
+	if (id==SDC1_PCLK || id==SDC2_PCLK || id==SDC3_PCLK || id==SDC4_PCLK)
+		is_enabled = 1;
+	return is_enabled;
 }
 
 static int pc_pll_request(unsigned id, unsigned on)
 {
-        return 0;
+	return 0;
 }
 
 #endif

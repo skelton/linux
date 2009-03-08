@@ -83,6 +83,8 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
 
 	if (n == 0) {
 		name = "SMD_DS";
+	} else if (n == 1) {
+		name = "SMD_DIAG";
 	} else if (n == 27) {
 		name = "SMD_GPSNMEA";
 	} else {
@@ -200,6 +202,7 @@ static int __init smd_tty_init(void)
 
 	/* this should be dynamic */
 	tty_register_device(smd_tty_driver, 0, 0);
+	tty_register_device(smd_tty_driver, 1, 0);
 	tty_register_device(smd_tty_driver, 27, 0);
 
 	return 0;

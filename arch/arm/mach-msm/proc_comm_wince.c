@@ -32,7 +32,7 @@ static inline void notify_other_proc_comm(void)
 	writel(1, MSM_A2M_INT(6));
 }
 
-#define PC_DEBUG 1
+#define PC_DEBUG 0
 
 #define PC_COMMAND      0x00
 #define PC_STATUS       0x04
