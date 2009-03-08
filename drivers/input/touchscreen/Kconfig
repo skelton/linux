@@ -390,4 +390,9 @@ config MSM_VIRTUAL_KEYBOARD
 	bool "On-screen virtual keyboard using MSM touchscreen"
 	depends on FB_MSM && TOUCHSCREEN_MSM
 
+config MSM_BLACKSTONE_PAD
+	default n
+	bool "MSM Blackstone pad"
+	depends on FB_MSM && TOUCHSCREEN_MSM
+
 endif

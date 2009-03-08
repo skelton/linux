@@ -61,7 +61,7 @@ static int enable_mdp_irq(struct mdp_info *mdp, uint32_t mask)
 	/* if the mask bits are already set return an error, this interrupt
 	 * is already enabled */
 	if (mdp_irq_mask & mask) {
-#if !defined(CONFIG_MACH_HTCRAPHAEL) && !defined(CONFIG_MACH_HTCRAPHAEL_CDMA) && !defined(CONFIG_MACH_HTCDIAMOND) && !defined(CONFIG_MACH_HTCDIAMOND_CDMA)
+#if !defined(CONFIG_MACH_HTCRAPHAEL) && !defined(CONFIG_MACH_HTCRAPHAEL_CDMA) && !defined(CONFIG_MACH_HTCDIAMOND) && !defined(CONFIG_MACH_HTCDIAMOND_CDMA) && !defined(CONFIG_MACH_HTCBLACKSTONE)
 		printk(KERN_ERR "mdp irq already on already on %x %x\n",
 		       mdp_irq_mask, mask);
 #endif
@@ -203,7 +203,7 @@ void mdp_dma_to_mddi(struct mdp_info *mdp, uint32_t addr, uint32_t stride,
 	uint16_t ld_param = 0; /* 0=PRIM, 1=SECD, 2=EXT */
 
 	if (enable_mdp_irq(mdp, DL0_DMA2_TERM_DONE)) {
-#if !defined(CONFIG_MACH_HTCRAPHAEL) && !defined(CONFIG_MACH_HTCRAPHAEL_CDMA) && !defined(CONFIG_MACH_HTCDIAMOND) && !defined(CONFIG_MACH_HTCDIAMOND_CDMA)
+#if !defined(CONFIG_MACH_HTCRAPHAEL) && !defined(CONFIG_MACH_HTCRAPHAEL_CDMA) && !defined(CONFIG_MACH_HTCDIAMOND) && !defined(CONFIG_MACH_HTCDIAMOND_CDMA) && !defined(CONFIG_MACH_HTCBLACKSTONE)
 		printk(KERN_ERR "mdp_dma_to_mddi: busy\n");
 #endif
 		return;
@@ -231,8 +231,13 @@ void mdp_dma_to_mddi(struct mdp_info *mdp, uint32_t addr, uint32_t stride,
 	mdp_writel(mdp, addr, MDP_CMD_DEBUG_ACCESS_BASE + 0x0188);
 	mdp_writel(mdp, stride, MDP_CMD_DEBUG_ACCESS_BASE + 0x018C);
 
+#if defined(CONFIG_MACH_HTCBLACKSTONE)
+	/* 565 16BPP */
+	dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_5BITS | DMA_DSTC2R_5BITS;
+#else
 	/* 666 18BPP */
 	dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_6BITS | DMA_DSTC2R_6BITS;
+#endif
 
 	/* set y & x offset and MDDI transaction parameters */
 	mdp_writel(mdp, (y << 16) | (x), MDP_CMD_DEBUG_ACCESS_BASE + 0x0194);

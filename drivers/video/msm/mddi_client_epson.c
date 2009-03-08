@@ -231,6 +231,12 @@ printk("mddi_epson_probe\n");
 	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
 	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
 
+#if defined(CONFIG_MACH_HTCBLACKSTONE)
+	client_data->remote_write(client_data,0x8000,0x400);//rgb565 input
+	client_data->remote_write(client_data,0x8000,0x680);//main memory rgb565
+	client_data->remote_write(client_data,0x4000,0x600);//reset
+#endif	//ORUX
+
 	ret = setup_vsync(panel, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "mddi_bridge_setup_vsync failed\n");

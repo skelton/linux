@@ -35,3 +35,4 @@ wm97xx-ts-$(CONFIG_TOUCHSCREEN_WM9713)	+= wm9713.o
 obj-$(CONFIG_TOUCHSCREEN_WM97XX_MAINSTONE)	+= mainstone-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_MSM)          += msm_ts.o
 obj-$(CONFIG_MSM_VIRTUAL_KEYBOARD)     += msm_vkeyb.o
+obj-$(CONFIG_MSM_BLACKSTONE_PAD)     += msm_blackstone_pad.o

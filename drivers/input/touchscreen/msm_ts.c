@@ -30,12 +30,20 @@
 #define MSM_TS_ABS_X_MIN	0
 #define MSM_TS_ABS_X_MAX	479
 #define MSM_TS_ABS_Y_MIN	0
+#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#define MSM_TS_ABS_Y_MAX	799
+#else
 #define MSM_TS_ABS_Y_MAX	639
+#endif
 #define MSM_TS_ABS_PRESSURE_MIN 0
 #define MSM_TS_ABS_PRESSURE_MAX 1
 
 #define MSM_TS_LCD_WIDTH	480
+#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#define MSM_TS_LCD_HEIGHT	800
+#else
 #define MSM_TS_LCD_HEIGHT	640
+#endif
 
 /* Touchscreen registers */
 #define TSSC_CTL		0x100
@@ -45,7 +53,8 @@
 
 /* returns whether position was inside vkeyb, so as to eat event */
 typedef int msm_ts_handler_t(int, int, int);
-msm_ts_handler_t *msm_ts_handler;
+msm_ts_handler_t *msm_ts_handler; // virtual keyboard handler
+msm_ts_handler_t *msm_ts_handler_pad; // blackstone handler
 
 /* Work used by the polling mechanism after an interrupt has fired */
 static void msm_ts_process_irq1(struct work_struct *work);
@@ -153,7 +162,7 @@ static void msm_ts_process_data(int irq)
 {
 	unsigned long status, data;
 	int absx, absy, touched, x, y;
-	int vkey;
+	int vkey, bspad;
 	static int prev_absx = -1, prev_absy = -1, prev_touched = -1;
 
 	/* Read status and data */
@@ -233,6 +242,11 @@ static void msm_ts_process_data(int irq)
 			if (y >= MSM_TS_LCD_HEIGHT) y = MSM_TS_LCD_HEIGHT - 1;
 
 			/* Call our handler if it's registered -- the virtual keyboards gets data from this */
+			if (msm_ts_handler_pad) {
+				bspad = (*msm_ts_handler_pad)(x, y, prev_touched);
+			} else {
+				bspad = 0;
+			}
 			if (msm_ts_handler) {
 				vkey = (*msm_ts_handler)(x, y, touched);
 			} else {
@@ -240,11 +254,11 @@ static void msm_ts_process_data(int irq)
 			}
 
 #if MSM_TS_DEBUG
-			printk(KERN_DEBUG "msm_ts: x=%d,y=%d,t=%d,vkeyb=%d\n", x, y, touched, vkey);
+				printk(KERN_DEBUG "msm_ts: x=%d,y=%d,t=%d,vkeyb=%d\n", x, y, touched, vkey);
 #endif
 			
 			/* Send data to linux input system, if not eaten by vkeyb */
-			if (!vkey) {
+			if (!(vkey || bspad)) {
 				input_report_abs(msm_ts_dev, ABS_X, x);
 				input_report_abs(msm_ts_dev, ABS_Y, y);
 				input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);

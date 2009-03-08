@@ -93,6 +93,13 @@ config MACH_HTCDIAMOND_CDMA
         help
           Support for the HTC Diamond CDMA phone.
 
+config MACH_HTCBLACKSTONE
+        depends on ARCH_MSM
+        default y
+        bool "HTC Blackstone cellphone (aka HTC Touch HD)"
+        help
+          Support for the HTC Blackstone cellphone
+
 config TROUT_H2W
 	tristate "HTC 2 Wire detection driver"
 	default n

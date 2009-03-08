@@ -61,7 +61,11 @@
 #define MSM_VKEYB_COLS		15
 
 #define MSM_VKEYB_LCD_WIDTH	480
+#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#define MSM_VKEYB_LCD_HEIGHT	800
+#else
 #define MSM_VKEYB_LCD_HEIGHT	640
+#endif
 
 static int MSM_VKEYB_LEFT =	85;
 static int MSM_VKEYB_TOP =	0;
