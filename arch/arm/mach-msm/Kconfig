@@ -95,7 +95,7 @@ config MACH_HTCDIAMOND_CDMA
 
 config MACH_HTCBLACKSTONE
         depends on ARCH_MSM
-        default y
+        default n
         bool "HTC Blackstone cellphone (aka HTC Touch HD)"
         help
           Support for the HTC Blackstone cellphone
