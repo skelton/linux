@@ -34,9 +34,9 @@
 #define BURST_SIZE 0xfffffff
 
 #if 0
-#define D(x...) printk(KERN_DEBUG "smd_7500: " x)
+ #define D(fmt, arg...) printk(KERN_DEBUG "smd_7500: " fmt, ## arg)
 #else
-#define D(x...) do {} while (0)
+ #define D(x...) do {} while (0)
 #endif
 
 extern void *smem_alloc(unsigned id, unsigned size);
@@ -93,21 +93,25 @@ struct smd_channel {
 
 	char name[32];
 	struct platform_device pdev;
-	short * open;
+	short *open;
 };
 
-static inline void notify_other_smd(int ch) {
+static inline void notify_other_smd(int ch)
+{
 	writel(1, MSM_A2M_INT(3 + ch));
 }
 
-int smd_7500_read(smd_channel_t *ch, void *data, int len);
-int smd_7500_write(smd_channel_t *ch, const void *data, int len);
-int smd_7500_read_avail(smd_channel_t *ch);
-int smd_7500_write_avail(smd_channel_t *ch);
-void smd_7500_update_state(smd_channel_t *ch);
-void smd_7500_check_for_data(smd_channel_t *ch);
+static inline void smd_7500_update_state(smd_channel_t *ch)
+{ }
 
-void do_smd_7500_probe(unsigned char * smd_ch_allocated, struct list_head * smd_ch_closed_list) {
+static int smd_7500_read(smd_channel_t *ch, void *data, int len);
+static int smd_7500_write(smd_channel_t *ch, const void *data, int len);
+static int smd_7500_read_avail(smd_channel_t *ch);
+static int smd_7500_write_avail(smd_channel_t *ch);
+static void smd_7500_check_for_data(smd_channel_t *ch);
+
+void do_smd_7500_probe(unsigned char *smd_ch_allocated, struct list_head *smd_ch_closed_list)
+{
 	struct smd_channel *ch;
 	struct smd_7500_buffer *p;
 	int i;
@@ -117,9 +121,9 @@ void do_smd_7500_probe(unsigned char * smd_ch_allocated, struct list_head * smd_
 
 	// 7500 only needs special attention on ports 0 and 1
 	for (i=0; i<2; i++) {
-		if (smd_ch_allocated[i])
-		{
-			printk(KERN_WARNING "%s: smd ch %d already initialized?!\n", __func__, i);
+		if (smd_ch_allocated[i]) {
+			printk(KERN_WARNING "%s: smd ch %d already initialized\n",
+			                                              __func__, i);
 			continue;
 		}
 
@@ -150,7 +154,8 @@ void do_smd_7500_probe(unsigned char * smd_ch_allocated, struct list_head * smd_
 			p->tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fce);
 
 			ch->open = (short *)(MSM_SHARED_RAM_BASE + 0xf3fc4);
-			*ch->open = 0;
+			// Mark this as always-open, to avoid watchdog from crashing the modem
+			*ch->open = 1;
 
 			memcpy(ch->name + 4, "DS", 20);
 		} else if (i == 1) {
@@ -167,7 +172,8 @@ void do_smd_7500_probe(unsigned char * smd_ch_allocated, struct list_head * smd_
 			p->tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fde);
 
 			ch->open = (short *)(MSM_SHARED_RAM_BASE + 0xf3fd4);
-			*ch->open = 0;
+			// Mark this as always-open, to avoid watchdog from crashing the modem
+			*ch->open = 1;
 
 			memcpy(ch->name + 4, "DIAG", 20);
 		}
@@ -195,7 +201,8 @@ void do_smd_7500_probe(unsigned char * smd_ch_allocated, struct list_head * smd_
 	}
 }
 
-int smd_7500_read(smd_channel_t *ch, void *data, int len) {
+static int smd_7500_read(smd_channel_t *ch, void *data, int len)
+{
 	struct smd_7500_buffer *p;
 	int recvd;
 	unsigned short mytail;
@@ -225,14 +232,15 @@ int smd_7500_read(smd_channel_t *ch, void *data, int len) {
 		}
 	}
 	*p->tail = mytail;
-	D("received %d <- %d\n", recvd, ch->n);
+	D("received %d bytes from cid=%d\n", recvd, ch->n);
 
 	notify_other_smd(ch->n);
 
 	return recvd;
 }
 
-int smd_7500_write(smd_channel_t *ch, const void *data, int len) {
+static int smd_7500_write(smd_channel_t *ch, const void *data, int len)
+{
 	struct smd_7500_buffer *p;
 	int sent;
 	unsigned short myhead;
@@ -267,6 +275,7 @@ int smd_7500_write(smd_channel_t *ch, const void *data, int len) {
 		}
 	}
 	*p->head = myhead;
+	D("wrote %d bytes to cid=%d\n", sent, ch->n);
 
 	notify_other_smd(ch->n);
 
@@ -275,24 +284,27 @@ int smd_7500_write(smd_channel_t *ch, const void *data, int len) {
 	return sent;
 }
 
-int smd_7500_read_avail(smd_channel_t *ch) {
+static int smd_7500_read_avail(smd_channel_t *ch)
+{
 	struct smd_7500_buffer *p;
 	p = (struct smd_7500_buffer *)ch->recv;
 	return (*p->head - *p->tail + p->size) % p->size;
 }
 
-int smd_7500_write_avail(smd_channel_t *ch) {
+static int smd_7500_write_avail(smd_channel_t *ch)
+{
 	struct smd_7500_buffer *p;
 	p = (struct smd_7500_buffer *)ch->send;
 	return p->size - ((*p->head - *p->tail + p->size) % p->size) - 1;
 }
 
-void smd_7500_check_for_data(smd_channel_t *ch) {
+static void smd_7500_check_for_data(smd_channel_t *ch)
+{
 	struct smd_7500_buffer *p;
 	if (ch->open && *ch->open) {
 		p = (struct smd_7500_buffer *)ch->recv;
 		if (*p->head != *p->tail) {
-			if (ch->notify)
+			if (ch->notify && ch->priv)
 				ch->notify(ch->priv, SMD_EVENT_DATA);
 			ch->recv->fHEAD = 0;
 		}
@@ -303,9 +315,4 @@ void smd_7500_check_for_data(smd_channel_t *ch) {
 		}
 	}
 	
-}
-
-void smd_7500_update_state(smd_channel_t *ch) {
-	// Nothing to see here
-	return;
 }

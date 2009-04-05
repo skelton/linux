@@ -27,23 +27,28 @@ static int __devexit micropksc_remove(struct i2c_client *);
 
 #define MODULE_NAME "microp-ksc"
 
+#if 0
+ #define D(fmt, arg...) printk(KERN_DEBUG "[KSC] %s: " fmt "\n", __FUNCTION__, ## arg);
+#else
+ #define D(fmt, arg...) do {} while(0)
+#endif
+
 static struct microp_ksc {
 	struct i2c_client *client;
 	struct mutex lock;
 	unsigned short version;
 	unsigned led_state:2;
 	struct work_struct work;
-} * micropksc_t = 0;
+} *micropksc_t = 0;
 
 int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 {
 	struct microp_ksc *data;
 	struct i2c_client *client;
-	char buffer[8] = "\0\0\0\0\0\0\0\0";
 	unsigned char key, isdown;
+	char buffer[8] = "\0\0\0\0\0\0\0\0";
 
-	if (!micropksc_t)
-	{
+	if (!micropksc_t) {
 		if (outkey)
 			*outkey = -1;
 		return -EAGAIN;
@@ -88,13 +93,12 @@ int micropksc_set_led(unsigned int led, int on)
 	
 	mutex_lock(&data->lock);
 
-	if (led == MICROP_KSC_LED_RESET) {
+	if (led == MICROP_KSC_LED_RESET)
 		data->led_state = 0;
-	} else if (on) {
+	else if (on)
 		data->led_state |= led;
-	} else {
+	else
 		data->led_state &= ~led;
-	}
 
 	schedule_work(&data->work);
 
@@ -106,12 +110,15 @@ EXPORT_SYMBOL(micropksc_set_led);
 
 static void micropksc_led_work_func(struct work_struct *work)
 {
-        struct microp_ksc *data =
-            container_of(work, struct microp_ksc, work);
+	struct microp_ksc *data;
 	struct i2c_client *client;
 	char buffer[3] = { MICROP_KSC_ID_LED, 0, 0 };
+
+	data = container_of(work, struct microp_ksc, work);
 	client = data->client;
+
 	buffer[1] = 0x16 - (data->led_state << 1);
+
 	micropksc_write(client, buffer, 2);
 }
 
@@ -128,26 +135,25 @@ int micropksc_flush_buffer(void)
 
 	i = 0;
 
-	if (!micropksc_t)
-	{
+	if (!micropksc_t) {
 		printk(KERN_WARNING MODULE_NAME ": not initialized yet..\n");
 		return -EAGAIN;
 	}
 
-        r = micropksc_read_scancode(&key, 0);
-        if (key != 0)
-        {
-                do {
-                        mdelay(5);
-                        r = micropksc_read_scancode(&key, 0);
-                } while (++i < 50 && key != 0);
-                printk(KERN_WARNING MODULE_NAME ": Keyboard buffer was dirty! Flushed %d byte(s) from buffer\n", i);
-        }
-        return i;
+	r = micropksc_read_scancode(&key, 0);
+	if (key != 0) {
+		do {
+			mdelay(5);
+			r = micropksc_read_scancode(&key, 0);
+		} while (++i < 50 && key != 0);
+		printk(KERN_INFO MODULE_NAME ": Keyboard buffer was dirty! "
+		                      "Flushed %d byte(s) from buffer\n", i);
+	}
+	return i;
 }
 EXPORT_SYMBOL(micropksc_flush_buffer);
 
-static int micropksc_remove(struct i2c_client * client)
+static int micropksc_remove(struct i2c_client *client)
 {
 	struct microp_ksc *data;
 
@@ -163,30 +169,28 @@ static int micropksc_probe(struct i2c_client *client, const struct i2c_device_id
 {
 	struct microp_ksc *data;
 	char buf[3] = { 0, 0, 0 };
-	
+
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-KEY chip driver at addr: 0x%02x\n", client->addr);
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-        {
-        	printk(KERN_ERR MODULE_NAME ": i2c bus not supported\n");
-        	return -EINVAL;
-        }
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
+		printk(KERN_ERR MODULE_NAME ": i2c bus not supported\n");
+		return -EINVAL;
+	}
 
 	data = kzalloc(sizeof *data, GFP_KERNEL);
-	if (data < 0)
-	{
+	if (data < 0) {
 		printk(KERN_ERR MODULE_NAME ": Not enough memory\n");
 		return -ENOMEM;
 	}
-	
+
 	micropksc_t = data;
 
 	INIT_WORK(&data->work, micropksc_led_work_func);
 	mutex_init(&data->lock);
-	
+
 	data->client = client;
 	i2c_set_clientdata(client, data);
-	
+
 	// Read version
 	micropksc_read(client, MICROP_KSC_ID_VERSION, buf, 2);
 	data->version = buf[0] << 8 | buf[1];
@@ -208,16 +212,12 @@ static int micropksc_write(struct i2c_client *client, const char *sendbuf, int l
 	int r;
 
 	r = i2c_master_send(client, sendbuf, len);
-	if (r < 0)
+	if (r < 0) {
 		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	else {
-		printk(KERN_INFO "micropksc_write:   >>> 0x%02x, 0x%02x -> %02x %02x\n", 
-			client->addr, sendbuf[0], 
-			(len > 1 ? sendbuf[1] : 0), 
-			(len > 2 ? sendbuf[2] : 0));
+	} else {
+		D("  >>> 0x%02x, 0x%02x -> %02x %02x", client->addr, sendbuf[0],
+		         (len > 1 ? sendbuf[1] : 0), (len > 2 ? sendbuf[2] : 0));
 	}
-#endif
 	return r;
 }
 
@@ -227,57 +227,46 @@ static int micropksc_read(struct i2c_client *client, unsigned id, char *buf, int
 	char outbuffer[2] = { 0, 0 };
 
 	outbuffer[0] = id;
-	
+
 	// Have to separate the "ask" and "read" chunks
 	r = i2c_master_send(client, outbuffer, 1);
-	if (r < 0)
-	{
+	if (r < 0) {
 		printk(KERN_WARNING "micropksc_read: error while asking for "
 			"data address %02x,%02x: %d\n", client->addr, id, r);
 		return r;
 	}
 	mdelay(1);
 	r = i2c_master_recv(client, buf, len);
-	if (r < 0)
-	{
+	if (r < 0) {
 		printk(KERN_ERR "micropksc_read: error while reading data at "
-			"address %02x,%02x: %d\n", client->addr, id, r);
+		       "address %02x,%02x: %d\n", client->addr, id, r);
 		return r;
 	}
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_INFO "micropksc_read:   <<< 0x%02x, 0x%02x -> %02x %02x\n", 
-		client->addr, id, buf[0], buf[1]);
-#endif
+	D("  <<< 0x%02x, 0x%02x -> %02x %02x", client->addr, id, buf[0], buf[1]);
 	return 0;
 }
 
 #if CONFIG_PM
-static int micropksc_suspend(struct i2c_client * client, pm_message_t mesg)
+static int micropksc_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	flush_scheduled_work();
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_INFO MODULE_NAME ": suspending device...\n");
-#endif
+	D("suspending device...");
 	return 0;
 }
 
-static int micropksc_resume(struct i2c_client * client)
+static int micropksc_resume(struct i2c_client *client)
 {
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_INFO MODULE_NAME ": resuming device...\n");
-#endif
+	D("resuming device...");
 	return 0;
 }
 #else
-
-#define micropksc_suspend NULL
-#define micropksc_resume NULL
-
+ #define micropksc_suspend NULL
+ #define micropksc_resume NULL
 #endif
 
 static const struct i2c_device_id microp_ksc_ids[] = {
-        { "microp-ksc", 0 },
-        { }
+	{ "microp-ksc", 0 },
+	{ }
 };
 
 static struct i2c_driver micropksc_driver = {
@@ -288,10 +277,8 @@ static struct i2c_driver micropksc_driver = {
 	.id_table = microp_ksc_ids,
 	.probe = micropksc_probe,
 	.remove = micropksc_remove,
-#if CONFIG_PM
 	.suspend = micropksc_suspend,
 	.resume = micropksc_resume,
-#endif
 };
 
 static int __init micropksc_init(void)

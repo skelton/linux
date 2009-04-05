@@ -25,7 +25,11 @@ static int micropklt_write(struct i2c_client *, const char *, int);
 
 #define MODULE_NAME "microp-klt"
 
-#define MICROP_DEBUG 0
+#if 0
+ #define D(fmt, arg...) printk(KERN_DEBUG "[KLT] %s: " fmt "\n", __FUNCTION__, ## arg);
+#else
+ #define D(fmt, arg...) do {} while(0)
+#endif
 
 static struct microp_klt {
 	struct i2c_client *client;
@@ -33,7 +37,7 @@ static struct microp_klt {
 	u16 led_states;
 	unsigned short version;
 	struct led_classdev leds[MICROP_KLT_LED_CNT];
-} * micropklt_t = 0;
+} *micropklt_t = 0;
 
 static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
                                          enum led_brightness brightness)
@@ -53,9 +57,9 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 		idx = 3;
 	else if ( !strcmp(led_cdev->name, "klt::action") )
 		idx = 4;
-	else if ( !strcmp(led_cdev->name, "klt::lcd-backlight") )
+	else if ( !strcmp(led_cdev->name, "klt::lcd-bkl") )
 		idx = 5;
-	else if ( !strcmp(led_cdev->name, "klt::keypad-backlight") )
+	else if ( !strcmp(led_cdev->name, "klt::keypad-bkl") )
 		idx = 6;
 	else
 		return;
@@ -146,21 +150,18 @@ int micropklt_set_kbd_state(int on)
 }
 EXPORT_SYMBOL(micropklt_set_kbd_state);
 
-static int micropklt_remove(struct i2c_client * client)
+static int micropklt_remove(struct i2c_client *client)
 {
 	struct microp_klt *data;
+	int i;
 
 	data = i2c_get_clientdata(client);
 	
 	micropklt_set_led_states(MICROP_KLT_ALL_LEDS, MICROP_KLT_DEFAULT_LED_STATES);
 
-        led_classdev_unregister(&data->leds[0]);
-        led_classdev_unregister(&data->leds[1]);
-        led_classdev_unregister(&data->leds[2]);
-        led_classdev_unregister(&data->leds[3]);
-        led_classdev_unregister(&data->leds[4]);
-        led_classdev_unregister(&data->leds[5]);
-        led_classdev_unregister(&data->leds[6]);
+	for (i=0; i<ARRAY_SIZE(data->leds); i++) {
+		led_classdev_unregister(&data->leds[i]);
+	}
 
 	kfree(data);
 	micropklt_t = NULL;
@@ -170,20 +171,19 @@ static int micropklt_remove(struct i2c_client * client)
 static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct microp_klt *data;
+	int supported, r, i;
 	char buf[3] = { 0, 0, 0 };
-	int supported = 1, r;
 
-	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-LED chip driver at addr: 0x%02x\n", client->addr);
+	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-LED chip driver at "
+	       "addr: 0x%02x\n", client->addr);
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-        {
-        	printk(KERN_ERR MODULE_NAME ": i2c bus not supported\n");
-        	return -EINVAL;
-        }
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
+		printk(KERN_ERR MODULE_NAME ": i2c bus not supported\n");
+		return -EINVAL;
+	}
 
 	data = kzalloc(sizeof *data, GFP_KERNEL);
-	if (data < 0)
-	{
+	if (data < 0) {
 		printk(KERN_ERR MODULE_NAME ": Not enough memory\n");
 		return -ENOMEM;
 	}
@@ -198,48 +198,44 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	// Read version
 	micropklt_read(client, MICROP_KLT_ID_VERSION, buf, 2);
 	
-	// Check version against what we think we should support
-	switch (buf[0])
-	{
-		case 0x01:
+	/* Check version against what we think we should support
+	 * Known supported versions: 
+	 *   0105, 0205, 0a05, 0b05, 0d02
+	 *   8182, 8185
+	 *   0c82, 0c85
+	 */
+	supported = 0;
+	switch (buf[0]) {
+	case 0x01:
+	case 0x02:
+	case 0x0a:
+	case 0x0b:
+		switch (buf[1])	{
+		case 0x05:
+			supported = 1;
+			break;
+		}
+		break;
+	case 0x0d:
+		switch (buf[1])	{
 		case 0x02:
-		case 0x0a:
-		case 0x0b:
-			switch (buf[1])
-			{
-				case 0x05:
-					// These are supported
-					break;
-				default:
-					supported = 0;
-			}
+			supported = 1;
 			break;
-		case 0x0d:
-			switch (buf[1])
-			{
-				case 0x02:
-					break;
-				default:
-					supported = 0;
-			}
+		}
+		break;
+	case 0x81:
+	case 0x0c:
+		switch (buf[1])	{
+		case 0x82:
+		case 0x85:
+			supported = 1;
 			break;
-		case 0x0c:
-			switch (buf[1])
-			{
-				case 0x82:
-				case 0x85:
-					// These are supported
-					break;
-				default:
-					supported = 0;
-			}
-			break;
-		default:
-			supported = 0;
+		}
+		break;
 	}
 	data->version = (buf[0] << 8) | buf[1];
-	if (!supported)
-	{
+
+	if (!supported) {
 		printk(KERN_WARNING MODULE_NAME ": This hardware is not yet supported: %04x\n", data->version);
 		r = -ENOTSUPP;
 		goto fail;
@@ -275,47 +271,13 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	data->leds[6].brightness = LED_OFF;
 	data->leds[6].brightness_set = micropklt_led_brightness_set;
 
-        r = led_classdev_register(&client->dev, &data->leds[0]);
-        if (r < 0) {
-                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
-                goto err_led0_classdev_register_failed;
-        }
-
-        r = led_classdev_register(&client->dev, &data->leds[1]);
-        if (r < 0) {
-                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
-                goto err_led1_classdev_register_failed;
-        }
-
-        r = led_classdev_register(&client->dev, &data->leds[2]);
-        if (r < 0) {
-                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
-                goto err_led2_classdev_register_failed;
-        }
-
-        r = led_classdev_register(&client->dev, &data->leds[3]);
-        if (r < 0) {
-                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
-                goto err_led3_classdev_register_failed;
-        }
-
-        r = led_classdev_register(&client->dev, &data->leds[4]);
-        if (r < 0) {
-                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
-                goto err_led4_classdev_register_failed;
-        }
-
-        r = led_classdev_register(&client->dev, &data->leds[5]);
-        if (r < 0) {
-                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
-                goto err_led5_classdev_register_failed;
-        }
-
-        r = led_classdev_register(&client->dev, &data->leds[6]);
-        if (r < 0) {
-                printk(KERN_ERR MODULE_NAME ": led_classdev_register failed\n");
-                goto err_led6_classdev_register_failed;
-        }
+	for (i=0; i<ARRAY_SIZE(data->leds); i++) {
+		r = led_classdev_register(&client->dev, &data->leds[i]);
+		if (r < 0) {
+			goto err_led_classdev_register_failed;
+			break;
+		}
+	}
 
 	mutex_unlock(&data->lock);
 
@@ -326,20 +288,11 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 
 	return 0;
 
-err_led6_classdev_register_failed:
-        led_classdev_unregister(&data->leds[6]);
-err_led5_classdev_register_failed:
-        led_classdev_unregister(&data->leds[5]);
-err_led4_classdev_register_failed:
-        led_classdev_unregister(&data->leds[4]);
-err_led3_classdev_register_failed:
-        led_classdev_unregister(&data->leds[3]);
-err_led2_classdev_register_failed:
-        led_classdev_unregister(&data->leds[2]);
-err_led1_classdev_register_failed:
-        led_classdev_unregister(&data->leds[1]);
-err_led0_classdev_register_failed:
-        led_classdev_unregister(&data->leds[0]);
+err_led_classdev_register_failed:
+	printk(KERN_ERR MODULE_NAME ": led_classdev_register(%d) failed: %d\n", i, r);
+	for (i=i; i>=0; i--) {
+		led_classdev_unregister(&data->leds[i]);
+	}
 fail:
 	kfree(data);
 	micropklt_t = 0;
@@ -351,16 +304,13 @@ static int micropklt_write(struct i2c_client *client, const char *sendbuf, int l
 	int r;
 
 	r = i2c_master_send(client, sendbuf, len);
-	if (r < 0)
+	if (r < 0) {
 		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	else {
-		printk(KERN_INFO "micropklt_write:   >>> 0x%02x, 0x%02x -> %02x %02x\n", 
-			client->addr, sendbuf[0], 
-			(len > 1 ? sendbuf[1] : 0), 
-			(len > 2 ? sendbuf[2] : 0));
+	} else {
+		D("  >>> 0x%02x, 0x%02x -> %02x %02x", client->addr,
+		         sendbuf[0], (len > 1 ? sendbuf[1] : 0), 
+		         (len > 2 ? sendbuf[2] : 0));
 	}
-#endif
 	return r;
 }
 
@@ -373,53 +323,42 @@ static int micropklt_read(struct i2c_client *client, unsigned id, char *buf, int
 	
 	// Have to separate the "ask" and "read" chunks
 	r = i2c_master_send(client, outbuffer, 1);
-	if (r < 0)
-	{
+	if (r < 0) {
 		printk(KERN_WARNING "micropklt_read: error while asking for "
 			"data address %02x,%02x: %d\n", client->addr, id, r);
 		return r;
 	}
 	mdelay(1);
 	r = i2c_master_recv(client, buf, len);
-	if (r < 0)
-	{
+	if (r < 0) {
 		printk(KERN_ERR "micropklt_read: error while reading data at "
 			"address %02x,%02x: %d\n", client->addr, id, r);
 		return r;
 	}
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_INFO "micropklt_read:   <<< 0x%02x, 0x%02x -> %02x %02x\n", 
-		client->addr, id, buf[0], buf[1]);
-#endif
+	D("  <<< 0x%02x, 0x%02x -> %02x %02x", client->addr, id, buf[0], buf[1]);
 	return 0;
 }
 
 #if CONFIG_PM
-static int micropklt_suspend(struct i2c_client * client, pm_message_t mesg)
+static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_INFO MODULE_NAME ": suspending device...\n");
-#endif
+	D("suspending device...");
 	return 0;
 }
 
-static int micropklt_resume(struct i2c_client * client)
+static int micropklt_resume(struct i2c_client *client)
 {
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_INFO MODULE_NAME ": resuming device...\n");
-#endif
+	D("resuming device...");
 	return 0;
 }
 #else
-
-#define micropklt_suspend NULL
-#define micropklt_resume NULL
-
+ #define micropklt_suspend NULL
+ #define micropklt_resume NULL
 #endif
 
 static const struct i2c_device_id microp_klt_ids[] = {
-        { "microp-klt", 0 },
-        { }
+	{ "microp-klt", 0 },
+	{ }
 };
 
 static struct i2c_driver micropklt_driver = {

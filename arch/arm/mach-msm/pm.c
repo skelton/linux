@@ -421,11 +421,7 @@ static uint32_t restart_reason = 0x776655AA;
 static void msm_pm_power_off(void)
 {
 #ifdef CONFIG_MSM_AMSS_VERSION_WINCE
-	printk("power down\n");
-	if (msm_hw_reset_hook)
-		msm_hw_reset_hook();
-	else
-		printk(KERN_ERR "No msm_hw_reset_hook() available! System halted.\n");
+	printk("power down not implemented; halting...\n");
 #else
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 #endif
