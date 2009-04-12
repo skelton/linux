@@ -40,4 +40,6 @@ obj-$(CONFIG_TROUT_H2W) += board-trout-h2w.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_TROUT_PWRSINK) += htc_pwrsink.o
 
+obj-$(CONFIG_RAPHAEL_GSENSOR) += raph-gsensor.c
+
 obj-$(CONFIG_HTC_FB_CONSOLE) += htc_fb_console.o
