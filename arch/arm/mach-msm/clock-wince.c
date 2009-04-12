@@ -53,30 +53,31 @@ struct msm_clock_params
 	unsigned idx;
 	unsigned offset;  // Offset points to .ns register
 	unsigned ns_only; // value to fill in ns register, rather than using mdns_clock_params look-up table
+	char	*name;
 };
 
-struct msm_clock_params msm_clock_parameters[] = {
+static struct msm_clock_params msm_clock_parameters[] = {
 	// Full ena/md/ns clock
-	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, },
-	{ .clk_id = SDC2_CLK, .idx =  8, .offset = 0xac, },
-	{ .clk_id = SDC3_CLK, .idx = 27, .offset = 0xb4, },
-	{ .clk_id = SDC4_CLK, .idx = 28, .offset = 0xbc, },
-	{ .clk_id = UART1DM_CLK, .idx = 17, .offset = 0xd4, },
-	{ .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xdc, },
+	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, .name="SDC1_CLK",},
+	{ .clk_id = SDC2_CLK, .idx =  8, .offset = 0xac, .name="SDC2_CLK",},
+	{ .clk_id = SDC3_CLK, .idx = 27, .offset = 0xb4, .name="SDC3_CLK",},
+	{ .clk_id = SDC4_CLK, .idx = 28, .offset = 0xbc, .name="SDC4_CLK",},
+	{ .clk_id = UART1DM_CLK, .idx = 17, .offset = 0xd4, .name="UART1DM_CLK",},
+	{ .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xdc, .name="UART2DM_CLK",},
 
-	{ .clk_id = USB_HS_CLK, .idx = 25, .offset = 0x2c0, .ns_only = 0xb00 },
-	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80 },
+	{ .clk_id = USB_HS_CLK, .idx = 25, .offset = 0x2c0, .ns_only = 0xb00, .name="USB_HS_CLK",},
+	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80, .name="GRP_CLK", },
 
 	// MD/NS only; offset = Ns reg
-	{ .clk_id = VFE_CLK, .offset = 0x44 },
+	{ .clk_id = VFE_CLK, .offset = 0x44, .name="VFE_CLK", },
 	
 	// Enable bit only; bit = 1U << idx
-	{ .clk_id = MDP_CLK, .idx = 9, },
+	{ .clk_id = MDP_CLK, .idx = 9, .name="MDP_CLK",},
 	
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
-	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06 },
-	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa00, },
-	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, },
+	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
+	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa00, .name="PMDH_CLK"},
+	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, .name="I2C_CLK"},
 };
 
 // This formula is used to generate md and ns reg values
@@ -144,7 +145,7 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 
 	if (!params.offset)
 	{
-		printk(KERN_WARNING "%s: Don't know how to set clock %u - no known Md/Ns reg\n", __func__, id);
+		printk(KERN_WARNING "%s: FIXME! Don't know how to set clock %u - no known Md/Ns reg\n", __func__, id);
 		return -ENOTSUPP;
 	}
 
@@ -178,7 +179,7 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
 
 	if (!found) {
-		printk(KERN_WARNING "clock-wince: set_sdcc_host_clock could not "
+		printk(KERN_WARNING "clock-wince: FIXME! set_sdcc_host_clock could not "
 		       "find suitable parameter for freq %lu\n", freq);
 	}
 
@@ -281,9 +282,10 @@ static int pc_clk_enable(uint32_t id)
 		writel(readl(MSM_CLK_CTL_BASE + params.offset) | params.ns_only, MSM_CLK_CTL_BASE + params.offset);
 		return 0;
 	}
-	printk(KERN_WARNING "%s: enabling a clock that doesn't have an ena bit "
+	printk(KERN_WARNING "%s: FIXME! enabling a clock that doesn't have an ena bit "
 	       "or ns-only offset: %u\n", __func__, id);
-	return -1;
+
+	return 0;
 }
 
 static void pc_clk_disable(uint32_t id)
@@ -300,7 +302,7 @@ static void pc_clk_disable(uint32_t id)
 	{
 		writel(readl(MSM_CLK_CTL_BASE + params.offset) & ~params.ns_only, MSM_CLK_CTL_BASE + params.offset);
 	} else {
-		printk(KERN_WARNING "%s: disabling a clock that doesn't have an "
+		printk(KERN_WARNING "%s: FIXME! disabling a clock that doesn't have an "
 		       "ena bit: %u\n", __func__, id);
 	}
 }
@@ -319,13 +321,13 @@ static int pc_clk_set_rate(uint32_t id, unsigned long rate)
 
 static int pc_clk_set_min_rate(uint32_t id, unsigned long rate)
 {
-	printk(KERN_WARNING "clk_set_min_rate not implemented; %u:%lu\n", id, rate);
+	printk(KERN_WARNING " FIXME! clk_set_min_rate not implemented; %u:%lu\n", id, rate);
 	return 0;
 }
 
 static int pc_clk_set_max_rate(uint32_t id, unsigned long rate)
 {
-	printk(KERN_WARNING "clk_set_max_rate not implemented; %u:%lu\n", id, rate);
+	printk(KERN_WARNING " FIXME! clk_set_max_rate not implemented; %u:%lu\n", id, rate);
 	return 0;
 }
 
@@ -350,7 +352,7 @@ static unsigned long pc_clk_get_rate(uint32_t id)
 
 		default:
 			//TODO: support all clocks
-			printk("unknown clock: %u\n", id);
+			printk("%s: unknown clock: id=%u\n", __func__, id);
 			rate = 0;
 	}
 
@@ -359,7 +361,7 @@ static unsigned long pc_clk_get_rate(uint32_t id)
 
 static int pc_clk_set_flags(uint32_t id, unsigned long flags)
 {
-	printk(KERN_WARNING "%s not implemented; id=%u, flags=%lu\n", __func__, id, flags);
+	printk(KERN_WARNING "%s not implemented for clock: id=%u, flags=%lu\n", __func__, id, flags);
 	return 0;
 }
 

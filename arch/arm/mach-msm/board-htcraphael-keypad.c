@@ -73,7 +73,7 @@ static struct gpio_event_matrix_info htcraphael_matrix_info = {
 };
 
 static struct gpio_event_direct_entry htcraphael_keyboard_switch_map[] = {
-	{ 39, SW_LID	}
+	{ 39, SW_LID	} /* FIXME! =38 on raph100 */
 };
 
 static struct gpio_event_input_info htcraphael_keyboard_switch_info = {

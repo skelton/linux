@@ -118,7 +118,7 @@ static int raphnavi_keymap[] =
 #define RAPHNAVI_PAD_AREAS  0
 #define RAPHNAVI_PAD_LX	    1
 #define RAPHNAVI_PAD_LY     2
-#define RAPHNAVI_PAD_WHEEL   3
+#define RAPHNAVI_PAD_WHEEL  3
 #define RAPHNAVI_PAD_TOUCH  4
 #define RAPHNAVI_PAD_RX     5
 #define RAPHNAVI_PAD_RY     6
