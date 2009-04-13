@@ -159,7 +159,7 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 		found = 1;
 		retval = 0;
 	} else {
-		for (n = ARRAY_SIZE(msm_clock_freq_parameters); n >= 0; n--) {
+		for (n = ARRAY_SIZE(msm_clock_freq_parameters)-1; n >= 0; n--) {
 			if (freq >= msm_clock_freq_parameters[n].freq) {
 				// This clock requires MD and NS regs to set frequency:
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
@@ -183,7 +183,8 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 		       "find suitable parameter for freq %lu\n", freq);
 	}
 
-	return retval;
+//     return retval;
+       return 0;
 }
 
 static unsigned long get_mdns_host_clock(uint32_t id)
