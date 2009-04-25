@@ -18,7 +18,7 @@
 #endif
 
 #define MODULE_NAME "raph_gsensor"
-#define RAPH_GSENS_DEBUG
+// #define RAPH_GSENS_DEBUG
 
 struct raph_gsensor {
 	struct i2c_client *client;
@@ -188,7 +188,7 @@ static int raph_gsensor_probe(struct i2c_client *client, const struct i2c_device
 	struct raph_gsensor *gsens;
 	struct input_dev *idev;
 
-	printk(KERN_INFO MODULE_NAME ": Initializing Raphael G-Sensor driver "
+	printk(KERN_INFO MODULE_NAME ": Initializing Raphael G-Sensor device "
 					"at addr: 0x%02x\n", client->addr);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -300,4 +300,3 @@ static void __exit raph_gsensor_exit(void)
 
 module_init(raph_gsensor_init);
 module_exit(raph_gsensor_exit);
-

@@ -39,5 +39,7 @@ extern struct platform_device msm_device_mddi0;
 extern struct platform_device msm_device_mddi1;
 extern struct platform_device msm_device_mdp;
 extern struct platform_device msm_device_rtc;
+extern struct platform_device msm_device_htc_hw;
+extern struct platform_device msm_device_htc_battery;
 
 #endif

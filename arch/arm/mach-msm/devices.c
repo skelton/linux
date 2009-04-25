@@ -441,3 +441,13 @@ struct platform_device msm_device_rtc = {
 	.id = -1,
 };
 
+struct platform_device msm_device_htc_hw = {
+        .name = "htc_hw",
+        .id = -1,
+};
+
+struct platform_device msm_device_htc_battery = {
+        .name = "htc_battery",
+        .id = -1,
+};
+

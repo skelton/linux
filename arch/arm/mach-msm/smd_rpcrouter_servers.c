@@ -47,6 +47,7 @@ static void rpc_server_register(struct msm_rpc_server *server)
 	if (rc < 0)
 		printk(KERN_ERR "[rpcserver] error registering %p @ %08x:%d\n",
 		       server, server->prog, server->vers);
+printk(KERN_DEBUG "-%s: %08x:%08x\n", __func__, server->prog, server->vers);
 }
 
 static struct msm_rpc_server *rpc_server_find(uint32_t prog, uint32_t vers)
@@ -61,6 +62,7 @@ static struct msm_rpc_server *rpc_server_find(uint32_t prog, uint32_t vers)
 		}
 	}
 	mutex_unlock(&rpc_server_list_lock);
+printk(KERN_DEBUG "-%s\n", __func__);
 	return NULL;
 }
 
@@ -76,6 +78,7 @@ static void rpc_server_register_all(void)
 		}
 	}
 	mutex_unlock(&rpc_server_list_lock);
+printk(KERN_DEBUG "-%s\n", __func__);
 }
 
 int msm_rpc_create_server(struct msm_rpc_server *server)
@@ -92,6 +95,7 @@ int msm_rpc_create_server(struct msm_rpc_server *server)
 	}
 	mutex_unlock(&rpc_server_list_lock);
 
+printk(KERN_DEBUG "-%s\n", __func__);
 	return 0;
 }
 
@@ -178,6 +182,7 @@ static int rpc_servers_thread(void *data)
 
 static int rpcservers_probe(struct platform_device *pdev)
 {
+printk(KERN_DEBUG "+%s\n", __func__);
 	endpoint = msm_rpc_open();
 	if (IS_ERR(endpoint))
 		return PTR_ERR(endpoint);
@@ -189,6 +194,7 @@ static int rpcservers_probe(struct platform_device *pdev)
 	/* start the kernel thread */
 	kthread_run(rpc_servers_thread, NULL, "krpcserversd");
 
+printk(KERN_DEBUG "-%s\n", __func__);
 	return 0;
 }
 
@@ -202,6 +208,7 @@ static struct platform_driver rpcservers_driver = {
 
 static int __init rpc_servers_init(void)
 {
+printk(KERN_DEBUG "%s\n", __func__);
 	return platform_driver_register(&rpcservers_driver);
 }
 

@@ -41,6 +41,7 @@
 #include <mach/msm_hsusb.h>
 #include <mach/msm_serial_hs.h>
 #include <mach/vreg.h>
+#include <mach/htc_battery.h>
 
 #include <mach/gpio.h>
 #include <mach/io.h>
@@ -50,6 +51,7 @@
 
 #include "proc_comm_wince.h"
 #include "devices.h"
+#include "htc_hw.h"
 #include "board-htcraphael.h"
 
 static int halibut_ffa;
@@ -107,7 +109,7 @@ static void halibut_phy_reset(void)
 }
 
 static char *halibut_usb_functions[] = {
-        "ether",
+	"ether",
 //	"diag",
 //	"adb",
 };
@@ -146,12 +148,6 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 };
 
 static struct i2c_board_info i2c_devices[] = {
-#if 0
-	{
-		// Navi cap sense controller
-		I2C_BOARD_INFO("cy8c20434", 0x62),
-	},
-#endif
 	{
 		// LED & Backlight controller
 		I2C_BOARD_INFO("microp-klt", 0x66),
@@ -165,8 +161,12 @@ static struct i2c_board_info i2c_devices[] = {
 		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
 	},
 	{
-		// Raphael NaviPad
+		// Raphael NaviPad (cy8c20434)
 		I2C_BOARD_INFO("raph_navi_pad", 0x62),
+	},
+	{
+		// Raphael Accelerometer (KXSD9)
+		I2C_BOARD_INFO("raph_gsensor", 0x18),
 	},
 };
 
@@ -187,19 +187,19 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 };
 
 static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
-        .name = "pmem_gpu0",
-        .start = MSM_PMEM_GPU0_BASE,
-        .size = MSM_PMEM_GPU0_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
+	.name = "pmem_gpu0",
+	.start = MSM_PMEM_GPU0_BASE,
+	.size = MSM_PMEM_GPU0_SIZE,
+	.no_allocator = 1,
+	.cached = 0,
 };
 
 static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
-        .name = "pmem_gpu1",
-        .start = MSM_PMEM_GPU1_BASE,
-        .size = MSM_PMEM_GPU1_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
+	.name = "pmem_gpu1",
+	.start = MSM_PMEM_GPU1_BASE,
+	.size = MSM_PMEM_GPU1_SIZE,
+	.no_allocator = 1,
+	.cached = 0,
 };
 
 static struct platform_device android_pmem_device = {
@@ -226,6 +226,14 @@ static struct platform_device android_pmem_gpu1_device = {
 	.dev = { .platform_data = &android_pmem_gpu1_pdata },
 };
 
+static smem_batt_t msm_battery_pdata = {
+	.gpio_battery_detect = RAPH100_BAT_IRQ,
+	.gpio_charger_enable = RAPH100_CHARGE_EN_N,
+	.gpio_charger_current_select = RAPH100_USB_AC_PWR,
+	.smem_offset = 0xfc140,
+	.smem_field_size = 4,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_hsusb,
 	&raphael_keypad_device,
@@ -233,16 +241,18 @@ static struct platform_device *devices[] __initdata = {
 	&android_pmem_adsp_device,
 	&android_pmem_gpu0_device,
 	&android_pmem_gpu1_device,
-        &msm_device_smd,
-        &msm_device_nand,
-        &msm_device_i2c,
+	&msm_device_smd,
+	&msm_device_nand,
+	&msm_device_i2c,
 	&msm_device_rtc,
+	&msm_device_htc_hw,
 #if !defined(CONFIG_MSM_SERIAL_DEBUGGER) && !defined(CONFIG_TROUT_H2W)
 //	&msm_device_uart1,
 #endif
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif
+	&msm_device_htc_battery,
 };
 
 extern struct sys_timer msm_timer;
@@ -281,27 +291,57 @@ static void htcraphael_reset(void)
 	printk(KERN_INFO "%s: Soft reset done.\n", __func__);
 }
 
+static void htcraphael_set_vibrate(uint32_t val)
+{
+	struct msm_dex_command vibra;
+
+	if (val == 0) {
+		vibra.cmd = PCOM_VIBRA_OFF;
+		msm_proc_comm_wince(&vibra, 0);
+	} else if (val > 0) {
+		if (val == 1 || val > 0xb22)
+			val = 0xb22;
+		writel(val, MSM_SHARED_RAM_BASE + 0xfc130);
+		vibra.cmd = PCOM_VIBRA_ON;
+		msm_proc_comm_wince(&vibra, 0);
+	}
+}
+
+static htc_hw_pdata_t msm_htc_hw_pdata = {
+	.set_vibrate = htcraphael_set_vibrate,
+	.battery_smem_offset = 0xfc140, //XXX: raph800
+	.battery_smem_field_size = 4,
+};
+
 static void __init halibut_init(void)
 {
 	int i;
-	struct msm_dex_command vibra = { .cmd = 0, };
 
 	// Fix data in arrays depending on GSM/CDMA version
 	htcraphael_device_specific_fixes();
 
-        msm_acpu_clock_init(&halibut_clock_data);
+	msm_acpu_clock_init(&halibut_clock_data);
 	msm_proc_comm_wince_init();
 
-        msm_hw_reset_hook = htcraphael_reset;
+	// Register hardware reset hook
+	msm_hw_reset_hook = htcraphael_reset;
 
+	// Device pdata overrides
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
+	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
 #endif
 
+	// Register devices
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	// Register I2C devices
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
+
+	// Initialize SD controllers
 	htcraphael_init_mmc();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
@@ -312,11 +352,9 @@ static void __init halibut_init(void)
 
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
-		vibra.cmd = PCOM_VIBRA_ON;
-		msm_proc_comm_wince(&vibra, 0);
+		htcraphael_set_vibrate(1);
 		mdelay(150);
-		vibra.cmd = PCOM_VIBRA_OFF;
-		msm_proc_comm_wince(&vibra, 0);
+		htcraphael_set_vibrate(0);
 		mdelay(75);
 	}
 }

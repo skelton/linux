@@ -9,10 +9,13 @@ obj-y += acpuclock.o
 obj-y += clock-7x01a.o clock-wince.o
 obj-y += gpio.o generic_gpio.o
 obj-y += nand_partitions.o
+obj-y += htc_hw.o
 
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o
-obj-$(CONFIG_MSM_SMD) += smd.o smd_tty.o smd_qmi.o
+obj-$(CONFIG_MSM_SMD) += smd.o smd_tty.o
+# smd_qmi.o
+
 obj-$(CONFIG_MSM_SMD_7500) += smd_7500.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_device.o
@@ -39,6 +42,7 @@ obj-$(CONFIG_MACH_TROUT) += board-trout-mmc.o board-trout-wifi.o
 obj-$(CONFIG_TROUT_H2W) += board-trout-h2w.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_TROUT_PWRSINK) += htc_pwrsink.o
+obj-$(CONFIG_MSM_SMEM_BATTCHG) += htc_battery_smem.o
 
 obj-$(CONFIG_RAPHAEL_GSENSOR) += raph-gsensor.o
 

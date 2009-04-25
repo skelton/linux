@@ -41,33 +41,33 @@
 #include <mach/msm_smd.h>
 #include "smd_rpcrouter.h"
 
-#define TRACE_R2R_MSG 0
-#define TRACE_R2R_RAW 0
-#define TRACE_RPC_MSG 0
+#define TRACE_R2R_MSG 1
+#define TRACE_R2R_RAW 1
+#define TRACE_RPC_MSG 1
 
-#define MSM_RPCROUTER_DEBUG 0
-#define MSM_RPCROUTER_DEBUG_PKT 0
-#define MSM_RPCROUTER_R2R_DEBUG 0
-#define DUMP_ALL_RECEIVED_HEADERS 0
+#define MSM_RPCROUTER_DEBUG 1
+#define MSM_RPCROUTER_DEBUG_PKT 1
+#define MSM_RPCROUTER_R2R_DEBUG 1
+#define DUMP_ALL_RECEIVED_HEADERS 1
 
 #define DIAG(x...) printk("[RR] ERROR " x)
 
 #if MSM_RPCROUTER_DEBUG
-#define D(x...) printk(x)
+ #define D(x...) printk(x)
 #else
-#define D(x...) do {} while (0)
+ #define D(x...) do {} while (0)
 #endif
 
 #if TRACE_R2R_MSG
-#define RR(x...) printk("[RR] "x)
+ #define RR(x...) printk("[RR] "x)
 #else
-#define RR(x...) do {} while (0)
+ #define RR(x...) do {} while (0)
 #endif
 
 #if TRACE_RPC_MSG
-#define IO(x...) printk("[RPC] "x)
+ #define IO(x...) printk("[RPC] "x)
 #else
-#define IO(x...) do {} while (0)
+ #define IO(x...) do {} while (0)
 #endif
 
 static LIST_HEAD(local_endpoints);
@@ -1130,18 +1130,24 @@ static int msm_rpcrouter_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto fail_destroy_workqueue;
 
+	printk(KERN_DEBUG "RPC Init done\n");
+
 	/* Open up SMD channel 2 */
 	initialized = 0;
 	rc = smd_open("SMD_RPCCALL", &smd_channel, NULL, rpcrouter_smdnotify);
 	if (rc < 0)
 		goto fail_remove_devices;
 
+	printk(KERN_DEBUG "RPCCALL opened\n");
+
 	queue_work(rpcrouter_workqueue, &work_read_data);
 	return 0;
 
 fail_remove_devices:
+	printk(KERN_ERR "RPC smd_open failed\n");
 	msm_rpcrouter_exit_devices();
 fail_destroy_workqueue:
+	printk(KERN_ERR "RPC init failed\n");
 	destroy_workqueue(rpcrouter_workqueue);
 	return rc;
 }
@@ -1156,6 +1162,7 @@ static struct platform_driver msm_smd_channel2_driver = {
 
 static int __init rpcrouter_init(void)
 {
+	printk(KERN_DEBUG "RPC %s\n", __func__);
 	return platform_driver_register(&msm_smd_channel2_driver);
 }
 

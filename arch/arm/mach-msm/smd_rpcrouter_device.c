@@ -57,6 +57,7 @@ static int rpcrouter_open(struct inode *inode, struct file *filp)
 		return -ENOMEM;
 
 	filp->private_data = ept;
+printk(KERN_DEBUG "rpcrouter_open\n");
 	return 0;
 }
 
@@ -159,6 +160,8 @@ static long rpcrouter_ioctl(struct file *filp, unsigned int cmd,
 	int rc;
 	uint32_t n;
 
+printk(KERN_DEBUG "rpcrouter_ioctl: cmd=%u\n", cmd);
+
 	ept = (struct msm_rpc_endpoint *) filp->private_data;
 	switch (cmd) {
 
@@ -258,6 +261,7 @@ int msm_rpcrouter_create_server_cdev(struct rr_server *server)
 		device_destroy(msm_rpcrouter_class, server->device_number);
 		return rc;
 	}
+printk(KERN_DEBUG "rpcrouter_create_server: %x:%x\n", server->prog, server->vers);
 	return 0;
 }
 
@@ -273,6 +277,7 @@ int msm_rpcrouter_create_server_pdev(struct rr_server *server)
 	server->p_device.vers = server->vers;
 
 	platform_device_register(&server->p_device.base);
+printk(KERN_DEBUG "rpcrouter_create_server: %s\n", server->pdev_name);
 	return 0;
 }
 
@@ -315,6 +320,7 @@ int msm_rpcrouter_init_devices(void)
 	if (rc < 0)
 		goto fail_destroy_device;
 
+printk(KERN_DEBUG "RPC_dev init complete!\n");
 	return 0;
 
 fail_destroy_device:
@@ -325,11 +331,13 @@ fail_unregister_cdev_region:
 fail_destroy_class:
 	class_destroy(msm_rpcrouter_class);
 fail:
+printk(KERN_ERR "RPC_dev init failed!\n");
 	return rc;
 }
 
 void msm_rpcrouter_exit_devices(void)
 {
+	printk(KERN_DEBUG "RPC_dev exit\n");
 	cdev_del(&rpcrouter_cdev);
 	device_destroy(msm_rpcrouter_class, msm_rpcrouter_devno);
 	unregister_chrdev_region(msm_rpcrouter_devno,

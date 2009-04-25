@@ -108,10 +108,22 @@ config TROUT_H2W
 	 headset, on the trout platform. Can be used with the msm serial
 	 debugger, but not with serial console.
 
-config TROUT_BATTCHG
-	depends on MACH_TROUT && POWER_SUPPLY
-	default y
-	bool "Trout battery / charger driver"
+config MSM_BATTCHG
+        depends on ARCH_MSM && POWER_SUPPLY
+        default y
+        bool "HTC battery / charger support"
+
+choice
+        prompt "Choose battery/charger API"
+        default TROUT_BATTCHG
+        depends on MSM_BATTCHG
+
+        config TROUT_BATTCHG
+                bool "RPC battery/charger API"
+
+        config MSM_SMEM_BATTCHG
+                bool "SMEM battery/charger API"
+endchoice
 
 config TROUT_PWRSINK
 	depends on MSM_SMD
