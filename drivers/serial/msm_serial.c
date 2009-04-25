@@ -535,6 +535,8 @@ static int msm_startup(struct uart_port *port)
 
 #ifdef CONFIG_SERIAL_MSM_RX_WAKEUP
 	/* Apply the RX GPIO wake irq workaround to the bluetooth uart */
+
+	/* TODO: raphael pdev */
 	if (port->line == 0) {  /* BT is serial device 0 */
 		ret = request_irq(MSM_GPIO_TO_INT(45), msm_rx_irq,
 				  IRQF_TRIGGER_FALLING, "msm_serial0_rx",

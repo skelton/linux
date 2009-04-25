@@ -78,6 +78,7 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
 	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa00, .name="PMDH_CLK"},
 	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, .name="I2C_CLK"},
+//	{ .clk_id = UART1_CLK, .offset = 0xc0, .ns_only = 0xa00, .name="UART1_CLK"},
 };
 
 // This formula is used to generate md and ns reg values
@@ -93,7 +94,11 @@ static struct msm_clock_params msm_clock_parameters[] = {
 
 
 struct mdns_clock_params msm_clock_freq_parameters[] = {
+	/* SD */
 	MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
+	/* UART2DM */
+	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* unknown */
+	/* SD */
 	MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
 	MSM_CLOCK_REG(19200000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19.2MHz */
 	MSM_CLOCK_REG(24000000, 1, 0x10, 0x08, 1, 3, 1, 1), /* 24MHz */
@@ -134,6 +139,7 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 	int retval;
 	bool found;
 	struct msm_clock_params params;
+	uint32_t nsreg;
 	found = 0;
 	retval = -EINVAL;
 	
@@ -155,7 +161,12 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 
 	if (params.ns_only > 0)
 	{
+#if 0
+		nsreg = readl(MSM_CLK_CTL_BASE + offset);
+		writel( nsreg | params.ns_only, MSM_CLK_CTL_BASE + offset);
+#else
 		writel(params.ns_only, MSM_CLK_CTL_BASE + offset);
+#endif
 		found = 1;
 		retval = 0;
 	} else {

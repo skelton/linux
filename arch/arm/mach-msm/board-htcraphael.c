@@ -39,6 +39,7 @@
 #include <mach/system.h>
 #include <mach/msm_fb.h>
 #include <mach/msm_hsusb.h>
+#include <mach/msm_serial_hs.h>
 #include <mach/vreg.h>
 
 #include <mach/gpio.h>
@@ -82,26 +83,6 @@ static struct platform_device raphael_keypad_device = {
 	.dev = { .platform_data = &raphael_keypad_data, },
 };
 
-
-static struct resource msm_serial0_resources[] = {
-	{
-		.start	= INT_UART1,
-		.end	= INT_UART1,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= MSM_UART1_PHYS,
-		.end	= MSM_UART1_PHYS + MSM_UART1_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device msm_serial0_device = {
-	.name	= "msm_serial",
-	.id	= 0,
-	.num_resources	= ARRAY_SIZE(msm_serial0_resources),
-	.resource	= msm_serial0_resources,
-};
 
 static int halibut_phy_init_seq_raph100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
@@ -246,9 +227,6 @@ static struct platform_device android_pmem_gpu1_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
-#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
-	&msm_serial0_device,
-#endif
 	&msm_device_hsusb,
 	&raphael_keypad_device,
 	&android_pmem_device,
@@ -259,6 +237,12 @@ static struct platform_device *devices[] __initdata = {
         &msm_device_nand,
         &msm_device_i2c,
 	&msm_device_rtc,
+#if !defined(CONFIG_MSM_SERIAL_DEBUGGER) && !defined(CONFIG_TROUT_H2W)
+//	&msm_device_uart1,
+#endif
+#ifdef CONFIG_SERIAL_MSM_HS
+	&msm_device_uart_dm2,
+#endif
 };
 
 extern struct sys_timer msm_timer;
@@ -278,6 +262,14 @@ static struct msm_acpu_clock_platform_data halibut_clock_data = {
 
 void msm_serial_debug_init(unsigned int base, int irq, 
 			   const char *clkname, int signal_irq);
+
+#ifdef CONFIG_SERIAL_MSM_HS
+static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
+	.wakeup_irq = MSM_GPIO_TO_INT(21),
+	.inject_rx_on_wakeup = 1,
+	.rx_to_inject = 0x32,
+};
+#endif
 
 static void htcraphael_reset(void)
 {
@@ -303,6 +295,10 @@ static void __init halibut_init(void)
         msm_hw_reset_hook = htcraphael_reset;
 
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+
+#ifdef CONFIG_SERIAL_MSM_HS
+	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
+#endif
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));

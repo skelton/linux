@@ -76,6 +76,7 @@ static int __init parse_tag_msm_partition(const struct tag *tag)
 		name += 16;
 		entry++;
 		ptn++;
+		printk("nand tag: n=%d name=%s offset=0x%x size=0x%x flags=0x%x\n",n,ptn->name,ptn->offset,ptn->size, entry->flags);
 	}
 
 	msm_nand_data.nr_parts = count;

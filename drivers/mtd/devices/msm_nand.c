@@ -33,7 +33,7 @@
 
 #define SUPPORT_WRONG_ECC_CONFIG 1
 
-#define VERBOSE 0
+#define VERBOSE 1
 
 struct msm_nand_chip {
 	struct device *dev;
@@ -1162,6 +1162,8 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 		mtd->size = 256 << 20; /* * num_chips */
 	else if (flash_id == 0x5510baad) /* 2Gbit Hynix chip */
 		mtd->size = 256 << 20; /* * num_chips */
+	else if (flash_id == 0x5501bcec) /* 4Gbit samsung_kby00n00hm chip */
+		mtd->size = 512 << 20; /* * num_chips */
 	pr_info("flash_id: %x size %x\n", flash_id, mtd->size);
 
 	mtd->writesize = 2048;
