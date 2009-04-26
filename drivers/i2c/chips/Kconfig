@@ -219,4 +219,13 @@ config SENSORS_MICROP_KLT
           This driver can also be built as a module.  If so, the module
           will be called microp-klt.
 
+config SENSORS_KXSD9
+	tristate "Kionix KXSD9 i2c Chip Driver"
+	depends on I2C_MSM
+	default n
+	help
+	  If you say yes here, you get support for the Kionix-KXSD9 chip 
+	  driver which controls the 3-axis accelerometer found in the 
+	  HTC Raphael (Touch Pro) and HTC Diamond mobile phones.
+
 endmenu

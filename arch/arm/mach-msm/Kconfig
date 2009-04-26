@@ -130,10 +130,6 @@ config TROUT_PWRSINK
 	default y
 	bool "Trout Power Sink Driver"
 
-config RAPHAEL_GSENSOR
-	depends on MACH_HTCRAPHAEL || MACH_HTCRAPHAEL_CDMA
-	default n
-	bool "Support for kxsd9 g-sensor"
 choice
 	prompt "Default Timer"
 	default MSM7X00A_USE_GP_TIMER

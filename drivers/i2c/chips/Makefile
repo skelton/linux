@@ -26,6 +26,7 @@ obj-$(CONFIG_SENSORS_TSL2550)	+= tsl2550.o
 obj-$(CONFIG_SENSORS_MT9T013)	+= mt9t013.o
 obj-$(CONFIG_SENSORS_MICROP_KSC) += microp-ksc.o
 obj-$(CONFIG_SENSORS_MICROP_KLT) += microp-klt.o
+obj-$(CONFIG_SENSORS_KXSD9) 	+= kionix-kxsd9.o
 
 ifeq ($(CONFIG_I2C_DEBUG_CHIP),y)
 EXTRA_CFLAGS += -DDEBUG
