@@ -270,6 +270,7 @@ config ARCH_EP93XX
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -533,6 +534,8 @@ config ARCH_MSM
 	bool "Qualcomm MSM"
 	select GENERIC_GPIO
 	select GENERIC_CLOCKEVENTS
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select HOLES_IN_ZONE
 	help
 	  Support for Qualcomm MSM7K based systems.  This runs on the ARM11
 	  apps processor of the MSM7K and depends on a shared memory
@@ -809,10 +812,12 @@ config OABI_COMPAT
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
 	  at all). If in doubt say Y.
 
-config ARCH_FLATMEM_HAS_HOLES
+config ARCH_HAS_HOLES_MEMORYMODEL
 	bool
-	default y
-	depends on FLATMEM
+	default n
+
+config HOLES_IN_ZONE
+	bool
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
