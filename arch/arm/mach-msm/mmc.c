@@ -26,7 +26,8 @@
 
 #define DEBUG_SDSLOT_VDD 1
 
-extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat);
+extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
+			unsigned int stat_irq, unsigned long stat_irq_flags);
 
 
 /* This struct holds the device-specific numbers and tables */
@@ -218,7 +219,6 @@ static unsigned int sdslot_status(struct device *dev)
 
 static struct mmc_platform_data sdslot_data = {
 	.ocr_mask	= MMC_VDD_28_29,
-	.status_irq	= -1, /* Redefined in _init function */
 	.status		= sdslot_status,
 //	.translate_vdd	= sdslot_switchvdd,
 };
@@ -510,7 +510,7 @@ int __init init_mmc(void)
 	if (!opt_disable_wifi)
 	{
 		printk(KERN_INFO "MMC: WiFi device enable\n");
-		msm_add_sdcc(1, &wifi_data);
+		msm_add_sdcc(1, &wifi_data, 0, 0);
 	}
 	else
 		printk(KERN_INFO "MMC: WiFi device disabled\n");
@@ -518,10 +518,10 @@ int __init init_mmc(void)
 	if (!opt_disable_sdcard)
 	{
 		printk(KERN_INFO "MMC: SD-Card interface enable\n");
-		sdslot_data.status_irq = MSM_GPIO_TO_INT(mmc_pdata.sdcard_status_gpio);
-		set_irq_wake(sdslot_data.status_irq, 1);
-		gpio_configure(mmc_pdata.sdcard_status_gpio, IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
-		msm_add_sdcc(mmc_pdata.sdcard_device_id, &sdslot_data);
+		set_irq_wake(MSM_GPIO_TO_INT(mmc_pdata.sdcard_status_gpio), 1);
+		msm_add_sdcc(mmc_pdata.sdcard_device_id, &sdslot_data,
+				MSM_GPIO_TO_INT(mmc_pdata.sdcard_status_gpio),
+				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
 	} else
 		printk(KERN_INFO "MMC: SD-Card interface disabled\n");
 	return 0;
