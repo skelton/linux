@@ -582,7 +582,7 @@ void smd_kick(smd_channel_t *ch)
 
 static int smd_is_packet(int chn)
 {
-	if ((chn > 4) || (chn == 1))
+	if ((chn > 28) || (chn == 1))
 		return 1;
 	else
 		return 0;
