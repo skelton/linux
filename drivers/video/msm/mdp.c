@@ -218,7 +218,7 @@ void mdp_dma_to_mddi(struct mdp_info *mdp, uint32_t addr, uint32_t stride,
 		DMA_OUT_SEL_AHB |
 		DMA_IBUF_NONCONTIGUOUS;
 
-	dma2_cfg |= DMA_IBUF_FORMAT_RGB565;
+	dma2_cfg |= DMA_IBUF_FORMAT_RGB565; /* for not 888 ? */
 
 	dma2_cfg |= DMA_OUT_SEL_MDDI;
 
@@ -228,9 +228,9 @@ void mdp_dma_to_mddi(struct mdp_info *mdp, uint32_t addr, uint32_t stride,
 
 	/* setup size, address, and stride */
 	mdp_writel(mdp, (height << 16) | (width),
-		   MDP_CMD_DEBUG_ACCESS_BASE + 0x0184);
-	mdp_writel(mdp, addr, MDP_CMD_DEBUG_ACCESS_BASE + 0x0188);
-	mdp_writel(mdp, stride, MDP_CMD_DEBUG_ACCESS_BASE + 0x018C);
+		   MDP_CMD_DEBUG_ACCESS_BASE + 0x0184); /* MDP_FULL_BYPASS_WORD33 */
+	mdp_writel(mdp, addr, MDP_CMD_DEBUG_ACCESS_BASE + 0x0188); /* MDP_FULL_BYPASS_WORD34 */
+	mdp_writel(mdp, stride, MDP_CMD_DEBUG_ACCESS_BASE + 0x018C); /* MDP_FULL_BYPASS_WORD35 */
 
 	if ( machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma() || machine_is_htcblackstone() )
 		/* 565 16BPP */
@@ -240,15 +240,15 @@ void mdp_dma_to_mddi(struct mdp_info *mdp, uint32_t addr, uint32_t stride,
 		dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_6BITS | DMA_DSTC2R_6BITS;
 
 	/* set y & x offset and MDDI transaction parameters */
-	mdp_writel(mdp, (y << 16) | (x), MDP_CMD_DEBUG_ACCESS_BASE + 0x0194);
-	mdp_writel(mdp, ld_param, MDP_CMD_DEBUG_ACCESS_BASE + 0x01a0);
+	mdp_writel(mdp, (y << 16) | (x), MDP_CMD_DEBUG_ACCESS_BASE + 0x0194); /* MDP_FULL_BYPASS_WORD37 */
+	mdp_writel(mdp, ld_param, MDP_CMD_DEBUG_ACCESS_BASE + 0x01a0);  /* MDP_FULL_BYPASS_WORD40 */
 	mdp_writel(mdp, (MDDI_VDO_PACKET_DESC << 16) | MDDI_VDO_PACKET_PRIM,
-		   MDP_CMD_DEBUG_ACCESS_BASE + 0x01a4);
+		   MDP_CMD_DEBUG_ACCESS_BASE + 0x01a4); /* MDP_FULL_BYPASS_WORD41 */
 
-	mdp_writel(mdp, dma2_cfg, MDP_CMD_DEBUG_ACCESS_BASE + 0x0180);
+	mdp_writel(mdp, dma2_cfg, MDP_DMA_CONFIG); /*  0x10180 */
 
 	/* start DMA2 */
-	mdp_writel(mdp, 0, MDP_CMD_DEBUG_ACCESS_BASE + 0x0044);
+	mdp_writel(mdp, 0, MDP_DMA_START ); /* 0x10044 */
 }
 
 void mdp_dma(struct mdp_device *mdp_dev, uint32_t addr, uint32_t stride,
@@ -449,7 +449,7 @@ int mdp_probe(struct platform_device *pdev)
 	mdp_irq_mask = 0;
 
 	/* debug interface write access */
-	mdp_writel(mdp, 1, 0x60);
+	mdp_writel(mdp, 1, MDP_MODE ); /* 0x60 */
 
 	mdp_writel(mdp, MDP_ANY_INTR_MASK, MDP_INTR_ENABLE);
 	mdp_writel(mdp, 1, MDP_EBI2_PORTMAP_MODE);

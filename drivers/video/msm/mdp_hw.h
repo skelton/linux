@@ -69,35 +69,53 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 #define MDP_FULL_BYPASS_WORD1            ( 0x10104)
 #define MDP_COMMAND_CONFIG               ( 0x10104)
 #define MDP_FULL_BYPASS_WORD2            ( 0x10108)
+#define PPP_ADDR_SRC_ROI		MDP_FULL_BYPASS_WORD2
 #define MDP_FULL_BYPASS_WORD3            ( 0x1010c)
+#define PPP_ADDR_SRC0			MDP_FULL_BYPASS_WORD3
 #define MDP_FULL_BYPASS_WORD4            ( 0x10110)
+#define PPP_ADDR_SRC1			MDP_FULL_BYPASS_WORD4
 #define MDP_FULL_BYPASS_WORD6            ( 0x10118)
 #define MDP_FULL_BYPASS_WORD7            ( 0x1011c)
+#define PPP_ADDR_SRC_YSTRIDE		MDP_FULL_BYPASS_WORD7
 #define MDP_FULL_BYPASS_WORD8            ( 0x10120)
 #define MDP_FULL_BYPASS_WORD9            ( 0x10124)
 #define MDP_PPP_SOURCE_CONFIG            ( 0x10124)
+#define PPP_ADDR_SRC_CFG		MDP_FULL_BYPASS_WORD9
 #define MDP_FULL_BYPASS_WORD10           ( 0x10128)
+#define PPP_ADDR_SRC_PACK_PATTERN	MDP_FULL_BYPASS_WORD10
 #define MDP_FULL_BYPASS_WORD11           ( 0x1012c)
 #define MDP_FULL_BYPASS_WORD12           ( 0x10130)
 #define MDP_FULL_BYPASS_WORD13           ( 0x10134)
 #define MDP_FULL_BYPASS_WORD14           ( 0x10138)
 #define MDP_PPP_OPERATION_CONFIG         ( 0x10138)
+#define PPP_ADDR_OPERATION		MDP_FULL_BYPASS_WORD14
 #define MDP_FULL_BYPASS_WORD15           ( 0x1013c)
+#define PPP_ADDR_PHASEX_INIT		MDP_FULL_BYPASS_WORD15
 #define MDP_FULL_BYPASS_WORD16           ( 0x10140)
+#define PPP_ADDR_PHASEY_INIT		MDP_FULL_BYPASS_WORD16
 #define MDP_FULL_BYPASS_WORD17           ( 0x10144)
+#define PPP_ADDR_PHASEX_STEP		MDP_FULL_BYPASS_WORD17
 #define MDP_FULL_BYPASS_WORD18           ( 0x10148)
+#define PPP_ADDR_PHASEY_STEP		MDP_FULL_BYPASS_WORD18
 #define MDP_FULL_BYPASS_WORD19           ( 0x1014c)
+#define PPP_ADDR_ALPHA_TRANSP		MDP_FULL_BYPASS_WORD19
 #define MDP_FULL_BYPASS_WORD20           ( 0x10150)
 #define MDP_PPP_DESTINATION_CONFIG       ( 0x10150)
+#define PPP_ADDR_DST_CFG		MDP_FULL_BYPASS_WORD20
 #define MDP_FULL_BYPASS_WORD21           ( 0x10154)
+#define PPP_ADDR_DST_PACK_PATTERN	MDP_FULL_BYPASS_WORD21
 #define MDP_FULL_BYPASS_WORD22           ( 0x10158)
 #define MDP_FULL_BYPASS_WORD23           ( 0x1015c)
 #define MDP_FULL_BYPASS_WORD24           ( 0x10160)
 #define MDP_FULL_BYPASS_WORD25           ( 0x10164)
+#define PPP_ADDR_DST_ROI		MDP_FULL_BYPASS_WORD25
 #define MDP_FULL_BYPASS_WORD26           ( 0x10168)
+#define PPP_ADDR_DST0			MDP_FULL_BYPASS_WORD26
 #define MDP_FULL_BYPASS_WORD27           ( 0x1016c)
+#define PPP_ADDR_DST1			MDP_FULL_BYPASS_WORD27
 #define MDP_FULL_BYPASS_WORD29           ( 0x10174)
 #define MDP_FULL_BYPASS_WORD30           ( 0x10178)
+#define PPP_ADDR_DST_YSTRIDE		MDP_FULL_BYPASS_WORD30
 #define MDP_FULL_BYPASS_WORD31           ( 0x1017c)
 #define MDP_FULL_BYPASS_WORD32           ( 0x10180)
 #define MDP_DMA_CONFIG                   ( 0x10180)
@@ -110,14 +128,20 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 #define MDP_FULL_BYPASS_WORD41           ( 0x101a4)
 #define MDP_FULL_BYPASS_WORD43           ( 0x101ac)
 #define MDP_FULL_BYPASS_WORD46           ( 0x101b8)
+#define PPP_ADDR_EDGE			MDP_FULL_BYPASS_WORD46
 #define MDP_FULL_BYPASS_WORD47           ( 0x101bc)
 #define MDP_FULL_BYPASS_WORD48           ( 0x101c0)
+#define PPP_ADDR_BG0			MDP_FULL_BYPASS_WORD48
 #define MDP_FULL_BYPASS_WORD49           ( 0x101c4)
+#define PPP_ADDR_BG1			MDP_FULL_BYPASS_WORD49
 #define MDP_FULL_BYPASS_WORD50           ( 0x101c8)
 #define MDP_FULL_BYPASS_WORD51           ( 0x101cc)
+#define PPP_ADDR_BG_YSTRIDE		MDP_FULL_BYPASS_WORD51
 #define MDP_FULL_BYPASS_WORD52           ( 0x101d0)
 #define MDP_FULL_BYPASS_WORD53           ( 0x101d4)
+#define PPP_ADDR_BG_CFG			MDP_FULL_BYPASS_WORD53
 #define MDP_FULL_BYPASS_WORD54           ( 0x101d8)
+#define PPP_ADDR_BG_PACK_PATTERN	MDP_FULL_BYPASS_WORD54
 #define MDP_FULL_BYPASS_WORD55           ( 0x101dc)
 #define MDP_FULL_BYPASS_WORD56           ( 0x101e0)
 #define MDP_FULL_BYPASS_WORD57           ( 0x101e4)
@@ -181,16 +205,17 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 #define MDP_PPP_TERM 0x3
 
 /* MDP_INTR_ENABLE */
-#define DL0_ROI_DONE           (1<<0)
-#define DL1_ROI_DONE           (1<<1)
-#define DL0_DMA2_TERM_DONE     (1<<2)
-#define DL1_DMA2_TERM_DONE     (1<<3)
-#define DL0_PPP_TERM_DONE      (1<<4)
-#define DL1_PPP_TERM_DONE      (1<<5)
-#define TV_OUT_DMA3_DONE       (1<<6)
-#define TV_ENC_UNDERRUN        (1<<7)
-#define DL0_FETCH_DONE         (1<<11)
-#define DL1_FETCH_DONE         (1<<12)
+#define DL0_ROI_DONE           (1<<0)  /*    1 */
+#define DL1_ROI_DONE           (1<<1)  /*    2 */
+#define DL0_DMA2_TERM_DONE     (1<<2)  /*    4 */
+#define DL1_DMA2_TERM_DONE     (1<<3)  /*    8 */
+#define DL0_PPP_TERM_DONE      (1<<4)  /*   10 */
+#define DL1_PPP_TERM_DONE      (1<<5)  /*   20 */
+#define TV_OUT_DMA3_DONE       (1<<6)  /*   40 */
+#define TV_ENC_UNDERRUN        (1<<7)  /*   80 */
+#define DL0_FETCH_DONE         (1<<11) /*  800 */
+#define DL1_FETCH_DONE         (1<<12) /* 1000 */
+#define TV_OUT_DMA3_START      (1<<13) /* 2000 */
 
 #define MDP_PPP_BUSY_STATUS (DL0_ROI_DONE| \
 			   DL1_ROI_DONE| \
@@ -205,7 +230,9 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 			   DL1_PPP_TERM_DONE| \
 			   DL0_FETCH_DONE| \
 			   DL1_FETCH_DONE| \
-			   TV_ENC_UNDERRUN)
+			   TV_ENC_UNDERRUN| \
+			   TV_OUT_DMA3_DONE| \
+			   TV_OUT_DMA3_START)
 
 #define MDP_TOP_LUMA       16
 #define MDP_TOP_CHROMA     0
@@ -554,32 +581,6 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 			    (img == MDP_Y_CBCR_H2V2) | \
 			    (img == MDP_Y_CRCB_H2V1) | \
 			    (img == MDP_Y_CBCR_H2V1))
-
-/* Mappings from addr to purpose */
-#define PPP_ADDR_SRC_ROI		MDP_FULL_BYPASS_WORD2
-#define PPP_ADDR_SRC0			MDP_FULL_BYPASS_WORD3
-#define PPP_ADDR_SRC1			MDP_FULL_BYPASS_WORD4
-#define PPP_ADDR_SRC_YSTRIDE		MDP_FULL_BYPASS_WORD7
-#define PPP_ADDR_SRC_CFG		MDP_FULL_BYPASS_WORD9
-#define PPP_ADDR_SRC_PACK_PATTERN	MDP_FULL_BYPASS_WORD10
-#define PPP_ADDR_OPERATION		MDP_FULL_BYPASS_WORD14
-#define PPP_ADDR_PHASEX_INIT		MDP_FULL_BYPASS_WORD15
-#define PPP_ADDR_PHASEY_INIT		MDP_FULL_BYPASS_WORD16
-#define PPP_ADDR_PHASEX_STEP		MDP_FULL_BYPASS_WORD17
-#define PPP_ADDR_PHASEY_STEP		MDP_FULL_BYPASS_WORD18
-#define PPP_ADDR_ALPHA_TRANSP		MDP_FULL_BYPASS_WORD19
-#define PPP_ADDR_DST_CFG		MDP_FULL_BYPASS_WORD20
-#define PPP_ADDR_DST_PACK_PATTERN	MDP_FULL_BYPASS_WORD21
-#define PPP_ADDR_DST_ROI		MDP_FULL_BYPASS_WORD25
-#define PPP_ADDR_DST0			MDP_FULL_BYPASS_WORD26
-#define PPP_ADDR_DST1			MDP_FULL_BYPASS_WORD27
-#define PPP_ADDR_DST_YSTRIDE		MDP_FULL_BYPASS_WORD30
-#define PPP_ADDR_EDGE			MDP_FULL_BYPASS_WORD46
-#define PPP_ADDR_BG0			MDP_FULL_BYPASS_WORD48
-#define PPP_ADDR_BG1			MDP_FULL_BYPASS_WORD49
-#define PPP_ADDR_BG_YSTRIDE		MDP_FULL_BYPASS_WORD51
-#define PPP_ADDR_BG_CFG			MDP_FULL_BYPASS_WORD53
-#define PPP_ADDR_BG_PACK_PATTERN	MDP_FULL_BYPASS_WORD54
 
 /* MDP_DMA_CONFIG / MDP_FULL_BYPASS_WORD32 */
 #define DMA_DSTC0G_6BITS (1<<1)
