@@ -140,6 +140,8 @@
 #define RAPH100_WIFI_PWR1	102
 #define RAPH100_WIFI_PWR2	103
 
-#define RAPH100_BT_RTS		108
+#define RAPH100_UART2_RTS	108
+
+/* 111 - 121 USB OTG */
 
 #endif /* GUARD */

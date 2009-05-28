@@ -234,6 +234,11 @@ static smem_batt_t msm_battery_pdata = {
 	.smem_field_size = 4,
 };
 
+static struct platform_device htcraphael_rfkill = {
+	.name = "htcraphael_rfkill",
+	.id = -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_hsusb,
 	&raphael_keypad_device,
@@ -241,6 +246,7 @@ static struct platform_device *devices[] __initdata = {
 	&android_pmem_adsp_device,
 	&android_pmem_gpu0_device,
 	&android_pmem_gpu1_device,
+	&htcraphael_rfkill,
 	&msm_device_smd,
 	&msm_device_nand,
 	&msm_device_i2c,

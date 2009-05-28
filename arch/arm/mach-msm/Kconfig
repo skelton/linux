@@ -5,7 +5,7 @@ config MSM_AMSS_VERSION
 	default 6210 if MSM_AMSS_VERSION_6210
 	default 6220 if MSM_AMSS_VERSION_6220
 	default 6225 if MSM_AMSS_VERSION_6225
-        default 7000 if MSM_AMSS_VERSION_WINCE
+        default 5200 if MSM_AMSS_VERSION_WINCE
 
 choice
 	prompt "AMSS modem firmware version"
