@@ -263,11 +263,11 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	data->leds[4].brightness = LED_OFF;
 	data->leds[4].brightness_set = micropklt_led_brightness_set;
 
-	data->leds[5].name = "klt::lcd-backlight";
+	data->leds[5].name = "klt::lcd-bkl";
 	data->leds[5].brightness = 0x90;
 	data->leds[5].brightness_set = micropklt_led_brightness_set;
 
-	data->leds[6].name = "klt::keypad-backlight";
+	data->leds[6].name = "klt::keypad-bkl";
 	data->leds[6].brightness = LED_OFF;
 	data->leds[6].brightness_set = micropklt_led_brightness_set;
 
