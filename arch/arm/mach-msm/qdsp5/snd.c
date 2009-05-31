@@ -41,12 +41,17 @@ static struct snd_ctxt the_snd;
 #define RPC_SND_CB_PROG	0x31000002
 #if CONFIG_MSM_AMSS_VERSION == 6210
 #define RPC_SND_VERS                    0x94756085 /* 2490720389 */
-#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
-#define RPC_SND_VERS                    0xaa2b1a44 /* 2854951492 */
-#endif
-
 #define SND_SET_DEVICE_PROC 2
 #define SND_SET_VOLUME_PROC 3
+#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
+#define RPC_SND_VERS                    0xaa2b1a44 /* 2854951492 */
+#define SND_SET_DEVICE_PROC 2
+#define SND_SET_VOLUME_PROC 3
+#elif CONFIG_MSM_AMSS_VERSION == 5200
+#define RPC_SND_VERS                    0x0
+#define SND_SET_DEVICE_PROC 1
+#define SND_SET_VOLUME_PROC 2
+#endif
 
 struct rpc_snd_set_device_args {
 	uint32_t device;

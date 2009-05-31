@@ -123,6 +123,9 @@ struct adsp_info {
 #elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
 #define RPC_ADSP_RTOS_ATOM_VERS 0x71d1094b
 #define RPC_ADSP_RTOS_MTOA_VERS 0xee3a9966
+#elif CONFIG_MSM_AMSS_VERSION == 5200
+#define RPC_ADSP_RTOS_ATOM_VERS 0x0
+#define RPC_ADSP_RTOS_MTOA_VERS 0x0
 #else
 #error "Unknown AMSS version"
 #endif
