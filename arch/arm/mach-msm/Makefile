@@ -27,7 +27,7 @@ obj-$(CONFIG_MSM_HW3D) += hw3d.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_MSM_CPU_FREQ) += cpufreq.o
 
-obj-$(CONFIG_MACH_HTCRAPHAEL) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o board-htcraphael-rfkill.o
+obj-$(CONFIG_MACH_HTCRAPHAEL) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o 
 obj-$(CONFIG_MACH_HTCRAPHAEL_CDMA) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
 obj-$(CONFIG_MACH_HTCDIAMOND) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
 obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o
@@ -43,5 +43,6 @@ obj-$(CONFIG_TROUT_H2W) += board-trout-h2w.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_TROUT_PWRSINK) += htc_pwrsink.o
 obj-$(CONFIG_MSM_SMEM_BATTCHG) += htc_battery_smem.o
+obj-$(CONFIG_RFKILL) += board-htcraphael-rfkill.o
 
 obj-$(CONFIG_HTC_FB_CONSOLE) += htc_fb_console.o
