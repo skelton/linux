@@ -289,7 +289,7 @@ static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
 
 static void htcraphael_reset(void)
 {
-	struct msm_dex_command dex = { .cmd = PCOM_RESET_ARM9 };
+	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
 	msm_proc_comm_wince(&dex, 0);
 	msleep(0x15e);
 	gpio_configure(25, GPIOF_OWNER_ARM11);

@@ -165,10 +165,10 @@ static int microp_keymap_raph100[] = {
         KEY_2,
         KEY_RESERVED, // 0x31
         KEY_RESERVED, // 0x32
-        KEY_FN,
+        KEY_LEFTALT,
         KEY_TEXT,     // TXT/SMS
         KEY_MINUS,
-        KEY_UNKNOWN,  // SYM/Data
+        KEY_RIGHTALT,  // SYM/Data
         KEY_SPACE,
         KEY_COMMA,
         KEY_DOT,

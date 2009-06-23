@@ -97,7 +97,13 @@ struct mdns_clock_params msm_clock_freq_parameters[] = {
 	/* SD */
 	MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
 	/* UART2DM */
-	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* unknown */
+//	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* unknown */
+
+	MSM_CLOCK_REG( 460800*16,    3, 0x64, 0x32, 3, 2, 4, 1), /*  460800 ? */
+	MSM_CLOCK_REG( 921600*16,    3, 0x32, 0x19, 3, 2, 4, 1), /*  921600 */
+	MSM_CLOCK_REG(3686400*16,    6, 0x19, 0x0c, 3, 2, 4, 1), /* 3686400 */
+	MSM_CLOCK_REG(4000000*16, 0x19, 0x60, 0x30, 3, 2, 4, 1), /* 4000000 */
+
 	/* SD */
 	MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
 	MSM_CLOCK_REG(19200000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19.2MHz */
@@ -175,7 +181,7 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 				// This clock requires MD and NS regs to set frequency:
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
 				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
-				msleep(5);
+//				msleep(5);
 				D("%s: %u, freq=%lu\n", __func__, id, 
 				  msm_clock_freq_parameters[n].freq );
 				retval = 0;

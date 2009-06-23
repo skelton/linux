@@ -1141,6 +1141,13 @@ static int msm_rpcrouter_probe(struct platform_device *pdev)
 	printk(KERN_DEBUG "RPCCALL opened\n");
 
 	queue_work(rpcrouter_workqueue, &work_read_data);
+
+	/* wince rpc init */
+        union rr_control_msg msg = { 0 };
+        msg.cmd = RPCROUTER_CTRL_CMD_HELLO;
+        process_control_msg(&msg, sizeof(msg));
+	msleep(100);
+             
 	return 0;
 
 fail_remove_devices:
