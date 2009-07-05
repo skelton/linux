@@ -189,7 +189,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		vmsg.args.device = cpu_to_be32(vol.device);
 		vmsg.args.method = cpu_to_be32(vol.method);
-		if (vol.method != SND_METHOD_VOICE) {
+		if (vol.method != SND_METHOD_VOICE && vol.method != SND_METHOD_AUDIO) {
 			pr_err("snd_ioctl set volume: invalid method.\n");
 			rc = -EINVAL;
 			break;

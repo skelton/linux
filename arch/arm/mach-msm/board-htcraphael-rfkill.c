@@ -62,11 +62,14 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 #if 1
 		config_gpio_table(bt_on_gpio_table_raph100,ARRAY_SIZE(bt_on_gpio_table_raph100));
 #endif
+		gpio_configure(RAPH100_WIFI_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
 		gpio_set_value(RAPH100_WIFI_PWR2, 1);
-		udelay(10);
+		mdelay(50);
 		gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+		gpio_set_value(RAPH100_BT_RST, 0);
 		mdelay(50);
 		gpio_set_value(RAPH100_BT_RST, 1);
+		mdelay(200);
 		break;
 	case RFKILL_STATE_OFF:
 		printk("   bluetooth rfkill state   OFF\n");
@@ -128,3 +131,4 @@ module_init(htcraphael_rfkill_init);
 MODULE_DESCRIPTION("htcraphael rfkill");
 MODULE_AUTHOR("Nick Pelly <npelly@google.com>");
 MODULE_LICENSE("GPL");
+
