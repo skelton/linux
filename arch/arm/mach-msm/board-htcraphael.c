@@ -299,6 +299,11 @@ static struct platform_device raphael_snd = {
 	},
 };
 
+static struct platform_device raphael_gps = {
+    .name       = "raphael_gps",
+};
+
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_hsusb,
 	&raphael_keypad_device,
@@ -320,6 +325,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_htc_battery,
 	&raphael_snd,
+	&raphael_gps,
 };
 
 extern struct sys_timer msm_timer;
