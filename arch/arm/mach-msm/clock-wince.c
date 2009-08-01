@@ -89,16 +89,8 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	    | ((0xff & (0xa | (a7))) << 8) \
 	    | ((0x7 & (a5)) << 5) \
 	    | ((0x3 & (a4)) << 3) \
-	    | (0x7 & (a6)), \
+	    | (0x3 & (a6)), \
 }
-// MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* 19.2MHz for 120000 bps */
-#if 0 /* wince uses different baud divisors */
-#else /* disable the prescaler=4 to get the 4X clock rate used by g1 driver */
-MSM_CLOCK_REG( 460800*16, 3, 0x64, 0x32, 0, 2, 4, 1), /* 460800 */
-MSM_CLOCK_REG( 921600*16, 3, 0x32, 0x19, 0, 2, 4, 1), /* 921600 */
-MSM_CLOCK_REG(3686400*16, 6, 0x19, 0x0c, 0, 2, 4, 1), /* 3686400 */
-MSM_CLOCK_REG(4000000*16, 0x19, 0x60, 0x30, 0, 2, 4, 1), /* 4000000 */
-#endif
 
 
 struct mdns_clock_params msm_clock_freq_parameters[] = {
