@@ -312,11 +312,11 @@ static void microp_keypad_work(struct work_struct *work)
 	
 	do
 	{
-#if defined(CONFIG_MACH_HTCKOVSKY)
-		micropksc_read_scancode(&key, &isdown, &clamshell);
-#else
-		micropksc_read_scancode(&key, &isdown);
-#endif
+		if (machine_is_htckovsky()) {
+			micropksc_read_scancode_kovsky(&key, &isdown, &clamshell);
+		} else {
+			micropksc_read_scancode(&key, &isdown);
+		}
 		if (key != 0)
 		{
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
@@ -334,14 +334,14 @@ static void microp_keypad_work(struct work_struct *work)
 #endif
 			}
 		}
-#if defined(CONFIG_MACH_HTCKOVSKY)
+		if (machine_is_htckovsky()) {
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
 			printk(KERN_WARNING "%s: clamshell is %s\n", __func__,
 						!clamshell ? "closed" : "open");
 #endif
 			micropklt_set_kbd_state(!clamshell);
 			input_report_switch(data->input, SW_LID, !clamshell);
-#endif
+		}
 	} while ( key != 0 );
 
 	mutex_unlock(&data->lock);

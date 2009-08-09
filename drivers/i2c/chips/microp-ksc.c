@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
+#include <asm/mach-types.h>
 #include <linux/workqueue.h> /* for keyboard LED worker */
 #include <linux/microp-ksc.h>
 
@@ -40,19 +41,12 @@ static struct microp_ksc {
 	unsigned led_state:2;
 	struct work_struct work;
 } *micropksc_t = 0;
-#if defined(CONFIG_MACH_HTCKOVSKY)
-int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown, unsigned char *outclamshell)
-#else
+
 int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
-#endif
 {
 	struct microp_ksc *data;
 	struct i2c_client *client;
-#if defined(CONFIG_MACH_HTCKOVSKY)
-	unsigned char key, isdown, clamshell;
-#else
 	unsigned char key, isdown;
-#endif
 	char buffer[8] = "\0\0\0\0\0\0\0\0";
 
 	if (!micropksc_t) {
@@ -75,11 +69,6 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 
 	//TODO: Find out what channel 0x11 is for
 	micropksc_read(client, MICROP_KSC_ID_MODIFIER, buffer, 2);
-#if defined(CONFIG_MACH_HTCKOVSKY)
-	clamshell = (buffer[1] & MICROP_KSC_RELEASED_BIT) == 0;
-	if (outclamshell)
-		*outclamshell = clamshell;
-#endif
 	if (outkey)
 		*outkey = key;
 	if (outdown)
@@ -90,6 +79,47 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 	return 0;
 }
 EXPORT_SYMBOL(micropksc_read_scancode);
+
+int micropksc_read_scancode_kovsky(unsigned char *outkey, unsigned char *outdown, unsigned char *outclamshell)
+{
+	struct microp_ksc *data;
+	struct i2c_client *client;
+	unsigned char key, isdown, clamshell;
+	char buffer[8] = "\0\0\0\0\0\0\0\0";
+
+	if (!micropksc_t) {
+		if (outkey)
+			*outkey = -1;
+		return -EAGAIN;
+	}
+
+	data = micropksc_t;
+
+	mutex_lock(&data->lock);
+
+	client = data->client;
+	key = 0;
+
+	micropksc_read(client, MICROP_KSC_ID_SCANCODE, buffer, 2);
+
+	key = buffer[0] & MICROP_KSC_SCANCODE_MASK;
+	isdown = (buffer[0] & MICROP_KSC_RELEASED_BIT) == 0;
+
+	micropksc_read(client, MICROP_KSC_ID_MODIFIER, buffer, 2);
+	clamshell = (buffer[1] & MICROP_KSC_RELEASED_BIT) == 0;
+
+	if (outkey)
+		*outkey = key;
+	if (outdown)
+		*outdown = isdown;
+	if (outclamshell)
+		*outclamshell = clamshell;
+
+	mutex_unlock(&data->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(micropksc_read_scancode_kovsky);
 
 int micropksc_set_led(unsigned int led, int on)
 {
@@ -150,19 +180,20 @@ int micropksc_flush_buffer(void)
 		printk(KERN_WARNING MODULE_NAME ": not initialized yet..\n");
 		return -EAGAIN;
 	}
-#if defined(CONFIG_MACH_HTCKOVSKY)
-	r = micropksc_read_scancode(&key, 0, 0);
-#else
-	r = micropksc_read_scancode(&key, 0);
-#endif
+	if (machine_is_htckovsky()) {
+		r = micropksc_read_scancode_kovsky(&key, 0, 0);
+	} else {
+		r = micropksc_read_scancode(&key, 0);
+	}
+
 	if (key != 0) {
 		do {
 			mdelay(5);
-#if defined(CONFIG_MACH_HTCKOVSKY)
-			r = micropksc_read_scancode(&key, 0, 0);
-#else
-			r = micropksc_read_scancode(&key, 0);
-#endif
+			if (machine_is_htckovsky()) {
+				r = micropksc_read_scancode_kovsky(&key, 0, 0);
+			} else {
+				r = micropksc_read_scancode(&key, 0);
+			}
 		} while (++i < 50 && key != 0);
 		printk(KERN_INFO MODULE_NAME ": Keyboard buffer was dirty! "
 		                      "Flushed %d byte(s) from buffer\n", i);

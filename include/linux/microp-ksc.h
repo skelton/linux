@@ -14,9 +14,6 @@ enum {
 	MICROP_KSC_LED_MAX,
 };
 
-#if defined(CONFIG_MACH_HTCKOVSKY)
-extern int micropksc_read_scancode(unsigned char *scancode, unsigned char *isdown, unsigned char *clamshell);
-#else
+extern int micropksc_read_scancode_kovsky(unsigned char *scancode, unsigned char *isdown, unsigned char *clamshell);
 extern int micropksc_read_scancode(unsigned char *scancode, unsigned char *isdown);
-#endif
 extern int micropksc_set_led(unsigned int led, int value);
