@@ -61,7 +61,7 @@ extern int num_registered_fb;
 
 /* LCD resolution */
 #define HTC_FB_LCD_WIDTH	480
-#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
 #define HTC_FB_LCD_HEIGHT      800
 #else
 #define HTC_FB_LCD_HEIGHT      640
@@ -74,7 +74,7 @@ extern int num_registered_fb;
 /* Framebuffer stuff */
 #define HTC_FB_BASE		0xe2000000 /* virtual page for our fb */
 #define HTC_FB_PHYS		0x16800000 /* physical page for our fb */
-#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
 #define HTC_FB_SIZE            0x00200000 /* map 2 MB (640 * 480 * 2 rounded properly) */
 #else
 #define HTC_FB_SIZE            0x00100000 /* map 1 MB (640 * 480 * 2 rounded properly) */

@@ -188,6 +188,88 @@ static int microp_keymap_raph100[] = {
         KEY_EMAIL,
 };
 
+// This is htckovsky keymap.  can be remapped by userland
+static int microp_keymap_htckovsky[] = {
+	KEY_RESERVED, // invalid
+	KEY_ENTER,
+	KEY_LEFT,
+	KEY_RESERVED, // NAVI_SILVER_LEFT
+	KEY_RESERVED, // NAVI_GREEN
+	KEY_A,
+	KEY_F,
+	KEY_S,
+	KEY_D,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED, // NAVI_SILVER_RIGHT
+	KEY_DOWN,
+	KEY_RIGHT,
+	KEY_RESERVED, // NAVI_XPANEL
+	KEY_K,
+	KEY_J,
+	KEY_H,
+	KEY_G,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED, // NAVI_RED
+	KEY_RESERVED, // NAVI_OK
+	KEY_UP,
+	KEY_RESERVED,
+	KEY_L,
+	KEY_I,
+	KEY_P,
+	KEY_O,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_B,
+	KEY_APOSTROPHE,
+	KEY_SEMICOLON,
+	KEY_N,
+	KEY_ENTER,
+	KEY_M,
+	KEY_C,
+	KEY_V,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_ESC,
+	KEY_U,
+	KEY_E,
+	KEY_R,
+	KEY_Q,
+	KEY_T,
+	KEY_Y,
+	KEY_W,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_SPACE,
+	KEY_SPACE,
+	KEY_SPACE,
+	KEY_BACKSPACE, // CLOSE
+	KEY_DOT,
+	KEY_RESERVED, // OK
+	KEY_SLASH,
+	KEY_COMMA,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_2,
+	KEY_TAB,
+	KEY_RIGHTALT,
+	KEY_LEFTSHIFT,
+	KEY_Z,
+	KEY_X,
+	KEY_LEFTCTRL,
+	KEY_LEFTALT,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_VOLUMEUP,
+	KEY_VOLUMEDOWN,
+};
+
 static struct microp_keypad {
 	struct mutex lock;
 	struct delayed_work keypad_work;
@@ -217,7 +299,11 @@ static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
 static void microp_keypad_work(struct work_struct *work)
 {
 	struct microp_keypad *data;
+#if defined(CONFIG_MACH_HTCKOVSKY)
+	unsigned char key, isdown, clamshell;
+#else
 	unsigned char key, isdown;
+#endif
 	
 	data = container_of(work, struct microp_keypad, keypad_work.work);
 	key = 0;
@@ -226,7 +312,11 @@ static void microp_keypad_work(struct work_struct *work)
 	
 	do
 	{
+#if defined(CONFIG_MACH_HTCKOVSKY)
+		micropksc_read_scancode(&key, &isdown, &clamshell);
+#else
 		micropksc_read_scancode(&key, &isdown);
+#endif
 		if (key != 0)
 		{
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
@@ -244,6 +334,14 @@ static void microp_keypad_work(struct work_struct *work)
 #endif
 			}
 		}
+#if defined(CONFIG_MACH_HTCKOVSKY)
+#if defined(MICROP_DEBUG) && MICROP_DEBUG
+			printk(KERN_WARNING "%s: clamshell is %s\n", __func__,
+						!clamshell ? "closed" : "open");
+#endif
+			micropklt_set_kbd_state(!clamshell);
+			input_report_switch(data->input, SW_LID, !clamshell);
+#endif
 	} while ( key != 0 );
 
 	mutex_unlock(&data->lock);
@@ -374,6 +472,10 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	else if (machine_is_htcraphael()) {
 		input->keycodemax = ARRAY_SIZE(microp_keymap_raph100);
 		input->keycode = data->keymap = microp_keymap_raph100;
+	}
+	else if (machine_is_htckovsky()) {
+		input->keycodemax = ARRAY_SIZE(microp_keymap_htckovsky);
+		input->keycode = data->keymap = microp_keymap_htckovsky;
 	}
 	else {
 		goto fail;

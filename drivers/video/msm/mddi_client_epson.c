@@ -231,7 +231,7 @@ printk("mddi_epson_probe\n");
 	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
 	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
 
-#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
 	client_data->remote_write(client_data,0x8000,0x400);//rgb565 input
 	client_data->remote_write(client_data,0x8000,0x680);//main memory rgb565
 	client_data->remote_write(client_data,0x4000,0x600);//reset

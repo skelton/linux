@@ -615,7 +615,7 @@ int __init htcraphael_init_panel(void)
 	
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
 
-	if (!machine_is_htcblackstone() && !machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcdiamond() && !machine_is_htcdiamond_cdma()) {
+	if (!machine_is_htcblackstone() && !machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcdiamond() && !machine_is_htcdiamond_cdma() && !machine_is_htckovsky()) {
 		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
 		return 0;
 	}

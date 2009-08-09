@@ -166,7 +166,11 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
 	time_since_request = ktime_to_ns(ktime_sub(ktime_get(),
 			     msmfb->vsync_request_time));
+#if defined(CONFIG_MACH_HTCKOVSKY)
+	if (time_since_request > 50 * NSEC_PER_MSEC) {
+#else
 	if (time_since_request > 20 * NSEC_PER_MSEC) {
+#endif
 		uint32_t us;
 		us = do_div(time_since_request, NSEC_PER_MSEC) / NSEC_PER_USEC;
 		printk(KERN_WARNING "msmfb_start_dma %lld.%03u ms after vsync "
@@ -185,7 +189,7 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	y = msmfb->update_info.top;
 	w = msmfb->update_info.eright - x;
 	h = msmfb->update_info.ebottom - y;
-#if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA) || defined(CONFIG_MACH_HTCBLACKSTONE)
+#if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA) || defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
 	x = 0; y = 0; w = msmfb->xres; h = msmfb->yres;
 #endif
 	yoffset = msmfb->yoffset;

@@ -61,7 +61,7 @@
 #define MSM_VKEYB_COLS		15
 
 #define MSM_VKEYB_LCD_WIDTH	480
-#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
 #define MSM_VKEYB_LCD_HEIGHT	800
 #else
 #define MSM_VKEYB_LCD_HEIGHT	640
@@ -503,8 +503,8 @@ int msm_vkeyb_handle_ts_event(int x, int y, int touched)
 		MSM_VKEYB_LEFT += x - vkeyb_drag_x;
 		MSM_VKEYB_TOP += y - vkeyb_drag_y;
 
-		i = vkeyb_landscape ? 248 : 88;
-		j = vkeyb_landscape ? 380 : 540;
+		i = (vkeyb_landscape ? MSM_VKEYB_LCD_HEIGHT : MSM_VKEYB_LCD_WIDTH) - MSM_VKEYB_KEY_W * MSM_VKEYB_COLS - 2;
+		j = (vkeyb_landscape ? MSM_VKEYB_LCD_WIDTH : MSM_VKEYB_LCD_HEIGHT) - MSM_VKEYB_KEY_H * MSM_VKEYB_ROWS - 2;
 		if (MSM_VKEYB_LEFT < MSM_VKEYB_DRAG) MSM_VKEYB_LEFT = MSM_VKEYB_DRAG; else if (MSM_VKEYB_LEFT > i) MSM_VKEYB_LEFT = i;
 		if (MSM_VKEYB_TOP < 0) MSM_VKEYB_TOP = 0; else if (MSM_VKEYB_TOP > j) MSM_VKEYB_TOP = j;
 		res = 1;

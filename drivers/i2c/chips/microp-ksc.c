@@ -40,12 +40,19 @@ static struct microp_ksc {
 	unsigned led_state:2;
 	struct work_struct work;
 } *micropksc_t = 0;
-
+#if defined(CONFIG_MACH_HTCKOVSKY)
+int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown, unsigned char *outclamshell)
+#else
 int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
+#endif
 {
 	struct microp_ksc *data;
 	struct i2c_client *client;
+#if defined(CONFIG_MACH_HTCKOVSKY)
+	unsigned char key, isdown, clamshell;
+#else
 	unsigned char key, isdown;
+#endif
 	char buffer[8] = "\0\0\0\0\0\0\0\0";
 
 	if (!micropksc_t) {
@@ -68,7 +75,11 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 
 	//TODO: Find out what channel 0x11 is for
 	micropksc_read(client, MICROP_KSC_ID_MODIFIER, buffer, 2);
-
+#if defined(CONFIG_MACH_HTCKOVSKY)
+	clamshell = (buffer[1] & MICROP_KSC_RELEASED_BIT) == 0;
+	if (outclamshell)
+		*outclamshell = clamshell;
+#endif
 	if (outkey)
 		*outkey = key;
 	if (outdown)
@@ -139,12 +150,19 @@ int micropksc_flush_buffer(void)
 		printk(KERN_WARNING MODULE_NAME ": not initialized yet..\n");
 		return -EAGAIN;
 	}
-
+#if defined(CONFIG_MACH_HTCKOVSKY)
+	r = micropksc_read_scancode(&key, 0, 0);
+#else
 	r = micropksc_read_scancode(&key, 0);
+#endif
 	if (key != 0) {
 		do {
 			mdelay(5);
+#if defined(CONFIG_MACH_HTCKOVSKY)
+			r = micropksc_read_scancode(&key, 0, 0);
+#else
 			r = micropksc_read_scancode(&key, 0);
+#endif
 		} while (++i < 50 && key != 0);
 		printk(KERN_INFO MODULE_NAME ": Keyboard buffer was dirty! "
 		                      "Flushed %d byte(s) from buffer\n", i);

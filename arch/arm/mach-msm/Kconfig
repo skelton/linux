@@ -100,6 +100,13 @@ config MACH_HTCBLACKSTONE
         help
           Support for the HTC Blackstone cellphone
 
+config MACH_HTCKOVSKY
+        depends on ARCH_MSM
+        default n
+        bool "HTC Kovsky cellphone (aka Xperia X1)"
+        help
+          Support for the HTC Kovsky cellphone
+
 config TROUT_H2W
 	tristate "HTC 2 Wire detection driver"
 	default n
