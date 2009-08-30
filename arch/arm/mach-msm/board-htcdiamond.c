@@ -39,7 +39,9 @@
 #include <mach/system.h>
 #include <mach/msm_fb.h>
 #include <mach/msm_hsusb.h>
+#include <mach/msm_serial_hs.h>
 #include <mach/vreg.h>
+#include <mach/htc_battery.h>
 
 #include <mach/gpio.h>
 #include <mach/io.h>
@@ -47,6 +49,7 @@
 
 #include "proc_comm_wince.h"
 #include "devices.h"
+#include "htc_hw.h"
 #include "board-htcraphael.h"
 
 static int halibut_ffa;
@@ -55,26 +58,6 @@ module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static void htcdiamond_device_specific_fixes(void);
 
 extern int htcraphael_init_mmc(void);
-
-static struct resource msm_serial0_resources[] = {
-	{
-		.start	= INT_UART1,
-		.end	= INT_UART1,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= MSM_UART1_PHYS,
-		.end	= MSM_UART1_PHYS + MSM_UART1_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device msm_serial0_device = {
-	.name	= "msm_serial",
-	.id	= 0,
-	.num_resources	= ARRAY_SIZE(msm_serial0_resources),
-	.resource	= msm_serial0_resources,
-};
 
 static int halibut_phy_init_seq_diam100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
@@ -99,7 +82,7 @@ static void halibut_phy_reset(void)
 }
 
 static char *halibut_usb_functions[] = {
-        "ether",
+	"ether",
 //	"diag",
 //	"adb",
 };
@@ -138,23 +121,21 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 };
 
 static struct i2c_board_info i2c_devices[] = {
-#if 0
-	{
-		// Navi cap sense controller
-		I2C_BOARD_INFO("cy8c20434", 0x62),
-	},
-#endif
 	{
 		// LED & Backlight controller
 		I2C_BOARD_INFO("microp-klt", 0x66),
 	},
-	{		
+	{
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
 	},
 	{
-		// Raphael NaviPad
+		// Raphael NaviPad (cy8c20434)
 		I2C_BOARD_INFO("raph_navi_pad", 0x62),
+	},
+	{
+		// Accelerometer
+		I2C_BOARD_INFO("kionix-kxsd9", 0x18),
 	},
 };
 
@@ -175,19 +156,19 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 };
 
 static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
-        .name = "pmem_gpu0",
-        .start = MSM_PMEM_GPU0_BASE,
-        .size = MSM_PMEM_GPU0_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
+	.name = "pmem_gpu0",
+	.start = MSM_PMEM_GPU0_BASE,
+	.size = MSM_PMEM_GPU0_SIZE,
+	.no_allocator = 1,
+	.cached = 0,
 };
 
 static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
-        .name = "pmem_gpu1",
-        .start = MSM_PMEM_GPU1_BASE,
-        .size = MSM_PMEM_GPU1_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
+	.name = "pmem_gpu1",
+	.start = MSM_PMEM_GPU1_BASE,
+	.size = MSM_PMEM_GPU1_SIZE,
+	.no_allocator = 1,
+	.cached = 0,
 };
 
 static struct platform_device android_pmem_device = {
@@ -214,19 +195,105 @@ static struct platform_device android_pmem_gpu1_device = {
 	.dev = { .platform_data = &android_pmem_gpu1_pdata },
 };
 
+static smem_batt_t msm_battery_pdata = {
+	.gpio_battery_detect = RAPH100_BAT_IRQ,
+	.gpio_charger_enable = RAPH100_CHARGE_EN_N,
+	.gpio_charger_current_select = RAPH100_USB_AC_PWR,
+	.smem_offset = 0xfc140,
+	.smem_field_size = 4,
+};
+
+static struct platform_device raphael_rfkill = {
+	.name = "htcraphael_rfkill",
+	.id = -1,
+};
+
+#define SND(num, desc) { .name = desc, .id = num }
+static struct snd_endpoint snd_endpoints_list[] = {
+	SND(0, "HANDSET"),
+	SND(1, "SPEAKER"),
+	SND(2, "HEADSET"),
+	SND(3, "BT"),
+	SND(44, "BT_EC_OFF"),
+	SND(10, "HEADSET_AND_SPEAKER"),
+	SND(256, "CURRENT"),
+
+	/* Bluetooth accessories. */
+
+	SND(12, "HTC BH S100"),
+	SND(13, "HTC BH M100"),
+	SND(14, "Motorola H500"),
+	SND(15, "Nokia HS-36W"),
+	SND(16, "PLT 510v.D"),
+	SND(17, "M2500 by Plantronics"),
+	SND(18, "Nokia HDW-3"),
+	SND(19, "HBH-608"),
+	SND(20, "HBH-DS970"),
+	SND(21, "i.Tech BlueBAND"),
+	SND(22, "Nokia BH-800"),
+	SND(23, "Motorola H700"),
+	SND(24, "HTC BH M200"),
+	SND(25, "Jabra JX10"),
+	SND(26, "320Plantronics"),
+	SND(27, "640Plantronics"),
+	SND(28, "Jabra BT500"),
+	SND(29, "Motorola HT820"),
+	SND(30, "HBH-IV840"),
+	SND(31, "6XXPlantronics"),
+	SND(32, "3XXPlantronics"),
+	SND(33, "HBH-PV710"),
+	SND(34, "Motorola H670"),
+	SND(35, "HBM-300"),
+	SND(36, "Nokia BH-208"),
+	SND(37, "Samsung WEP410"),
+	SND(38, "Jabra BT8010"),
+	SND(39, "Motorola S9"),
+	SND(40, "Jabra BT620s"),
+	SND(41, "Nokia BH-902"),
+	SND(42, "HBH-DS220"),
+	SND(43, "HBH-DS980"),
+};
+#undef SND
+
+static struct msm_snd_endpoints raphael_snd_endpoints = {
+        .endpoints = snd_endpoints_list,
+        .num = ARRAY_SIZE(snd_endpoints_list),
+};
+
+static struct platform_device raphael_snd = {
+	.name = "msm_snd",
+	.id = -1,
+	.dev	= {
+		.platform_data = &raphael_snd_endpoints,
+	},
+};
+
+static struct platform_device raphael_gps = {
+    .name       = "raphael_gps",
+};
+
+
 static struct platform_device *devices[] __initdata = {
-#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
-	&msm_serial0_device,
-#endif
 	&msm_device_hsusb,
 	&android_pmem_device,
 	&android_pmem_adsp_device,
 	&android_pmem_gpu0_device,
 	&android_pmem_gpu1_device,
-        &msm_device_smd,
-        &msm_device_nand,
-        &msm_device_i2c,
+	&raphael_rfkill,
+	&msm_device_smd,
+	&msm_device_nand,
+	&msm_device_i2c,
 	&msm_device_rtc,
+	&msm_device_htc_hw,
+#if !defined(CONFIG_MSM_SERIAL_DEBUGGER) && !defined(CONFIG_TROUT_H2W)
+//	&msm_device_uart1,
+#endif
+#ifdef CONFIG_SERIAL_MSM_HS
+	&msm_device_uart_dm2,
+#endif
+	&msm_device_htc_battery,
+	&raphael_snd,
+	&raphael_gps,
 };
 
 extern struct sys_timer msm_timer;
@@ -247,9 +314,18 @@ static struct msm_acpu_clock_platform_data halibut_clock_data = {
 void msm_serial_debug_init(unsigned int base, int irq, 
 			   const char *clkname, int signal_irq);
 
+#ifdef CONFIG_SERIAL_MSM_HS
+static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
+	.wakeup_irq = MSM_GPIO_TO_INT(21),
+	.inject_rx_on_wakeup = 1,
+	.rx_to_inject = 0x32,
+};
+#endif
+
 static void htcraphael_reset(void)
 {
 	struct msm_dex_command dex = { .cmd = PCOM_RESET_ARM9 };
+//	struct msm_dex_command dex = { .cmd = PCOM_NOTIFY_ARM9_REBOOT };
 	msm_proc_comm_wince(&dex, 0);
 	msleep(0x15e);
 	gpio_configure(25, GPIOF_OWNER_ARM11);
@@ -257,23 +333,57 @@ static void htcraphael_reset(void)
 	printk(KERN_INFO "%s: Soft reset done.\n", __func__);
 }
 
+static void htcraphael_set_vibrate(uint32_t val)
+{
+	struct msm_dex_command vibra;
+
+	if (val == 0) {
+		vibra.cmd = PCOM_VIBRA_OFF;
+		msm_proc_comm_wince(&vibra, 0);
+	} else if (val > 0) {
+		if (val == 1 || val > 0xb22)
+			val = 0xb22;
+		writel(val, MSM_SHARED_RAM_BASE + 0xfc130);
+		vibra.cmd = PCOM_VIBRA_ON;
+		msm_proc_comm_wince(&vibra, 0);
+	}
+}
+
+static htc_hw_pdata_t msm_htc_hw_pdata = {
+	.set_vibrate = htcraphael_set_vibrate,
+	.battery_smem_offset = 0xfc140, //XXX: raph800
+	.battery_smem_field_size = 4,
+};
+
 static void __init halibut_init(void)
 {
 	int i;
-	struct msm_dex_command vibra = { .cmd = 0, };
 
 	// Fix data in arrays depending on GSM/CDMA version
 	htcdiamond_device_specific_fixes();
 
-        msm_acpu_clock_init(&halibut_clock_data);
+	msm_acpu_clock_init(&halibut_clock_data);
 	msm_proc_comm_wince_init();
 
-        msm_hw_reset_hook = htcraphael_reset;
+	// Register hardware reset hook
+	msm_hw_reset_hook = htcraphael_reset;
 
+	// Device pdata overrides
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
+	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 
+#ifdef CONFIG_SERIAL_MSM_HS
+	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
+#endif
+
+	// Register devices
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	// Register I2C devices
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
+
+	// Initialize SD controllers
 	htcraphael_init_mmc();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
@@ -284,11 +394,9 @@ static void __init halibut_init(void)
 
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
-		vibra.cmd = PCOM_VIBRA_ON;
-		msm_proc_comm_wince(&vibra, 0);
+		htcraphael_set_vibrate(1);
 		mdelay(150);
-		vibra.cmd = PCOM_VIBRA_OFF;
-		msm_proc_comm_wince(&vibra, 0);
+		htcraphael_set_vibrate(0);
 		mdelay(75);
 	}
 }
@@ -306,7 +414,7 @@ static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (89 * 1024 * 1024); // Why 89? See board-htcraphael.h
-#if 0
+#if 1
 	/* TODO: detect whether a 2nd memory bank is actually present, not all devices have it */
 	mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
