@@ -89,7 +89,7 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	    | ((0xff & (0xa | (a7))) << 8) \
 	    | ((0x7 & (a5)) << 5) \
 	    | ((0x3 & (a4)) << 3) \
-	    | (0x3 & (a6)), \
+	    | (0x7 & (a6)), \
 }
 
 
@@ -97,13 +97,19 @@ struct mdns_clock_params msm_clock_freq_parameters[] = {
 	/* SD */
 	MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
 	/* UART2DM */
-//	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* unknown */
+//	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* 19.2MHz for 120000 bps */
 
-	MSM_CLOCK_REG( 460800*16,    3, 0x64, 0x32, 3, 2, 4, 1), /*  460800 ? */
-	MSM_CLOCK_REG( 921600*16,    3, 0x32, 0x19, 3, 2, 4, 1), /*  921600 */
-	MSM_CLOCK_REG(3686400*16,    6, 0x19, 0x0c, 3, 2, 4, 1), /* 3686400 */
-	MSM_CLOCK_REG(4000000*16, 0x19, 0x60, 0x30, 3, 2, 4, 1), /* 4000000 */
-
+#if 0 /* wince uses different baud divisors */
+	MSM_CLOCK_REG( 460800/4*16,    3, 0x64, 0x32, 3, 2, 4, 1), /*  115200/4*16 */
+	MSM_CLOCK_REG( 921600/4*16,    3, 0x32, 0x19, 3, 2, 4, 1), /*  921600/4*16 */
+	MSM_CLOCK_REG(3686400/4*16,    6, 0x19, 0x0c, 3, 2, 4, 1), /* 3686400/4*16 */
+	MSM_CLOCK_REG(4000000/4*16, 0x19, 0x60, 0x30, 3, 2, 4, 1), /* 4000000/4*16 */
+#else /* disable the prescaler=4 to get 4X clock rate used by g1 driver */
+	MSM_CLOCK_REG( 460800*16,    3, 0x64, 0x32, 0, 2, 4, 1), /*  460800 */
+	MSM_CLOCK_REG( 921600*16,    3, 0x32, 0x19, 0, 2, 4, 1), /*  921600 */
+	MSM_CLOCK_REG(3686400*16,    6, 0x19, 0x0c, 0, 2, 4, 1), /* 3686400 */
+	MSM_CLOCK_REG(4000000*16, 0x19, 0x60, 0x30, 0, 2, 4, 1), /* 4000000 */
+#endif
 	/* SD */
 	MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
 	MSM_CLOCK_REG(19200000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19.2MHz */

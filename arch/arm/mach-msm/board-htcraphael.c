@@ -356,8 +356,7 @@ static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
 
 static void htcraphael_reset(void)
 {
-//	struct msm_dex_command dex = { .cmd = PCOM_RESET_ARM9 };
-	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
+	struct msm_dex_command dex = { .cmd = PCOM_RESET_ARM9 };
 //	struct msm_dex_command dex = { .cmd = PCOM_NOTIFY_ARM9_REBOOT };
 	msm_proc_comm_wince(&dex, 0);
 	msleep(0x15e);

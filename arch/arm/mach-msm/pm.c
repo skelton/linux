@@ -421,7 +421,9 @@ static uint32_t restart_reason = 0x776655AA;
 static void msm_pm_power_off(void)
 {
 #ifdef CONFIG_MSM_AMSS_VERSION_WINCE
-	printk("power down not implemented; halting...\n");
+	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
+	msm_proc_comm_wince(&dex, 0);
+	printk(KERN_INFO "%s: halting done...\n", __func__);
 #else
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 #endif
