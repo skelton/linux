@@ -299,12 +299,8 @@ static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
 static void microp_keypad_work(struct work_struct *work)
 {
 	struct microp_keypad *data;
-#if defined(CONFIG_MACH_HTCKOVSKY)
 	unsigned char key, isdown, clamshell;
-#else
-	unsigned char key, isdown;
-#endif
-	
+
 	data = container_of(work, struct microp_keypad, keypad_work.work);
 	key = 0;
 
