@@ -58,6 +58,7 @@ module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static void htcdiamond_device_specific_fixes(void);
 
 extern int htcraphael_init_mmc(void);
+extern void msm_init_pmic_vibrator(void);
 
 static int halibut_phy_init_seq_diam100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
@@ -375,6 +376,10 @@ static void __init halibut_init(void)
 
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
+#endif
+
+#ifndef CONFIG_MACH_SAPPHIRE
+	msm_init_pmic_vibrator();
 #endif
 
 	// Register devices

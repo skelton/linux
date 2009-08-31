@@ -60,6 +60,7 @@ module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static void htcraphael_device_specific_fixes(void);
 
 extern int htcraphael_init_mmc(void);
+extern void msm_init_pmic_vibrator(void);
 
 static struct resource raphael_keypad_resources[] = {
 	{ 
@@ -407,6 +408,10 @@ static void __init halibut_init(void)
 
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
+#endif
+
+#ifndef CONFIG_MACH_SAPPHIRE
+	msm_init_pmic_vibrator();
 #endif
 
 	// Register devices

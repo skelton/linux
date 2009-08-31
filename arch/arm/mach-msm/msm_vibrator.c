@@ -21,6 +21,8 @@
 
 #include <mach/msm_rpcrouter.h>
 
+#include "proc_comm_wince.h"
+
 #define PM_LIBPROG	  0x30000061
 #if (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
 #define PM_LIBVERS	  0xfb837d0b
@@ -38,6 +40,7 @@ static int vibe_state;
 
 static void set_pmic_vibrator(int on)
 {
+#ifdef CONFIG_MACH_SAPPHIRE
 	static struct msm_rpc_endpoint *vib_endpoint;
 	struct set_vib_on_off_req {
 		struct rpc_request_hdr hdr;
@@ -60,6 +63,17 @@ static void set_pmic_vibrator(int on)
 
 	msm_rpc_call(vib_endpoint, HTC_PROCEDURE_SET_VIB_ON_OFF, &req,
 		sizeof(req), 5 * HZ);
+#else
+	struct msm_dex_command vibra;
+
+	if (on) {
+		vibra.cmd = PCOM_VIBRA_ON;
+		msm_proc_comm_wince(&vibra, 0);
+	} else {
+		vibra.cmd = PCOM_VIBRA_OFF;
+		msm_proc_comm_wince(&vibra, 0);
+	}
+#endif
 }
 
 static void update_vibrator(struct work_struct *work)
