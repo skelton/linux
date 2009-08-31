@@ -4,7 +4,7 @@
  * Copyright (C) 2008 HTC Corporation.
  * Copyright (C) 2008 Google, Inc.
  *
- * Authors: 
+ * Authors:
  *  Laurence Chen <Laurence_Chen@htc.com>
  *  Nick Pelly <npelly@google.com>
  *
@@ -35,7 +35,7 @@
 
     Unfortunately we can't leave the CPLD as UART3 while a headset is plugged
     in, UART3 is pullup on TX but the headset is pull-down, causing a 55 mA
-    drain on trout.
+    drain on sapphire.
 
     The headset detection work involves setting CPLD to GPIO, and then pulling
     CABLE_IN1 high with a stronger pullup than usual. A H2W headset will still
@@ -73,14 +73,14 @@
 #include <linux/switch.h>
 #include <linux/input.h>
 #include <linux/debugfs.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #include <asm/atomic.h>
 #include <mach/board.h>
 #include <mach/vreg.h>
+#include <asm/mach-types.h>
+#include "board-sapphire.h"
 
-#include "board-trout.h"
-
-#ifdef CONFIG_DEBUG_TROUT_H2W
+#ifdef CONFIG_DEBUG_SAPPHIRE_H2W
 #define H2W_DBG(fmt, arg...) printk(KERN_INFO "[H2W] %s " fmt "\n", __FUNCTION__, ## arg)
 #else
 #define H2W_DBG(fmt, arg...) do {} while (0)
@@ -117,7 +117,7 @@ struct h2w_info {
 };
 static struct h2w_info *hi;
 
-static ssize_t trout_h2w_print_name(struct switch_dev *sdev, char *buf)
+static ssize_t sapphire_h2w_print_name(struct switch_dev *sdev, char *buf)
 {
 	switch (switch_get_state(&hi->sdev)) {
 	case NO_DEVICE:
@@ -133,12 +133,12 @@ static void configure_cpld(int route)
 	H2W_DBG(" route = %s", route == UART3 ? "UART3" : "GPIO");
 	switch (route) {
 	case UART3:
-		gpio_set_value(TROUT_GPIO_H2W_SEL0, 0);
-		gpio_set_value(TROUT_GPIO_H2W_SEL1, 1);
+		gpio_set_value(SAPPHIRE_GPIO_H2W_SEL0, 0);
+		gpio_set_value(SAPPHIRE_GPIO_H2W_SEL1, 1);
 		break;
 	case GPIO:
-		gpio_set_value(TROUT_GPIO_H2W_SEL0, 0);
-		gpio_set_value(TROUT_GPIO_H2W_SEL1, 0);
+		gpio_set_value(SAPPHIRE_GPIO_H2W_SEL0, 0);
+		gpio_set_value(SAPPHIRE_GPIO_H2W_SEL1, 0);
 		break;
 	}
 }
@@ -185,7 +185,7 @@ static void insert_headset(void)
 	 * the user can recover from the situation where a headset is plugged
 	 * in with button held down.
 	 */
-	hi->ignore_btn = !gpio_get_value(TROUT_GPIO_CABLE_IN2);
+	hi->ignore_btn = !gpio_get_value(SAPPHIRE_GPIO_CABLE_IN2);
 
 	/* Enable button irq */
 	local_irq_save(irq_flags);
@@ -222,7 +222,7 @@ static void detection_work(struct work_struct *work)
 
 	H2W_DBG("");
 
-	if (gpio_get_value(TROUT_GPIO_CABLE_IN1) != 0) {
+	if (gpio_get_value(SAPPHIRE_GPIO_CABLE_IN1) != 0) {
 		/* Headset not plugged in */
 		if (switch_get_state(&hi->sdev) == HTC_HEADSET)
 			remove_headset();
@@ -239,20 +239,20 @@ static void detection_work(struct work_struct *work)
 	local_irq_restore(irq_flags);
 
 	/* Set GPIO_CABLE_IN1 as output high */
-	gpio_direction_output(TROUT_GPIO_CABLE_IN1, 1);
+	gpio_direction_output(SAPPHIRE_GPIO_CABLE_IN1, 1);
 	/* Delay 10ms for pin stable. */
 	msleep(10);
 	/* Save H2W_CLK */
-	clk = gpio_get_value(TROUT_GPIO_H2W_CLK_GPI);
+	clk = gpio_get_value(SAPPHIRE_GPIO_H2W_CLK_GPI);
 	/* Set GPIO_CABLE_IN1 as input */
-	gpio_direction_input(TROUT_GPIO_CABLE_IN1);
+	gpio_direction_input(SAPPHIRE_GPIO_CABLE_IN1);
 
 	/* Restore IRQs */
 	local_irq_save(irq_flags);
 	enable_irq(hi->irq);
 	local_irq_restore(irq_flags);
 
-	cable_in1 = gpio_get_value(TROUT_GPIO_CABLE_IN1);
+	cable_in1 = gpio_get_value(SAPPHIRE_GPIO_CABLE_IN1);
 
 	if (cable_in1 == 0 && clk == 0) {
 		if (switch_get_state(&hi->sdev) == NO_DEVICE)
@@ -269,7 +269,7 @@ static enum hrtimer_restart button_event_timer_func(struct hrtimer *data)
 	H2W_DBG("");
 
 	if (switch_get_state(&hi->sdev) == HTC_HEADSET) {
-		if (gpio_get_value(TROUT_GPIO_CABLE_IN2)) {
+		if (gpio_get_value(SAPPHIRE_GPIO_CABLE_IN2)) {
 			if (hi->ignore_btn)
 				hi->ignore_btn = 0;
 			else if (atomic_read(&hi->btn_state))
@@ -298,10 +298,10 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
 
 	H2W_DBG("");
 	do {
-		value1 = gpio_get_value(TROUT_GPIO_CABLE_IN1);
+		value1 = gpio_get_value(SAPPHIRE_GPIO_CABLE_IN1);
 		set_irq_type(hi->irq, value1 ?
 				IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
-		value2 = gpio_get_value(TROUT_GPIO_CABLE_IN1);
+		value2 = gpio_get_value(SAPPHIRE_GPIO_CABLE_IN1);
 	} while (value1 != value2 && retry_limit-- > 0);
 
 	H2W_DBG("value2 = %d (%d retries)", value2, (10-retry_limit));
@@ -323,10 +323,10 @@ static irqreturn_t button_irq_handler(int irq, void *dev_id)
 
 	H2W_DBG("");
 	do {
-		value1 = gpio_get_value(TROUT_GPIO_CABLE_IN2);
+		value1 = gpio_get_value(SAPPHIRE_GPIO_CABLE_IN2);
 		set_irq_type(hi->irq_btn, value1 ?
 				IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
-		value2 = gpio_get_value(TROUT_GPIO_CABLE_IN2);
+		value2 = gpio_get_value(SAPPHIRE_GPIO_CABLE_IN2);
 	} while (value1 != value2 && retry_limit-- > 0);
 
 	H2W_DBG("value2 = %d (%d retries)", value2, (10-retry_limit));
@@ -364,9 +364,10 @@ static int __init h2w_debug_init(void)
 device_initcall(h2w_debug_init);
 #endif
 
-static int trout_h2w_probe(struct platform_device *pdev)
+static int sapphire_h2w_probe(struct platform_device *pdev)
 {
 	int ret;
+	unsigned long irq_flags;
 
 	printk(KERN_INFO "H2W: Registering H2W (headset) driver\n");
 	hi = kzalloc(sizeof(struct h2w_info), GFP_KERNEL);
@@ -379,7 +380,7 @@ static int trout_h2w_probe(struct platform_device *pdev)
 	hi->debounce_time = ktime_set(0, 100000000);  /* 100 ms */
 	hi->btn_debounce_time = ktime_set(0, 10000000); /* 10 ms */
 	hi->sdev.name = "h2w";
-	hi->sdev.print_name = trout_h2w_print_name;
+	hi->sdev.print_name = sapphire_h2w_print_name;
 
 	ret = switch_dev_register(&hi->sdev);
 	if (ret < 0)
@@ -391,29 +392,29 @@ static int trout_h2w_probe(struct platform_device *pdev)
 		goto err_create_work_queue;
 	}
 
-	ret = gpio_request(TROUT_GPIO_CABLE_IN1, "h2w_detect");
+	ret = gpio_request(SAPPHIRE_GPIO_CABLE_IN1, "h2w_detect");
 	if (ret < 0)
 		goto err_request_detect_gpio;
 
-	ret = gpio_request(TROUT_GPIO_CABLE_IN2, "h2w_button");
+	ret = gpio_request(SAPPHIRE_GPIO_CABLE_IN2, "h2w_button");
 	if (ret < 0)
 		goto err_request_button_gpio;
 
-	ret = gpio_direction_input(TROUT_GPIO_CABLE_IN1);
+	ret = gpio_direction_input(SAPPHIRE_GPIO_CABLE_IN1);
 	if (ret < 0)
 		goto err_set_detect_gpio;
 
-	ret = gpio_direction_input(TROUT_GPIO_CABLE_IN2);
+	ret = gpio_direction_input(SAPPHIRE_GPIO_CABLE_IN2);
 	if (ret < 0)
 		goto err_set_button_gpio;
 
-	hi->irq = gpio_to_irq(TROUT_GPIO_CABLE_IN1);
+	hi->irq = gpio_to_irq(SAPPHIRE_GPIO_CABLE_IN1);
 	if (hi->irq < 0) {
 		ret = hi->irq;
 		goto err_get_h2w_detect_irq_num_failed;
 	}
 
-	hi->irq_btn = gpio_to_irq(TROUT_GPIO_CABLE_IN2);
+	hi->irq_btn = gpio_to_irq(SAPPHIRE_GPIO_CABLE_IN2);
 	if (hi->irq_btn < 0) {
 		ret = hi->irq_btn;
 		goto err_get_button_irq_num_failed;
@@ -422,8 +423,8 @@ static int trout_h2w_probe(struct platform_device *pdev)
 	/* Set CPLD MUX to H2W <-> CPLD GPIO */
 	configure_cpld(UART3);
 	/* Set the CPLD connected H2W GPIO's to input */
-	gpio_set_value(TROUT_GPIO_H2W_CLK_DIR, 0);
-	gpio_set_value(TROUT_GPIO_H2W_DAT_DIR, 0);
+	gpio_set_value(SAPPHIRE_GPIO_H2W_CLK_DIR, 0);
+	gpio_set_value(SAPPHIRE_GPIO_H2W_DAT_DIR, 0);
 
 	hrtimer_init(&hi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hi->timer.function = detect_event_timer_func;
@@ -476,9 +477,9 @@ err_get_button_irq_num_failed:
 err_get_h2w_detect_irq_num_failed:
 err_set_button_gpio:
 err_set_detect_gpio:
-	gpio_free(TROUT_GPIO_CABLE_IN2);
+	gpio_free(SAPPHIRE_GPIO_CABLE_IN2);
 err_request_button_gpio:
-	gpio_free(TROUT_GPIO_CABLE_IN1);
+	gpio_free(SAPPHIRE_GPIO_CABLE_IN1);
 err_request_detect_gpio:
 	destroy_workqueue(g_detection_work_queue);
 err_create_work_queue:
@@ -489,14 +490,14 @@ err_switch_dev_register:
 	return ret;
 }
 
-static int trout_h2w_remove(struct platform_device *pdev)
+static int sapphire_h2w_remove(struct platform_device *pdev)
 {
 	H2W_DBG("");
 	if (switch_get_state(&hi->sdev))
 		remove_headset();
 	input_unregister_device(hi->input);
-	gpio_free(TROUT_GPIO_CABLE_IN2);
-	gpio_free(TROUT_GPIO_CABLE_IN1);
+	gpio_free(SAPPHIRE_GPIO_CABLE_IN2);
+	gpio_free(SAPPHIRE_GPIO_CABLE_IN1);
 	free_irq(hi->irq_btn, 0);
 	free_irq(hi->irq, 0);
 	destroy_workqueue(g_detection_work_queue);
@@ -505,38 +506,40 @@ static int trout_h2w_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device trout_h2w_device = {
-	.name		= "trout-h2w",
+static struct platform_device sapphire_h2w_device = {
+	.name		= "sapphire-h2w",
 };
 
-static struct platform_driver trout_h2w_driver = {
-	.probe		= trout_h2w_probe,
-	.remove		= trout_h2w_remove,
+static struct platform_driver sapphire_h2w_driver = {
+	.probe		= sapphire_h2w_probe,
+	.remove		= sapphire_h2w_remove,
 	.driver		= {
-		.name		= "trout-h2w",
+		.name		= "sapphire-h2w",
 		.owner		= THIS_MODULE,
 	},
 };
 
-static int __init trout_h2w_init(void)
+static int __init sapphire_h2w_init(void)
 {
+	if (!machine_is_sapphire())
+		return 0;
 	int ret;
 	H2W_DBG("");
-	ret = platform_driver_register(&trout_h2w_driver);
+	ret = platform_driver_register(&sapphire_h2w_driver);
 	if (ret)
 		return ret;
-	return platform_device_register(&trout_h2w_device);
+	return platform_device_register(&sapphire_h2w_device);
 }
 
-static void __exit trout_h2w_exit(void)
+static void __exit sapphire_h2w_exit(void)
 {
-	platform_device_unregister(&trout_h2w_device);
-	platform_driver_unregister(&trout_h2w_driver);
+	platform_device_unregister(&sapphire_h2w_device);
+	platform_driver_unregister(&sapphire_h2w_driver);
 }
 
-module_init(trout_h2w_init);
-module_exit(trout_h2w_exit);
+module_init(sapphire_h2w_init);
+module_exit(sapphire_h2w_exit);
 
 MODULE_AUTHOR("Laurence Chen <Laurence_Chen@htc.com>");
-MODULE_DESCRIPTION("HTC 2 Wire detection driver for trout");
+MODULE_DESCRIPTION("HTC 2 Wire detection driver for sapphire");
 MODULE_LICENSE("GPL");

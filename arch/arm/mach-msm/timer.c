@@ -49,8 +49,6 @@ module_param_named(debug_mask, msm_timer_debug_mask, int, S_IRUGO | S_IWUSR | S_
 #define GPT_HZ 32768
 #define DGT_HZ 19200000 /* 19.2 MHz or 600 KHz after shift */
 
-static int msm_timer_ready;
-
 enum {
 	MSM_CLOCK_FLAGS_UNSTABLE_COUNT = 1U << 0,
 	MSM_CLOCK_FLAGS_ODD_MATCH_WRITE = 1U << 1,
@@ -71,6 +69,8 @@ struct msm_clock {
 	uint32_t                    alarm_vtime;
 	uint32_t                    smem_offset;
 	uint32_t                    smem_in_sync;
+	cycle_t                     stopped_tick;
+	int                         stopped;
 };
 enum {
 	MSM_CLOCK_GPT,
@@ -111,12 +111,17 @@ static uint32_t msm_read_timer_count(struct msm_clock *clock)
 static cycle_t msm_gpt_read(void)
 {
 	struct msm_clock *clock = &msm_clocks[MSM_CLOCK_GPT];
-	return msm_read_timer_count(clock) + clock->offset;
+	if (clock->stopped)
+		return clock->stopped_tick;
+	else
+		return msm_read_timer_count(clock) + clock->offset;
 }
 
 static cycle_t msm_dgt_read(void)
 {
 	struct msm_clock *clock = &msm_clocks[MSM_CLOCK_DGT];
+	if (clock->stopped)
+		return clock->stopped_tick;
 	return (msm_read_timer_count(clock) + clock->offset) >> MSM_DGT_SHIFT;
 }
 
@@ -165,12 +170,18 @@ static void msm_timer_set_mode(enum clock_event_mode mode,
 			      struct clock_event_device *evt)
 {
 	struct msm_clock *clock;
+	unsigned long irq_flags;
+
 	clock = container_of(evt, struct msm_clock, clockevent);
+	local_irq_save(irq_flags);
+
 	switch (mode) {
 	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_PERIODIC:
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
+		clock->stopped = 0;
+		clock->offset = -msm_read_timer_count(clock) + clock->stopped_tick;
 		msm_active_clock = clock;
 		writel(TIMER_ENABLE_EN, clock->regbase + TIMER_ENABLE);
 		break;
@@ -178,9 +189,18 @@ static void msm_timer_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		msm_active_clock = NULL;
 		clock->smem_in_sync = 0;
+		clock->stopped = 1;
+		clock->stopped_tick = (msm_read_timer_count(clock) +
+					clock->offset) >> clock->shift;
 		writel(0, clock->regbase + TIMER_ENABLE);
 		break;
 	}
+	local_irq_restore(irq_flags);
+}
+
+static inline int check_timeout(struct msm_clock *clock, uint32_t timeout)
+{
+	return (int32_t)(msm_read_timer_count(clock) - timeout) <= 0;
 }
 
 static uint32_t msm_timer_sync_smem_clock(int exit_sleep)
@@ -188,8 +208,9 @@ static uint32_t msm_timer_sync_smem_clock(int exit_sleep)
 	struct msm_clock *clock = &msm_clocks[MSM_CLOCK_GPT];
 	uint32_t *smem_clock;
 	uint32_t smem_clock_val;
-	s64 timeout;
-	s64 entry_time;
+	uint32_t timeout;
+	uint32_t entry_time;
+	uint32_t timeout_delta;
 	uint32_t last_state;
 	uint32_t state;
 	uint32_t new_offset;
@@ -205,25 +226,27 @@ static uint32_t msm_timer_sync_smem_clock(int exit_sleep)
 	if (!exit_sleep && clock->smem_in_sync)
 		return 0;
 
+	timeout_delta = (clock->freq >> (7 - clock->shift)); /* 7.8ms */
+
 	last_state = state = smsm_get_state();
 	if (*smem_clock) {
 		printk(KERN_INFO "get_smem_clock: invalid start state %x "
 		       "clock %u\n", state, *smem_clock);
 		smsm_change_state(SMSM_TIMEWAIT, SMSM_TIMEINIT);
-		entry_time = ktime_to_ns(ktime_get());
-		timeout = ktime_to_ns(ktime_get()) + NSEC_PER_MSEC * 10;
-		while (*smem_clock != 0 && ktime_to_ns(ktime_get()) < timeout)
+		entry_time = msm_read_timer_count(clock);
+		timeout = entry_time + timeout_delta;
+		while (*smem_clock != 0 && check_timeout(clock, timeout))
 			;
 		if (*smem_clock) {
 			printk(KERN_INFO "get_smem_clock: timeout still "
-			       "invalid state %x clock %u in %lld ns\n",
+			       "invalid state %x clock %u in %d ticks\n",
 			       state, *smem_clock,
-			       ktime_to_ns(ktime_get()) - entry_time);
+			       msm_read_timer_count(clock) - entry_time);
 			return 0;
 		}
 	}
-	entry_time = ktime_to_ns(ktime_get());
-	timeout = ktime_to_ns(ktime_get()) + NSEC_PER_MSEC * 10;
+	entry_time = msm_read_timer_count(clock);
+	timeout = entry_time + timeout_delta;
 	smsm_change_state(SMSM_TIMEINIT, SMSM_TIMEWAIT);
 	do {
 		smem_clock_val = *smem_clock;
@@ -233,10 +256,9 @@ static uint32_t msm_timer_sync_smem_clock(int exit_sleep)
 			printk(KERN_INFO "get_smem_clock: state %x clock %u\n",
 			       state, smem_clock_val);
 		}
-	} while (smem_clock_val == 0 && ktime_to_ns(ktime_get()) < timeout);
+	} while (smem_clock_val == 0 && check_timeout(clock, timeout));
 	if (smem_clock_val) {
 		new_offset = smem_clock_val - msm_read_timer_count(clock);
-		writel(TIMER_ENABLE_EN, MSM_GPT_BASE + TIMER_ENABLE);
 		if (clock->offset + clock->smem_offset != new_offset) {
 			if (exit_sleep)
 				clock->offset = new_offset - clock->smem_offset;
@@ -251,18 +273,18 @@ static uint32_t msm_timer_sync_smem_clock(int exit_sleep)
 		}
 	} else {
 		printk(KERN_INFO "get_smem_clock: timeout state %x clock %u "
-		       "in %lld ns\n", state, *smem_clock,
-		       ktime_to_ns(ktime_get()) - entry_time);
+		       "in %d ticks\n", state, *smem_clock,
+		       msm_read_timer_count(clock) - entry_time);
 	}
 	smsm_change_state(SMSM_TIMEWAIT, SMSM_TIMEINIT);
-	entry_time = ktime_to_ns(ktime_get());
-	timeout = ktime_to_ns(ktime_get()) + NSEC_PER_MSEC * 10;
-	while (*smem_clock != 0 && ktime_to_ns(ktime_get()) < timeout)
+	entry_time = msm_read_timer_count(clock);
+	timeout = entry_time + timeout_delta;
+	while (*smem_clock != 0 && check_timeout(clock, timeout))
 		;
 	if (*smem_clock)
 		printk(KERN_INFO "get_smem_clock: exit timeout state %x "
-		       "clock %u in %lld ns\n", state, *smem_clock,
-		       ktime_to_ns(ktime_get()) - entry_time);
+		       "clock %u in %d ticks\n", state, *smem_clock,
+		       msm_read_timer_count(clock) - entry_time);
 	return smem_clock_val;
 }
 
@@ -289,6 +311,8 @@ int64_t msm_timer_enter_idle(void)
 	msm_timer_sync_smem_clock(0);
 
 	count = msm_read_timer_count(clock);
+	if (clock->stopped++ == 0)
+		clock->stopped_tick = (count + clock->offset) >> clock->shift;
 	alarm = readl(clock->regbase + TIMER_MATCH_VAL);
 	delta = alarm - count;
 	if (delta <= -(int32_t)((clock->freq << clock->shift) >> 10)) {
@@ -307,20 +331,55 @@ void msm_timer_exit_idle(int low_power)
 	struct msm_clock *clock = msm_active_clock;
 	uint32_t smem_clock;
 
-	if (!low_power || clock != &msm_clocks[MSM_CLOCK_GPT])
+	if (clock != &msm_clocks[MSM_CLOCK_GPT])
 		return;
 
-	if (!(readl(clock->regbase + TIMER_ENABLE) & TIMER_ENABLE_EN))
-		smem_clock = msm_timer_sync_smem_clock(1);
-	msm_timer_reactivate_alarm(clock);
+	if (low_power) {
+		if (!(readl(clock->regbase + TIMER_ENABLE) & TIMER_ENABLE_EN)) {
+			writel(TIMER_ENABLE_EN, clock->regbase + TIMER_ENABLE);
+			smem_clock = msm_timer_sync_smem_clock(1);
+		}
+		msm_timer_reactivate_alarm(clock);
+	}
+	clock->stopped--;
 }
 
 unsigned long long sched_clock(void)
 {
-	if (msm_timer_ready)
-		return ktime_to_ns(ktime_get());
-	else
-		return 0;
+	static cycle_t saved_ticks;
+	static int saved_ticks_valid;
+	static unsigned long long base;
+	static unsigned long long last_result;
+
+	unsigned long irq_flags;
+	static cycle_t last_ticks;
+	cycle_t ticks;
+	static unsigned long long result;
+	struct clocksource *cs;
+	struct msm_clock *clock = msm_active_clock;
+
+	local_irq_save(irq_flags);
+	if (clock) {
+		cs = &clock->clocksource;
+
+		last_ticks = saved_ticks;
+		saved_ticks = ticks = cs->read();
+		if (!saved_ticks_valid) {
+			saved_ticks_valid = 1;
+			last_ticks = ticks;
+			base -= cyc2ns(cs, ticks);
+		}
+		if (ticks < last_ticks) {
+			base += cyc2ns(cs, cs->mask);
+			base += cyc2ns(cs, 1);
+		}
+		last_result = result = cyc2ns(cs, ticks) + base;
+	} else {
+		base = result = last_result;
+		saved_ticks_valid = 0;
+	}
+	local_irq_restore(irq_flags);
+	return result; 
 }
 
 #ifdef CONFIG_MSM7X00A_USE_GP_TIMER
@@ -429,7 +488,6 @@ static void __init msm_timer_init(void)
 			       "failed for %s\n", cs->name);
 
 		clockevents_register_device(ce);
-		msm_timer_ready = 1;
 	}
 }
 

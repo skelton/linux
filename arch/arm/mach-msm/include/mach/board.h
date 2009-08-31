@@ -32,6 +32,8 @@ struct msm_camera_device_platform_data {
 	int sensor_reset;
 	int sensor_pwd;
 	int vcm_pwd;
+	void (*config_gpio_on) (void);
+	void (*config_gpio_off)(void);
 };
 
 struct snd_endpoint {

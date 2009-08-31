@@ -477,12 +477,21 @@ EXPORT_SYMBOL(clk_get_rate);
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int ret;
-	if (clk->flags & CLKFLAG_USE_MIN_MAX_TO_SET) {
+	if (clk->flags & CLKFLAG_USE_MAX_TO_SET) {
 		ret = pc_clk_set_max_rate(clk->id, rate);
 		if (ret)
 			return ret;
-		return pc_clk_set_min_rate(clk->id, rate);
 	}
+	if (clk->flags & CLKFLAG_USE_MIN_TO_SET) {
+		ret = pc_clk_set_min_rate(clk->id, rate);
+		if (ret)
+			return ret;
+	}
+
+	if (clk->flags & CLKFLAG_USE_MAX_TO_SET ||
+		clk->flags & CLKFLAG_USE_MIN_TO_SET)
+		return ret;
+
 	return pc_clk_set_rate(clk->id, rate);
 }
 EXPORT_SYMBOL(clk_set_rate);
@@ -510,12 +519,13 @@ EXPORT_SYMBOL(clk_set_flags);
 
 void __init msm_clock_init(void)
 {
-	unsigned n;
+	struct clk *clk;
 
 	spin_lock_init(&clocks_lock);
 	mutex_lock(&clocks_mutex);
-	for (n = 0; n < msm_num_clocks; n++)
-		list_add_tail(&msm_clocks[n].list, &clocks);
+	for (clk = msm_clocks; clk && clk->name; clk++) {
+		list_add_tail(&clk->list, &clocks);
+	}
 	mutex_unlock(&clocks_mutex);
 }
 

@@ -164,12 +164,14 @@ struct ept_queue_item {
 #define CTRL_TXT_ISOCH        (1 << 18)
 #define CTRL_TXT_BULK         (2 << 18)
 #define CTRL_TXT_INT          (3 << 18)
+#define CTRL_TXT_EP_TYPE_SHIFT 18
 
 #define CTRL_RXT_MASK         (3 << 2)
 #define CTRL_RXT_CTRL         (0 << 2)
 #define CTRL_RXT_ISOCH        (1 << 2)
 #define CTRL_RXT_BULK         (2 << 2)
 #define CTRL_RXT_INT          (3 << 2)
+#define CTRL_RXT_EP_TYPE_SHIFT 2
 
 #define ULPI_WAKEUP           (1 << 31)
 #define ULPI_RUN              (1 << 30)
@@ -185,5 +187,18 @@ struct ept_queue_item {
 #define PORTSC_PSPD_LS        (1 << 26)
 #define PORTSC_PSPD_HS        (2 << 26)
 #define PORTSC_PSPD_MASK      (3 << 26)
+/* suspend and remote wakeup */
+#define PORTSC_FPR             (1 << 6)
+#define PORTSC_SUSP            (1 << 7)
 
+/* test mode support */
+#define J_TEST			(0x0100)
+#define K_TEST			(0x0200)
+#define SE0_NAK_TEST		(0x0300)
+#define TST_PKT_TEST		(0x0400)
+#define PORTSC_PTC		(0xf << 16)
+#define PORTSC_PTC_J_STATE	(0x01 << 16)
+#define PORTSC_PTC_K_STATE	(0x02 << 16)
+#define PORTSC_PTC_SE0_NAK	(0x03 << 16)
+#define PORTSC_PTC_TST_PKT	(0x04 << 16)
 #endif /* __LINUX_USB_GADGET_MSM72K_UDC_H__ */

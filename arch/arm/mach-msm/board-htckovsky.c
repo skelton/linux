@@ -296,7 +296,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_i2c,
 	&msm_device_rtc,
 //	&msm_device_htc_hw,
-#if !defined(CONFIG_MSM_SERIAL_DEBUGGER) && !defined(CONFIG_TROUT_H2W)
+#if !defined(CONFIG_MSM_SERIAL_DEBUGGER) && !defined(CONFIG_HTC_HEADSET)
 //	&msm_device_uart1,
 #endif
 #ifdef CONFIG_SERIAL_MSM_HS

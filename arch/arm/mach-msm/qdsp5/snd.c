@@ -83,15 +83,6 @@ struct snd_set_volume_msg {
 
 struct snd_endpoint *get_snd_endpoints(int *size);
 
-static inline int check_device(struct snd_ctxt *snd, int device)
-{
-	int cnt;
-	for (cnt = 0; cnt < snd->snd_epts->num; cnt++)
-		if (device == snd->snd_epts->endpoints[cnt].id)
-			return 0;
-	return -EINVAL;
-}
-
 static inline int check_mute(int mute)
 {
 	return (mute == SND_MUTE_MUTED ||
@@ -145,14 +136,6 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-
-		rc = check_device(snd, dev.device);
-		if (rc < 0) {
-			pr_err("snd_ioctl set device: invalid device.\n");
-			rc = -EINVAL;
-			break;
-		}
-
 		dmsg.args.device = cpu_to_be32(dev.device);
 		dmsg.args.ear_mute = cpu_to_be32(dev.ear_mute);
 		dmsg.args.mic_mute = cpu_to_be32(dev.mic_mute);
@@ -177,13 +160,6 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&vol, (void __user *) arg, sizeof(vol))) {
 			pr_err("snd_ioctl set volume: invalid pointer.\n");
 			rc = -EFAULT;
-			break;
-		}
-
-		rc = check_device(snd, vol.device);
-		if (rc < 0) {
-			pr_err("snd_ioctl set volume: invalid device.\n");
-			rc = -EINVAL;
 			break;
 		}
 

@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef __ARCH_ARM_MACH_MSM_CLOCK_H
-#define __ARCH_ARM_MACH_MSM_CLOCK_H
+#ifndef __ARCH_ARM_MACH_MSM_ACPUCLOCK_H
+#define __ARCH_ARM_MACH_MSM_ACPUCLOCK_H
 
 #include <linux/list.h>
 
@@ -36,22 +36,6 @@
 #define ACPU_PLL_1	1
 #define ACPU_PLL_2	2
 #define ACPU_PLL_3	3
-
-struct clkctl_acpu_speed
-{
-	unsigned int	a11clk_khz;
-	int		pll;
-	unsigned int	a11clk_src_sel;
-	unsigned int	a11clk_src_div;
-	unsigned int	ahbclk_khz;
-	unsigned int	ahbclk_div;
-	int		vdd;
-	unsigned long	lpj; /* loops_per_jiffy */
-/* Index in acpu_freq_tbl[] for steppings. */
-	short		down;
-	short		up;
-};
-
 
 int acpuclk_set_rate(unsigned long rate, int for_power_collapse);
 unsigned long acpuclk_get_rate(void);

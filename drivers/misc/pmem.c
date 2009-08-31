@@ -189,7 +189,7 @@ static int is_pmem_file(struct file *file)
 {
 	int id;
 
-	if (unlikely(!file->f_dentry || !file->f_dentry->d_inode))
+	if (unlikely(!file || !file->f_dentry || !file->f_dentry->d_inode))
 		return 0;
 	id = get_id(file);
 	if (unlikely(id >= PMEM_MAX_DEVICES))
@@ -701,16 +701,13 @@ int get_pmem_user_addr(struct file *file, unsigned long *start,
 	return 0;
 }
 
-int get_pmem_addr(struct file *file, unsigned long *start, unsigned long *vstart,
-		  unsigned long *len)
+int get_pmem_addr(struct file *file, unsigned long *start,
+		  unsigned long *vstart, unsigned long *len)
 {
 	struct pmem_data *data;
 	int id;
 
 	if (!is_pmem_file(file) || !has_allocation(file)) {
-#if PMEM_DEBUG
-		printk("pmem: requested pmem data from invalid file.\n");
-#endif
 		return -1;
 	}
 
@@ -737,7 +734,7 @@ int get_pmem_addr(struct file *file, unsigned long *start, unsigned long *vstart
 	return 0;
 }
 
-int get_pmem_file(unsigned int fd, unsigned long *start, unsigned long *vstart,
+int get_pmem_file(int fd, unsigned long *start, unsigned long *vstart,
 		  unsigned long *len, struct file **filp)
 {
 	struct file *file;
@@ -758,12 +755,6 @@ int get_pmem_file(unsigned int fd, unsigned long *start, unsigned long *vstart,
 end:
 	fput(file);
 	return -1;
-}
-
-int get_pmem_fd(unsigned int fd, unsigned long *start, unsigned long *len)
-{
-	unsigned long vstart;
-	return get_pmem_file(fd, start, &vstart, len, NULL);
 }
 
 void put_pmem_file(struct file *file)
@@ -788,41 +779,21 @@ void put_pmem_file(struct file *file)
 	fput(file);
 }
 
-void put_pmem_fd(unsigned int fd)
-{
-	struct file *file;
-	int put_needed;
-
-	file = fget_light(fd, &put_needed);
-	if (file == NULL)
-		return;
-	put_pmem_file(file);
-	fput_light(file, put_needed);
-}
-
-void flush_pmem_fd(unsigned int fd, unsigned long offset, unsigned long len)
+void flush_pmem_file(struct file *file, unsigned long offset, unsigned long len)
 {
 	struct pmem_data *data;
-	struct file *file;
 	int id;
 	void *vaddr;
 	struct pmem_region_node *region_node;
 	struct list_head *elt;
 	void *flush_start, *flush_end;
-	int fput_needed;
-
-	file = fget_light(fd, &fput_needed);
-	if (file == NULL)
-		return;
 
 	if (!is_pmem_file(file) || !has_allocation(file)) {
-		fput_light(file, fput_needed);
 		return;
 	}
 
 	id = get_id(file);
 	data = (struct pmem_data *)file->private_data;
-	fput_light(file, fput_needed);
 	if (!pmem[id].cached)
 		return;
 

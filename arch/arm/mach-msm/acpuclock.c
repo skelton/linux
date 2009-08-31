@@ -47,6 +47,7 @@ struct clock_state
 	unsigned long			wait_for_irq_khz;
 };
 
+static struct clk *ebi1_clk;
 static struct clock_state drv_state = { 0 };
 
 static void __init acpuclk_init(void);
@@ -64,6 +65,21 @@ enum {
 	VDD_END
 };
 
+struct clkctl_acpu_speed {
+	unsigned int	a11clk_khz;
+	int		pll;
+	unsigned int	a11clk_src_sel;
+	unsigned int	a11clk_src_div;
+	unsigned int	ahbclk_khz;
+	unsigned int	ahbclk_div;
+	int		vdd;
+	unsigned int 	axiclk_khz;
+	unsigned long	lpj; /* loops_per_jiffy */
+/* Index in acpu_freq_tbl[] for steppings. */
+	short		down;
+	short		up;
+};
+
 /*
  * ACPU speed table. Complete table is shown but certain speeds are commented
  * out to optimized speed switching. Initalize loops_per_jiffy to 0.
@@ -73,33 +89,33 @@ enum {
  */
 #if (0)
 static struct clkctl_acpu_speed  acpu_freq_tbl[] = {
-	{ 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, VDD_0, 0, 0, 8 },
-	{ 61440, ACPU_PLL_0, 4, 3, 61440, 0, VDD_0, 0, 0, 8 },
-	{ 81920, ACPU_PLL_0, 4, 2, 40960, 1, VDD_0, 0, 0, 8 },
-	{ 96000, ACPU_PLL_1, 1, 7, 48000, 1, VDD_0, 0, 0, 9 },
-	{ 122880, ACPU_PLL_0, 4, 1, 61440, 1, VDD_3, 0, 0, 8 },
-	{ 128000, ACPU_PLL_1, 1, 5, 64000, 1, VDD_3, 0, 0, 12 },
-	{ 176000, ACPU_PLL_2, 2, 5, 88000, 1, VDD_3, 0, 0, 11 },
-	{ 192000, ACPU_PLL_1, 1, 3, 64000, 2, VDD_3, 0, 0, 12 },
-	{ 245760, ACPU_PLL_0, 4, 0, 81920, 2, VDD_4, 0, 0, 12 },
-	{ 256000, ACPU_PLL_1, 1, 2, 128000, 2, VDD_5, 0, 0, 12 },
-	{ 264000, ACPU_PLL_2, 2, 3, 88000, 2, VDD_5, 0, 6, 13 },
-	{ 352000, ACPU_PLL_2, 2, 2, 88000, 3, VDD_5, 0, 6, 13 },
-	{ 384000, ACPU_PLL_1, 1, 1, 128000, 2, VDD_6, 0, 5, -1 },
-	{ 528000, ACPU_PLL_2, 2, 1, 132000, 3, VDD_7, 0, 11, -1 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0},
+	{ 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, VDD_0, 30720, 0, 0, 8 },
+	{ 61440, ACPU_PLL_0,  4, 3, 61440,  0, VDD_0, 30720,  0, 0, 8 },
+	{ 81920, ACPU_PLL_0,  4, 2, 40960,  1, VDD_0, 61440,  0, 0, 8 },
+	{ 96000, ACPU_PLL_1,  1, 7, 48000,  1, VDD_0, 61440,  0, 0, 9 },
+	{ 122880, ACPU_PLL_0, 4, 1, 61440,  1, VDD_3, 61440,  0, 0, 8 },
+	{ 128000, ACPU_PLL_1, 1, 5, 64000,  1, VDD_3, 61440,  0, 0, 12 },
+	{ 176000, ACPU_PLL_2, 2, 5, 88000,  1, VDD_3, 61440,  0, 0, 11 },
+	{ 192000, ACPU_PLL_1, 1, 3, 64000,  2, VDD_3, 61440,  0, 0, 12 },
+	{ 245760, ACPU_PLL_0, 4, 0, 81920,  2, VDD_4, 61440,  0, 0, 12 },
+	{ 256000, ACPU_PLL_1, 1, 2, 128000, 2, VDD_5, 128000, 0, 0, 12 },
+	{ 264000, ACPU_PLL_2, 2, 3, 88000,  2, VDD_5, 128000, 0, 6, 13 },
+	{ 352000, ACPU_PLL_2, 2, 2, 88000,  3, VDD_5, 128000, 0, 6, 13 },
+	{ 384000, ACPU_PLL_1, 1, 1, 128000, 2, VDD_6, 128000, 0, 5, -1 },
+	{ 528000, ACPU_PLL_2, 2, 1, 132000, 3, VDD_7, 128000, 0, 11, -1 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 };
 #else /* Table of freq we currently use. */
 static struct clkctl_acpu_speed  acpu_freq_tbl[] = {
-	{ 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, VDD_0, 0, 0, 4 },
-	{ 122880, ACPU_PLL_0, 4, 1, 61440, 1, VDD_3, 0, 0, 4 },
-	{ 128000, ACPU_PLL_1, 1, 5, 64000, 1, VDD_3, 0, 0, 6 },
-	{ 176000, ACPU_PLL_2, 2, 5, 88000, 1, VDD_3, 0, 0, 5 },
-	{ 245760, ACPU_PLL_0, 4, 0, 81920, 2, VDD_4, 0, 0, 5 },
-	{ 352000, ACPU_PLL_2, 2, 2, 88000, 3, VDD_5, 0, 3, 7 },
-	{ 384000, ACPU_PLL_1, 1, 1, 128000, 2, VDD_6, 0, 2, -1 },
-	{ 528000, ACPU_PLL_2, 2, 1, 132000, 3, VDD_7, 0, 5, -1 },
-	{ 0, 0, 0, 0, 0, 0, 0},
+	{ 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, VDD_0, 30720, 0, 0, 4 },
+	{ 122880, ACPU_PLL_0, 4, 1, 61440, 1, VDD_3, 61440, 0, 0, 4 },
+	{ 128000, ACPU_PLL_1, 1, 5, 64000, 1, VDD_3, 61440, 0, 0, 6 },
+	{ 176000, ACPU_PLL_2, 2, 5, 88000, 1, VDD_3, 61440, 0, 0, 5 },
+	{ 245760, ACPU_PLL_0, 4, 0, 81920, 2, VDD_4, 61440, 0, 0, 5 },
+	{ 352000, ACPU_PLL_2, 2, 2, 88000, 3, VDD_5, 128000, 0, 3, 7 },
+	{ 384000, ACPU_PLL_1, 1, 1, 128000, 2, VDD_6, 128000, 0, 2, -1 },
+	{ 528000, ACPU_PLL_2, 2, 1, 132000, 3, VDD_7, 128000, 0, 5, -1 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 };
 #endif
 
@@ -258,9 +274,7 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 	uint32_t reg_clkctl;
 	struct clkctl_acpu_speed *cur_s, *tgt_s, *strt_s;
 	int rc = 0;
-#ifdef CONFIG_MSM_CPU_FREQ_ONDEMAND
-	struct cpufreq_freqs freqs;
-#endif
+	unsigned int plls_enabled = 0, pll;
 
 	strt_s = cur_s = drv_state.current_speed;
 
@@ -285,19 +299,19 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 			tgt_s--;
 	}
 
+	if (strt_s->pll != ACPU_PLL_TCXO)
+		plls_enabled |= 1 << strt_s->pll;
+
 	if (!for_power_collapse) {
 		mutex_lock(&drv_state.lock);
-#ifdef CONFIG_MSM_CPU_FREQ_ONDEMAND
-		freqs.old = cur_s->a11clk_khz;
-		freqs.new = tgt_s->a11clk_khz;
-		freqs.cpu = smp_processor_id();
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-#endif
 		if (strt_s->pll != tgt_s->pll && tgt_s->pll != ACPU_PLL_TCXO) {
-			if ((rc = pc_pll_request(tgt_s->pll, 1)) < 0) {
-				printk(KERN_ERR "PLL enable failed (%d)\n", rc);
+			rc = pc_pll_request(tgt_s->pll, 1);
+			if (rc < 0) {
+				pr_err("PLL%d enable failed (%d)\n",
+					tgt_s->pll, rc);
 				goto out;
 			}
+			plls_enabled |= 1 << tgt_s->pll;
 		}
 		/* Increase VDD if needed. */
 		if (tgt_s->vdd > cur_s->vdd) {
@@ -343,6 +357,17 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 		printk(KERN_DEBUG "%s: STEP khz = %u, pll = %d\n",
 			__FUNCTION__, cur_s->a11clk_khz, cur_s->pll);
 #endif
+		if (!for_power_collapse&& cur_s->pll != ACPU_PLL_TCXO
+		    && !(plls_enabled & (1 << cur_s->pll))) {
+			rc = pc_pll_request(cur_s->pll, 1);
+			if (rc < 0) {
+				pr_err("PLL%d enable failed (%d)\n",
+					cur_s->pll, rc);
+				goto out;
+			}
+			plls_enabled |= 1 << cur_s->pll;
+		}
+
 		acpuclk_set_div(cur_s);
 		drv_state.current_speed = cur_s;
 		/* Re-adjust lpj for the new clock speed. */
@@ -354,12 +379,22 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 	if (for_power_collapse)
 		return 0;
 
-	/* Disable PLL we are not using anymore. */
-	if (strt_s->pll != tgt_s->pll && tgt_s->pll != ACPU_PLL_TCXO) {
-		if ((rc = pc_pll_request(strt_s->pll, 0)) < 0) {
-			printk(KERN_ERR "PLL disable failed (%d)\n", rc);
-			goto out;
+	/* Disable PLLs we are not using anymore. */
+	plls_enabled &= ~(1 << tgt_s->pll);
+	for (pll = ACPU_PLL_0; pll <= ACPU_PLL_2; pll++)
+		if (plls_enabled & (1 << pll)) {
+			rc = pc_pll_request(pll, 0);
+			if (rc < 0) {
+				pr_err("PLL%d disable failed (%d)\n", pll, rc);
+				goto out;
+			}
 		}
+
+	/* Change the AXI bus frequency if we can. */
+	if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
+		rc = clk_set_rate(ebi1_clk, tgt_s->axiclk_khz * 1000);
+		if (rc < 0)
+			pr_err("Setting AXI min rate failed!\n");
 	}
 
 	/* Drop VDD level if we can. */
@@ -368,9 +403,6 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 			printk(KERN_ERR "acpuclock: Unable to drop ACPU vdd\n");
 	}
 
-#ifdef CONFIG_MSM_CPU_FREQ_ONDEMAND
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-#endif
 #if PERF_SWITCH_DEBUG
 	printk(KERN_DEBUG "%s: ACPU speed change complete\n", __FUNCTION__);
 #endif
@@ -383,7 +415,8 @@ out:
 static void __init acpuclk_init(void)
 {
 	struct clkctl_acpu_speed *speed;
-	uint32_t div, sel, current_vdd;
+	uint32_t div, sel;
+	int rc;
 
 	/*
 	 * Determine the rate of ACPU clock
@@ -413,15 +446,11 @@ static void __init acpuclk_init(void)
 
 	drv_state.current_speed = speed;
 
+	rc = clk_set_rate(ebi1_clk, speed->axiclk_khz * 1000);
+	if (rc < 0)
+		pr_err("Setting AXI min rate failed!\n");
+
 	printk(KERN_INFO "ACPU running at %d KHz\n", speed->a11clk_khz);
-	/*
-	 * Ensure that the current freq is okay at this VDD. Earlier
-	 * versions of the bootloader would not update VDD properly.
-	 */
-	current_vdd = readl(A11S_VDD_SVS_PLEVEL_ADDR) & 0x07;
-	if (speed->vdd != current_vdd)
-		printk(KERN_WARNING "WARNING - Bad VDD (%d != %d) for this freq\n",
-		       current_vdd, speed->vdd);
 }
 
 unsigned long acpuclk_get_rate(void)
@@ -458,6 +487,8 @@ static void __init lpj_init(void)
 void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 {
 	pr_info("acpu_clock_init()\n");
+
+	ebi1_clk = clk_get(NULL, "ebi1_clk");
 
 	mutex_init(&drv_state.lock);
 	drv_state.acpu_switch_time_us = clkdata->acpu_switch_time_us;

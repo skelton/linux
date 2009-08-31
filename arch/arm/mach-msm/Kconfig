@@ -23,7 +23,6 @@ choice
 
         config MSM_AMSS_VERSION_WINCE
                 bool "WinCE compatible AMSS"
-
 endchoice
 
 config MSM_DEBUG_UART
@@ -64,6 +63,11 @@ config MACH_TROUT
 	depends on ARCH_MSM
 	default y
 	bool "Trout"
+
+config MACH_SAPPHIRE
+	depends on ARCH_MSM
+	default y
+	bool "Sapphire"
 
 config MACH_HTCRAPHAEL
         depends on ARCH_MSM
@@ -107,7 +111,7 @@ config MACH_HTCKOVSKY
         help
           Support for the HTC Kovsky cellphone
 
-config TROUT_H2W
+config HTC_HEADSET
 	tristate "HTC 2 Wire detection driver"
 	default n
 	help
@@ -132,10 +136,10 @@ choice
                 bool "SMEM battery/charger API"
 endchoice
 
-config TROUT_PWRSINK
-	depends on MSM_SMD
+config HTC_PWRSINK
+	depends on MSM_SMD && HAS_EARLYSUSPEND
 	default y
-	bool "Trout Power Sink Driver"
+	bool "HTC Power Sink Driver"
 
 choice
 	prompt "Default Timer"
@@ -150,7 +154,7 @@ choice
 		bool "DG Timer"
 	help
 	  High resolution timer.
-endchoice	  
+endchoice
 
 choice
 	prompt "Suspend sleep mode"
@@ -177,7 +181,7 @@ choice
 
 	config MSM7X00A_SLEEP_WAIT_FOR_INTERRUPT
 		bool "Wait for interrupt"
-endchoice	  
+endchoice
 
 config MSM7X00A_SLEEP_MODE
 	int
@@ -212,7 +216,7 @@ choice
 
 	config MSM7X00A_IDLE_SLEEP_WAIT_FOR_INTERRUPT
 		bool "Wait for interrupt"
-endchoice	  
+endchoice
 
 config MSM7X00A_IDLE_SLEEP_MODE
 	int
@@ -391,7 +395,7 @@ config WIFI_CONTROL_FUNC
 	bool "Enable WiFi control function abstraction"
 	help
 	  Enables Power/Reset/Carddetect function abstraction
-	
+
 config WIFI_MEM_PREALLOC
 	depends on WIFI_CONTROL_FUNC
 	bool "Preallocate memory for WiFi buffers"

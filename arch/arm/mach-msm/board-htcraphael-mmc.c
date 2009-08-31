@@ -16,7 +16,7 @@
 #include <asm/io.h>
 
 #include <mach/vreg.h>
-#include <mach/trout_pwrsink.h>
+#include <mach/htc_pwrsink.h>
 
 #include <asm/mach/mmc.h>
 
@@ -361,11 +361,11 @@ int trout_wifi_power(int on)
 		if (rc)
 			return rc;
 
-		trout_pwrsink_set(PWRSINK_WIFI, 70);
+		htc_pwrsink_set(PWRSINK_WIFI, 70);
 	} else {
 		config_gpio_table(htcraphael_mmc_pdata.wifi_off_gpio_table,
 				  htcraphael_mmc_pdata.wifi_off_gpio_table_size);
-		trout_pwrsink_set(PWRSINK_WIFI, 0);
+		htc_pwrsink_set(PWRSINK_WIFI, 0);
 	}
 
 	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, on );
