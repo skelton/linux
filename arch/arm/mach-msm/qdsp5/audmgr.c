@@ -51,6 +51,7 @@ static void process_audmgr_callback(struct audmgr *am,
 				   struct rpc_audmgr_cb_func_ptr *args,
 				   int len)
 {
+	pr_info("audmgr: rpc %x %x %x\n",args->set_to_one,args->status,len);
 	if (len < (sizeof(uint32_t) * 3))
 		return;
 	if (be32_to_cpu(args->set_to_one) != 1)
