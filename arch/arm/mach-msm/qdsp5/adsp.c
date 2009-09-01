@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 #include <linux/wakelock.h>
+#include "../smd_rpcrouter.h"
 
 static struct wake_lock adsp_wake_lock;
 static inline void prevent_suspend(void)
@@ -830,10 +831,17 @@ static int msm_adsp_probe(struct platform_device *pdev)
 		pr_err("adsp: could not create rpc server (%d)\n", rc);
 		goto fail_rpc_open;
 	}
-
+	// ugly hack
+	// this is the id used by wince for this rpc server
+	// we don't know hw to deregister it so have to take it over
+	// it works on my diamond but probably won't on other devices.
+	// to fix this we will have to either get this value automatically or
+	// figure out how to re-initialise the rpc subsystem. M.J.
+	rpc_cb_server_client->cid=0x07fb2266;
 	rc = msm_rpc_register_server(rpc_cb_server_client,
 				     RPC_ADSP_RTOS_MTOA_PROG,
 				     RPC_ADSP_RTOS_MTOA_VERS);
+
 	if (rc) {
 		pr_err("adsp: could not register callback server (%d)\n", rc);
 		goto fail_rpc_register;

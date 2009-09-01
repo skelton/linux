@@ -295,7 +295,7 @@ int audmgr_disable(struct audmgr *am)
 	rc = wait_event_timeout(am->wait, am->state != STATE_DISABLING, 15 * HZ);
 	if (rc == 0) {
 		pr_err("audmgr_disable: ARM9 did not reply to RPC am->state = %d\n", am->state);
-		BUG();
+//		BUG();
 	}
 
 	if (am->state == STATE_DISABLED)

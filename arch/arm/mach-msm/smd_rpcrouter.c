@@ -40,7 +40,9 @@
 #include <linux/platform_device.h>
 
 #include <mach/msm_smd.h>
+
 #include "smd_rpcrouter.h"
+#include "smd_private.h"
 
 #define TRACE_R2R_MSG 1
 #define TRACE_R2R_RAW 1
@@ -127,10 +129,12 @@ static int rpcrouter_send_control_msg(union rr_control_msg *msg)
 	unsigned long flags;
 	int need;
 
+	RR("send control message %x %x %x %x %x\n", msg->cmd, msg->srv.cmd, msg->srv.prog, msg->srv.pid, msg->srv.cid);
+	
 	if (!(msg->cmd == RPCROUTER_CTRL_CMD_HELLO) && !initialized) {
 		printk(KERN_ERR "rpcrouter_send_control_msg(): Warning, "
 		       "router not initialized\n");
-		return -EINVAL;
+//		return -EINVAL;
 	}
 
 	hdr.version = RPCROUTER_VERSION;
@@ -387,6 +391,7 @@ static int process_control_msg(union rr_control_msg *msg, int len)
 
 		initialized = 1;
 
+		
 		/* Send list of servers one at a time */
 		ctl.cmd = RPCROUTER_CTRL_CMD_NEW_SERVER;
 
@@ -1095,6 +1100,14 @@ int msm_rpc_register_server(struct msm_rpc_endpoint *ept,
 	if (!server)
 		return -ENODEV;
 
+/*
+	msg.srv.cmd = RPCROUTER_CTRL_CMD_REMOVE_SERVER;
+	msg.srv.pid = 1;
+	msg.srv.cid = 0x07fb2266;
+	msg.srv.prog = prog;
+	msg.srv.vers = vers;
+	rc = rpcrouter_send_control_msg(&msg);
+*/	
 	msg.srv.cmd = RPCROUTER_CTRL_CMD_NEW_SERVER;
 	msg.srv.pid = ept->pid;
 	msg.srv.cid = ept->cid;
@@ -1103,7 +1116,10 @@ int msm_rpc_register_server(struct msm_rpc_endpoint *ept,
 
 	RR("x NEW_SERVER id=%d:%08x prog=%08x:%d\n",
 	   ept->pid, ept->cid, prog, vers);
+	
 
+	
+	msg.srv.cmd = RPCROUTER_CTRL_CMD_NEW_SERVER;
 	rc = rpcrouter_send_control_msg(&msg);
 	if (rc < 0)
 		return rc;
@@ -1127,6 +1143,7 @@ int msm_rpc_unregister_server(struct msm_rpc_endpoint *ept,
 static int msm_rpcrouter_probe(struct platform_device *pdev)
 {
 	int rc;
+	union rr_control_msg msg = { 0 };
 
 	/* Initialize what we need to start processing */
 	INIT_LIST_HEAD(&local_endpoints);
@@ -1144,7 +1161,7 @@ static int msm_rpcrouter_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto fail_destroy_workqueue;
 
-	printk(KERN_DEBUG "RPC Init done\n");
+	printk("RPC Init done\n");
 
 	/* Open up SMD channel 2 */
 	initialized = 0;
@@ -1155,10 +1172,17 @@ static int msm_rpcrouter_probe(struct platform_device *pdev)
 	printk(KERN_DEBUG "RPCCALL opened\n");
 
 	queue_work(rpcrouter_workqueue, &work_read_data);
-
+//	msleep(50);
+//	smsm_change_state(SMSM_RPCINIT,0);
+//	msleep(50);
+//	smsm_change_state(0,SMSM_RPCINIT);
+//	msg.cmd = RPCROUTER_CTRL_CMD_BYE;
+//	rpcrouter_send_control_msg(&msg);
+//	msleep(50);
 	/* wince rpc init */
-        union rr_control_msg msg = { 0 };
         msg.cmd = RPCROUTER_CTRL_CMD_HELLO;
+//	rpcrouter_send_control_msg(&msg);
+//	msleep(50);
         process_control_msg(&msg, sizeof(msg));
 	msleep(100);
              
