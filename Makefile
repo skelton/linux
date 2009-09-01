@@ -3,8 +3,6 @@ PATCHLEVEL = 6
 SUBLEVEL = 27
 EXTRAVERSION =
 NAME = Rotary Wombat
-ARCH=arm
-CROSS_COMPILE=arm-none-linux-gnueabi-
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
