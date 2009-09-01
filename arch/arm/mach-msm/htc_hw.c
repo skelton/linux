@@ -97,12 +97,27 @@ static struct class htc_hw_class = {
 	.name = "htc_hw",
 	.class_attrs = htc_hw_class_attrs,
 };
+static ssize_t gsmphone_show(struct class *class, char *buf) {
+	return sprintf(buf, "%d\n", machine_arch_type);
+}
+
+// these are for compatability with the vogue ril
+static struct class_attribute vogue_hw_class_attrs[] = {
+	__ATTR_RO(gsmphone),
+	__ATTR_NULL,
+};
+
+static struct class vogue_hw_class = {
+	.name = "vogue_hw",
+	.class_attrs = vogue_hw_class_attrs,
+};
 
 static int __init htc_hw_probe(struct platform_device *pdev)
 {
 	int ret;
 	htc_hw_pdata = (htc_hw_pdata_t *)pdev->dev.platform_data;
 	ret = class_register(&htc_hw_class);
+	ret = class_register(&vogue_hw_class);
 	if (ret)
 		printk(KERN_ERR "%s: class init failed: %d\n", __func__, ret);
 	DHTC("done");
