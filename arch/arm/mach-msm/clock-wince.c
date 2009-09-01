@@ -66,13 +66,16 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	{ .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xdc, .name="UART2DM_CLK",},
 
 	{ .clk_id = USB_HS_CLK, .idx = 25, .offset = 0x2c0, .ns_only = 0xb00, .name="USB_HS_CLK",},
-	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80, .name="GRP_CLK", },
+	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80, .name="GRP_CLK", }, // these both enable the GRP and IMEM clocks.
+	{ .clk_id = IMEM_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80, .name="IMEM_CLK", },
+
 
 	// MD/NS only; offset = Ns reg
 	{ .clk_id = VFE_CLK, .offset = 0x44, .name="VFE_CLK", },
 	
 	// Enable bit only; bit = 1U << idx
 	{ .clk_id = MDP_CLK, .idx = 9, .name="MDP_CLK",},
+ 	
 	
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
 	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },

@@ -57,6 +57,8 @@ module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static int banks=1;
 module_param(banks, int, S_IRUGO | S_IWUSR | S_IWGRP);
+static int adb=1;
+module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void htcdiamond_device_specific_fixes(void);
 
@@ -88,7 +90,7 @@ static void halibut_phy_reset(void)
 static char *halibut_usb_functions[] = {
 	"ether",
 //	"diag",
-//	"adb",
+	"adb",
 };
 
 static struct msm_hsusb_product halibut_usb_products[] = {
@@ -114,7 +116,7 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.phy_reset      = halibut_phy_reset,
 	.phy_init_seq	= halibut_phy_init_seq_diam100, /* Modified in htcdiamond_device_specific_fixes() */
 	.vendor_id      = 0x049F,
-	.product_id     = 0x0002, // by default (no funcs)
+	.product_id     = 0x0002,
 	.version        = 0x0100,
 	.product_name   = "MSM USB",
 	.manufacturer_name = "HTC",
@@ -122,6 +124,20 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.num_functions	= ARRAY_SIZE(halibut_usb_functions),
 	.products = halibut_usb_products,
 	.num_products = ARRAY_SIZE(halibut_usb_products),
+};
+
+static struct msm_hsusb_platform_data msm_hsusb_pdata_adb = {
+	.phy_reset      = halibut_phy_reset,
+	.phy_init_seq	= halibut_phy_init_seq_diam100, /* Modified in htcdiamond_device_specific_fixes() */
+	.vendor_id      = 0x0bb4,
+	.product_id     = 0x0c02,
+	.version        = 0x0100,
+	.product_name   = "MSM USB",
+	.manufacturer_name = "HTC",
+	.functions	= halibut_usb_functions,
+	.num_functions	= ARRAY_SIZE(halibut_usb_functions),
+	.products = halibut_usb_products,
+	.num_products = 0,
 };
 
 static struct i2c_board_info i2c_devices[] = {
@@ -391,6 +407,8 @@ static void __init halibut_init(void)
 
 	// Device pdata overrides
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+	if(adb)
+		msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata_adb;
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 
