@@ -342,7 +342,9 @@ void arch_idle(void)
 		msm_irq_idle_sleep_allowed();
 	if (msm_pm_reset_vector == NULL)
 		return;
-
+	msm_arch_idle();
+	return;
+	
 	sleep_time = msm_timer_enter_idle();
 #ifdef CONFIG_MSM_IDLE_STATS
 	t1 = ktime_to_ns(ktime_get());
