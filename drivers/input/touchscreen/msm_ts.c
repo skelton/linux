@@ -37,6 +37,8 @@
 #endif
 #define MSM_TS_ABS_PRESSURE_MIN 0
 #define MSM_TS_ABS_PRESSURE_MAX 1
+#define MSM_TS_ABS_SIZE_MIN 0
+#define MSM_TS_ABS_SIZE_MAX 15
 
 #define MSM_TS_LCD_WIDTH	480
 #if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
@@ -164,6 +166,8 @@ static void msm_ts_process_data(int irq)
 	int absx, absy, touched, x, y;
 	int vkey, bspad;
 	static int prev_absx = -1, prev_absy = -1, prev_touched = -1;
+	unsigned long data2;
+	int x2,y2,ax,bx,ay,by,cx,cy,size;
 
 	/* Read status and data */
 	status = readl(MSM_TS_BASE + TSSC_STATUS);
@@ -228,9 +232,33 @@ static void msm_ts_process_data(int irq)
 			}
 		} else {
 			/* On stylus up, use same coordinates as last position we had (since they're 0 otherwise) */
-			if (!touched) {
+			if (touched) {
+				data2 = readl(MSM_TS_BASE + TSSC_DATA_UP_AVE);
+				x2 = data2 & 0xFFFF;
+				y2 = data2 >> 16;
+				
+				if (!x2 || !y2)
+					goto skip;
+
+				ax =  300 - 100 * (absx +  6 * y2 / 11 -  200) / x2;
+				ay = -240 + 100 * (absy +  7 * x2 / 10 + 1100) / y2;
+				bx = -110 - 200 * (absx -  3 * x2      -  200) / y2;
+				by =   70 + 100 * (absy - 12 * y2 /  5 + 1100) / x2;
+				cx =  200 -        absx +  3 * x2      -    6  * y2 / 11;
+				cy = 1100 +        absy - 12 * y2 /  5 +    7  * x2 / 10;
+								
+				size = (ax+bx+cx+ay+by+cy - 200) / 64;
+				if (size <= MSM_TS_ABS_SIZE_MIN)
+					size = MSM_TS_ABS_SIZE_MIN + 1;
+				else if (size > MSM_TS_ABS_SIZE_MAX)
+					size = MSM_TS_ABS_SIZE_MAX;
+				
+//				printk(KERN_INFO "TS: %3d %3d %3d  %3d %3d %3d  %4d\n",
+//						ax,bx,cx,ay,by,cy,size);
+			} else {
 				absx = prev_absx;
 				absy = prev_absy;
+				size = MSM_TS_ABS_SIZE_MIN;
 			}
 
 			/* Calculate coordinates in pixels, clip to screen and make sure we don't to divisions by zero */
@@ -262,6 +290,7 @@ static void msm_ts_process_data(int irq)
 				input_report_abs(msm_ts_dev, ABS_X, x);
 				input_report_abs(msm_ts_dev, ABS_Y, y);
 				input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);
+				input_report_abs(msm_ts_dev, ABS_TOOL_WIDTH, size);
 				input_report_key(msm_ts_dev, BTN_TOUCH, touched);
 				input_sync(msm_ts_dev);
 			}
@@ -329,6 +358,7 @@ static int __init msm_ts_init(void)
 	input_set_abs_params(msm_ts_dev, ABS_X, MSM_TS_ABS_X_MIN, MSM_TS_ABS_X_MAX, 0, 0);
 	input_set_abs_params(msm_ts_dev, ABS_Y, MSM_TS_ABS_Y_MIN, MSM_TS_ABS_Y_MAX, 0, 0);
 	input_set_abs_params(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MIN, MSM_TS_ABS_PRESSURE_MAX, 0, 0);
+	input_set_abs_params(msm_ts_dev, ABS_TOOL_WIDTH, MSM_TS_ABS_SIZE_MIN, MSM_TS_ABS_SIZE_MAX, 0, 0);
 
 	msm_ts_dev->name = "MSM touchscreen";
 	msm_ts_dev->phys = "msm_ts/input0";
