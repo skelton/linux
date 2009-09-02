@@ -918,7 +918,7 @@ static int __init adsp_init(void)
 		for(i=0;i<16384/4;i++)	{
 			if(rpcchan[i]==0x0b000030 && rpcchan[i+2]==0x01000000 && rpcchan[i+9]==0x02000000) {
 				adsp_cid=rpcchan[i+19];
-				printk("adsp cid found: \n",adsp_cid);
+				printk("adsp cid found: %08x\n",adsp_cid);
 				break;
 			}
 		}
