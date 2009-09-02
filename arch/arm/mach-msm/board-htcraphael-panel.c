@@ -21,7 +21,7 @@
 #include "proc_comm_wince.h"
 #include "devices.h"
 
-static struct clk *gp_clk;
+//static struct clk *gp_clk;
 
 #define MDDI_CLIENT_CORE_BASE  0x108000
 #define LCD_CONTROL_BLOCK_BASE 0x110000
@@ -347,47 +347,61 @@ static void htcraphael_process_mddi_table(struct msm_mddi_client_data *client_da
 	}
 }
 
-static struct vreg *vreg_mddi_1v5;
-static struct vreg *vreg_lcm_2v85;
+//static struct vreg *vreg_mddi_1v5;
+//static struct vreg *vreg_lcm_2v85;
 
 static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_data,
 				    int on)
 {
+	struct msm_dex_command dex;
+	int i;
+	
 	printk("htcraphael_mddi_power_client(%d)\n", on);
-#if 0
- #warning htcraphael_mddi_power_client not yet implemented
-    unsigned id, on_off;
+	
+/*
 	if(on) {
-		on_off = 0;
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm_wince(PCOM_VREG_PULLDOWN, &on_off, &id);
-		vreg_enable(vreg_mddi_1v5);
-		mdelay(5); // delay time >5ms and <10ms
-		gpio_set_value(V_VDDE2E_VDD2_GPIO, 1);
-		gpio_set_value(TROUT_GPIO_MDDI_32K_EN, 1);
-		msleep(3);
-		id = PM_VREG_PDOWN_AUX_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-		vreg_enable(vreg_lcm_2v85);
-		msleep(3);
-		gpio_set_value(MDDI_RST_N, 1);
-		msleep(10);
+		gpio_set_value(RAPH100_LCD_PWR1, 1);
+		dex.cmd=PCOM_PMIC_REG_ON;
+		dex.has_data=1;
+		dex.data=0x800;
+		msm_proc_comm_wince(&dex,0);
+		
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		gpio_set_value(0x3d,0);
+		mdelay(5);
+		gpio_set_value(0x3d,1);
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,0,GPIO_INPUT,GPIO_NO_PULL,GPIO_2MA,0));
+		for(i=0;i<10;i++) {
+			gpio_set_value(0x3c,0);
+			mdelay(5);
+			gpio_set_value(0x3c,1);
+		}
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		msm_gpio_set_function(DEX_GPIO_CFG(0x1b,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
+		
+		mdelay(50);
+		dex.data=0x2000;
+		msm_proc_comm_wince(&dex,0);
+		mdelay(3);
+		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR2,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		mdelay(10);
 	} else {
-		gpio_set_value(TROUT_GPIO_MDDI_32K_EN, 0);
-		gpio_set_value(MDDI_RST_N, 0);
-		msleep(10);
-		vreg_disable(vreg_lcm_2v85);
-		on_off = 1;
-		id = PM_VREG_PDOWN_AUX_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-		msleep(5);
-		gpio_set_value(V_VDDE2E_VDD2_GPIO, 0);
-		msleep(200);
-		vreg_disable(vreg_mddi_1v5);
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		gpio_set_value(RAPH100_LCD_PWR2, 0);
+		dex.cmd=PCOM_PMIC_REG_OFF;
+		dex.has_data=1;
+		dex.data=0x2000;
+		msm_proc_comm_wince(&dex,0);
+		mdelay(5); // delay time >5ms and <10ms
+		dex.data=0x800;
+		msm_proc_comm_wince(&dex,0);
+		mdelay(3);
+		gpio_set_value(RAPH100_LCD_PWR1, 0);
+		mdelay(10);
 	}
-#endif
+	*/
+	
 }
 
 static int htcraphael_mddi_epson_client_init(
@@ -422,8 +436,8 @@ static int htcraphael_mddi_toshiba_client_init(
 	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_toshiba_init_table,
-				 ARRAY_SIZE(mddi_toshiba_init_table));
+//	htcraphael_process_mddi_table(client_data, mddi_toshiba_init_table,
+//				 ARRAY_SIZE(mddi_toshiba_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	if (panel_id > 1) {
@@ -475,8 +489,8 @@ static int htcraphael_mddi_panel_unblank(
 		ret = -1;
 	};
 	//XXX: client_data->auto_hibernate(client_data, 1);
-	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
-	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
+//	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
+//	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
 	return ret;
 
 }
@@ -492,9 +506,9 @@ static int htcraphael_mddi_panel_blank(
 	switch(panel_id) {
 	case 0:
 		printk("deinit sharp panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_sharp_deinit_table,
-					 ARRAY_SIZE(mddi_sharp_deinit_table));
+//		htcraphael_process_mddi_table(client_data,
+//					 mddi_sharp_deinit_table,
+//					 ARRAY_SIZE(mddi_sharp_deinit_table));
 		break;
 	case 1:
 		printk("deinit tpo panel\n");
@@ -513,12 +527,21 @@ static int htcraphael_mddi_panel_blank(
 		ret = -1;
 	};
 	client_data->auto_hibernate(client_data, 1);
-	client_data->remote_write(client_data, 0, SYSCLKENA);
-	client_data->remote_write(client_data, 1, DPSUS);
+	
+//	client_data->remote_write(client_data, 0, SYSCLKENA);
+//	client_data->remote_write(client_data, 1, DPSUS);
 	return ret;
 }
+/*
+static void htcraphael_brightness_set(int level) {
+	if(level==0)
+		micropklt_set_lcd_state(0);
+	else
+		micropklt_set_lcd_state(1);
+}
 
-#if 0
+
+#if 1
 static struct led_classdev htcraphael_backlight_led = {
 	.name			= "lcd-backlight",
 	.brightness = htcraphael_DEFAULT_BACKLIGHT_BRIGHTNESS,
@@ -546,7 +569,7 @@ static struct platform_driver htcraphael_backlight_driver = {
 	},
 };
 #endif
-
+*/
 static struct resource resources_msm_fb[] = {
 	{
 		.start = MSM_FB_BASE,
@@ -613,7 +636,7 @@ int __init htcraphael_init_panel(void)
 		return 0;
 	}
 
-	vreg_mddi_1v5 = vreg_get(0, "gp2");
+/*	vreg_mddi_1v5 = vreg_get(0, "gp2");
 	if (IS_ERR(vreg_mddi_1v5))
 		return PTR_ERR(vreg_mddi_1v5);
 	vreg_lcm_2v85 = vreg_get(0, "gp4");
@@ -630,7 +653,7 @@ int __init htcraphael_init_panel(void)
 	{
 		printk(KERN_ERR "%s: set clock rate failed\n", __func__);
 	}
-
+*/
 	rc = platform_device_register(&msm_device_mdp);
 	if (rc)
 		return rc;

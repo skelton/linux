@@ -57,9 +57,9 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 		idx = 3;
 	else if ( !strcmp(led_cdev->name, "klt::action") )
 		idx = 4;
-	else if ( !strcmp(led_cdev->name, "klt::lcd-bkl") )
+	else if ( !strcmp(led_cdev->name, "klt::lcd-bkl") || !strcmp(led_cdev->name, "lcd-backlight"))
 		idx = 5;
-	else if ( !strcmp(led_cdev->name, "klt::keypad-bkl") )
+	else if ( !strcmp(led_cdev->name, "klt::keypad-bkl") || !strcmp(led_cdev->name, "button-backlight"))
 		idx = 6;
 	else
 		return;
@@ -211,6 +211,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	case 0x0a:
 	case 0x0b:
 		switch (buf[1])	{
+		case 0x01:
 		case 0x05:
 			supported = 1;
 			break;
@@ -270,6 +271,11 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	data->leds[6].name = "klt::keypad-bkl";
 	data->leds[6].brightness = LED_OFF;
 	data->leds[6].brightness_set = micropklt_led_brightness_set;
+
+#ifdef CONFIG_ANDROID_PMEM
+	data->leds[5].name = "lcd-backlight";
+	data->leds[6].name = "button-backlight";
+#endif
 
 	for (i=0; i<ARRAY_SIZE(data->leds); i++) {
 		r = led_classdev_register(&client->dev, &data->leds[i]);

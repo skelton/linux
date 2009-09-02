@@ -44,15 +44,13 @@ int gpio_to_irq(unsigned gpio);
 #define GPIOF_OWNER_ARM11       0x00400000 /* Set owner to arm11 */
 
 struct msm_gpio_config {
-        unsigned gpio:10;
-        unsigned dir:1;
-        unsigned out_op;
-        struct {
-                unsigned pull:2;
-                unsigned func:4;
-                unsigned drvstr:4;
-                unsigned ignore:11;
-        } config __attribute__((__packed__));
+	unsigned gpio:10;
+	unsigned dir:1;
+	unsigned out_op:1;
+	unsigned pull:2;
+	unsigned func:4;
+	unsigned drvstr:4;
+	unsigned ignore:11;
 } __attribute__((__packed__));
 
 extern int gpio_configure(unsigned int gpio, unsigned long flags);

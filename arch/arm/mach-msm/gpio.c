@@ -528,7 +528,7 @@ void msm_gpio_exit_sleep(void)
 void msm_gpio_set_function(struct msm_gpio_config cfg)
 {
         unsigned addr;
-        unsigned *config;
+        unsigned config;
         unsigned long flags;
         spin_lock_irqsave(&msm_gpio_lock, flags);
 
@@ -543,13 +543,12 @@ void msm_gpio_set_function(struct msm_gpio_config cfg)
                 spin_unlock_irqrestore(&msm_gpio_lock, flags);
                 return;
         }
-
         writel(cfg.gpio, addr);
-
-        config = (unsigned *) &cfg.config;
-        writel(*config, addr + 0x04);
+        config = (cfg.drvstr<<6) | (cfg.func<<2) | (cfg.pull);
+        writel(config, addr + 0x04);
+	printk("msm_gpio_set_function(%x, %x)\n",cfg.gpio, config);
         if (readl(addr) != cfg.gpio)
-                printk(KERN_WARNING "%s: could not set alt func %u => %u\n", __func__, cfg.gpio, cfg.config.func);
+                printk(KERN_WARNING "%s: could not set alt func %u => %u\n", __func__, cfg.gpio, cfg.func);
         if (cfg.dir)
                 gpio_direction_output(cfg.gpio, cfg.out_op);
         else

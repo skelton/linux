@@ -84,6 +84,8 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
 	struct smd_tty_info *info;
 	const char *name;
 
+	if(n==1) n=7; // map 7 to 1 for android compatability.
+
 	if (n == 0) {
 		name = "SMD_DS";
 	} else if (n == 1) {
@@ -96,6 +98,7 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
 		return -ENODEV;
 	}
 
+	
 	info = smd_tty + n;
 
 	mutex_lock(&smd_tty_lock);

@@ -111,15 +111,13 @@ struct msm_dex_command {
 	unsigned data;
 };
 
-#define DEX_GPIO_CFG(a, b, c, d, e, f) { \
+#define DEX_GPIO_CFG(a, b, c, d, e, f) (struct msm_gpio_config){ \
 		.gpio = (a), \
 		.dir = (c), \
 		.out_op = (f), \
-		.config = { \
-			.pull = (d), \
-			.func = (b), \
-			.drvstr = (e) \
-		} \
+		.pull = (d), \
+		.func = (b), \
+		.drvstr = (e) \
 	}
 
 int msm_proc_comm_wince(struct msm_dex_command *in, unsigned *out);
