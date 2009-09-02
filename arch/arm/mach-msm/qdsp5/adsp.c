@@ -47,9 +47,12 @@ static inline void allow_suspend(void)
 
 #include <linux/io.h>
 #include <mach/msm_iomap.h>
+#include <../smd_private.h>
 #include "adsp.h"
 
 #define INT_ADSP INT_ADSP_A11
+
+static unsigned adsp_cid=0;
 
 static struct adsp_info adsp_info;
 static struct msm_rpc_endpoint *rpc_cb_server_client;
@@ -796,7 +799,8 @@ int msm_adsp_disable(struct msm_adsp_module *module)
 static int msm_adsp_probe(struct platform_device *pdev)
 {
 	unsigned count;
-	int rc, i;
+	int rc,i;
+	
 
 	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
 
@@ -837,7 +841,8 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	// it works on my diamond but probably won't on other devices.
 	// to fix this we will have to either get this value automatically or
 	// figure out how to re-initialise the rpc subsystem. M.J.
-	rpc_cb_server_client->cid=0x07fb2266;
+	
+	rpc_cb_server_client->cid=adsp_cid;
 	rc = msm_rpc_register_server(rpc_cb_server_client,
 				     RPC_ADSP_RTOS_MTOA_PROG,
 				     RPC_ADSP_RTOS_MTOA_VERS);
@@ -905,6 +910,20 @@ static struct platform_driver msm_adsp_driver = {
 
 static int __init adsp_init(void)
 {
+	int i;
+	unsigned *rpcchan;
+	printk("Searching for adsp_cid\n");
+	if(!adsp_cid) {
+		rpcchan=smem_alloc(SMEM_SMD_BASE_ID+0x2,0x4028);
+		for(i=0;i<16384/4;i++)	{
+			if(rpcchan[i]==0x0b000030 && rpcchan[i+2]==0x01000000 && rpcchan[i+9]==0x02000000) {
+				adsp_cid=rpcchan[i+19];
+				printk("adsp cid found: \n",adsp_cid);
+				break;
+			}
+		}
+	}
+
 	return platform_driver_register(&msm_adsp_driver);
 }
 
