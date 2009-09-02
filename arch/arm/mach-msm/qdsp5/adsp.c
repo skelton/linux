@@ -916,8 +916,8 @@ static int __init adsp_init(void)
 	if(!adsp_cid) {
 		rpcchan=smem_alloc(SMEM_SMD_BASE_ID+0x2,0x4028);
 		for(i=0;i<16384/4;i++)	{
-			if(rpcchan[i]==0x0b000030 && rpcchan[i+2]==0x01000000 && rpcchan[i+9]==0x02000000) {
-				adsp_cid=rpcchan[i+19];
+			if(rpcchan[i]==0xfffffffe && rpcchan[i+1]==7 && rpcchan[i+2]==1) {
+				adsp_cid=rpcchan[i+3];
 				printk("adsp cid found: %08x\n",adsp_cid);
 				break;
 			}
