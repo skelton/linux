@@ -473,6 +473,10 @@ static void htcraphael_device_specific_fixes(void)
 		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(38);
 		raphael_keypad_data.backlight_gpio = 86;
 		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
+		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
+		msm_htc_hw_pdata.battery_smem_field_size = 2;
+		msm_battery_pdata.smem_offset = 0xfc110;
+		msm_battery_pdata.smem_field_size = 2;
 	}
 	if (machine_is_htcraphael_cdma()) {
 		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
@@ -481,6 +485,10 @@ static void htcraphael_device_specific_fixes(void)
 		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(39);
 		raphael_keypad_data.backlight_gpio = 86;
 		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph800;
+		msm_htc_hw_pdata.battery_smem_offset = 0xfc140;
+		msm_htc_hw_pdata.battery_smem_field_size = 4;
+		msm_battery_pdata.smem_offset = 0xfc140;
+		msm_battery_pdata.smem_field_size = 4;
 	}
 }
 
