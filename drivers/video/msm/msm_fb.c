@@ -248,6 +248,7 @@ static enum hrtimer_restart msmfb_fake_vsync(struct hrtimer *timer)
 {
 	struct msmfb_info *msmfb  = container_of(timer, struct msmfb_info,
 					       fake_vsync);
+	printk("fake vsync\n");
 	msmfb_start_dma(msmfb);
 	return HRTIMER_NORESTART;
 }

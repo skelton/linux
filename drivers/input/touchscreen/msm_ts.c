@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/fb_helper.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <mach/irqs.h>
@@ -304,6 +305,7 @@ static void msm_ts_process_data(int irq)
 
 skip:
 	/* Indicate to the hardware that we have handled the data and the touchscreen may update it again */
+	msleep(10);
 	if (irq) {
 		enable_irq(irq);
 		writel(readl(MSM_TS_BASE + TSSC_CTL) & ~0x800, MSM_TS_BASE + TSSC_CTL);
