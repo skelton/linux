@@ -153,10 +153,22 @@ end:
 #endif
 }
 
+#define DUMP_PLL(name, base) \
+	printk(KERN_WARNING "%s @ %p: MODE=%08x L=%08x M=%08x N=%08x\n", \
+		name, base, \
+		readl(base + 0x0), \
+		readl(base + 0x4), \
+		readl(base + 0x8), \
+		readl(base + 0xc))
 
 // Initialize PCOM registers
 int msm_proc_comm_wince_init()
 {
+	// Dump PLL params
+	DUMP_PLL("PLL0", MSM_CLK_CTL_BASE + 0x300);
+	DUMP_PLL("PLL1", MSM_CLK_CTL_BASE + 0x31c);
+	DUMP_PLL("PLL2", MSM_CLK_CTL_BASE + 0x338);
+
 #if !defined(CONFIG_MSM_AMSS_VERSION_WINCE)
         return 0;
 #else
