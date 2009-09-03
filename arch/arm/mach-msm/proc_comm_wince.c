@@ -153,22 +153,24 @@ end:
 #endif
 }
 
-#define DUMP_PLL(name, base) \
-	printk(KERN_WARNING "%s @ %p: MODE=%08x L=%08x M=%08x N=%08x\n", \
-		name, base, \
-		readl(base + 0x0), \
-		readl(base + 0x4), \
-		readl(base + 0x8), \
-		readl(base + 0xc))
+#define PLLn_BASE(n)		(MSM_CLK_CTL_BASE + 0x300 + 28 * (n))
+#define TCX0			19200000 // Hz
+#define PLL_FREQ(l, m, n)	(TCX0 * (l) + TCX0 * (m) / (n))
+
+#define DUMP_PLL(name, base) { \
+	unsigned int mode, L, M, N, freq; \
+	mode = readl(base); \
+	L = readl(base + 0x4); \
+	M = readl(base + 0x8); \
+	N = readl(base + 0xc); \
+	freq = PLL_FREQ(L, M, N); \
+	printk(KERN_WARNING "%s @ %p: MODE=%08x L=%08x M=%08x N=%08x\n freq=%u Hz (%u MHz)\n", \
+		name, base, mode, L, M, N, freq, freq / 1000000); \
+	}
 
 // Initialize PCOM registers
 int msm_proc_comm_wince_init()
 {
-	// Dump PLL params
-	DUMP_PLL("PLL0", MSM_CLK_CTL_BASE + 0x300);
-	DUMP_PLL("PLL1", MSM_CLK_CTL_BASE + 0x31c);
-	DUMP_PLL("PLL2", MSM_CLK_CTL_BASE + 0x338);
-
 #if !defined(CONFIG_MSM_AMSS_VERSION_WINCE)
         return 0;
 #else
@@ -185,6 +187,13 @@ int msm_proc_comm_wince_init()
 
 	spin_unlock_irqrestore(&proc_comm_lock, flags);
 	printk(KERN_INFO "%s: WinCE PCOM initialized.\n", __func__);
+
+	// Dump PLL params (for debug purposes, no relation to proc_comm)
+	DUMP_PLL("PLL0", PLLn_BASE(0));
+	DUMP_PLL("PLL1", PLLn_BASE(1));
+	DUMP_PLL("PLL2", PLLn_BASE(2));
+	DUMP_PLL("PLL3", PLLn_BASE(3));
+
 	return 0;
 #endif
 }
