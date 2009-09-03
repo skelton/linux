@@ -140,6 +140,54 @@ struct mddi_table {
 	uint32_t reg;
 	uint32_t value;
 };
+
+static struct mddi_table mddi_lcm_init_table[] = {
+{0x0010801c,0x4bec0066},{1,50},
+{0x00108020,0x00000113},
+{0x00108024,0x00000000},
+{0x00108028,0x00000001},{1,100},
+{0x0010802c,0x00000001},
+{0x00160004,0x0000a1ef},
+{0x00170000,0x00000000},{1,50},
+{0x00160000,0x00000000},
+{0x00150000,0x03cf0000},
+{0x00150004,0x000003cf},
+{0x00150028,0x00000000},{1,50},
+{0x00160008,0x00000001},
+{0x00140008,0x00000060},
+{0x00140000,0x00001388},{1,60},
+{0x0014001c,0x00000001},
+{0x00140028,0x00000060},
+{0x00140020,0x00001388},
+{0x0014001c,0x00000001},
+{0x00140028,0x00000060},
+{0x00140020,0x00001388},
+{0x0014003c,0x00000001},
+{0x00140008,0x000000e0},
+{0x00140028,0x000000e0},
+{0x00140068,0x00000003},
+{0x00108044,0x028001e0},
+{0x00108048,0x01e000f0},
+{0x0010804c,0x01e000f0},
+{0x00108050,0x01e000f0},
+{0x00108054,0x00dc00b0},
+{0x00160004,0x0000a1eb},
+{0x00110004,0x00000001},
+{0x0011000c,0x00000008},
+{0x00110030,0x00000001},
+{0x00110020,0x00000000},
+{0x00110034,0x000000f9},
+{0x00110038,0x00000002},
+{0x0011003c,0x00000007},
+{0x00110040,0x000000ef},
+{0x00110044,0x000002ff},
+{0x00110048,0x00000005},
+{0x0011004c,0x00000009},
+{0x00110050,0x0000027f},
+{0x00110008,0x00000001},
+{0x00150000,0x00040004},
+};
+
 static struct mddi_table mddi_toshiba_init_table[] = {
 #if 0
 	{ DPSET0,       0x09e90046 },
@@ -358,36 +406,22 @@ static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_dat
 	
 	printk("htcraphael_mddi_power_client(%d)\n", on);
 	
-/*
+
 	if(on) {
 		gpio_set_value(RAPH100_LCD_PWR1, 1);
 		dex.cmd=PCOM_PMIC_REG_ON;
 		dex.has_data=1;
 		dex.data=0x800;
 		msm_proc_comm_wince(&dex,0);
-		
-		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
-		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
-		gpio_set_value(0x3d,0);
-		mdelay(5);
-		gpio_set_value(0x3d,1);
-		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,0,GPIO_INPUT,GPIO_NO_PULL,GPIO_2MA,0));
-		for(i=0;i<10;i++) {
-			gpio_set_value(0x3c,0);
-			mdelay(5);
-			gpio_set_value(0x3c,1);
-		}
-		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
-		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
-		msm_gpio_set_function(DEX_GPIO_CFG(0x1b,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
-		
 		mdelay(50);
 		dex.data=0x2000;
 		msm_proc_comm_wince(&dex,0);
-		mdelay(3);
-		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR2,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
-		mdelay(10);
+		mdelay(50);
+//		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR2,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		gpio_set_value(RAPH100_LCD_PWR2,1);		
+		mdelay(50);
 	} else {
+/*
 		gpio_set_value(RAPH100_LCD_PWR2, 0);
 		dex.cmd=PCOM_PMIC_REG_OFF;
 		dex.has_data=1;
@@ -399,8 +433,9 @@ static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_dat
 		mdelay(3);
 		gpio_set_value(RAPH100_LCD_PWR1, 0);
 		mdelay(10);
+*/
 	}
-	*/
+	
 	
 }
 
@@ -436,8 +471,8 @@ static int htcraphael_mddi_toshiba_client_init(
 	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
-//	htcraphael_process_mddi_table(client_data, mddi_toshiba_init_table,
-//				 ARRAY_SIZE(mddi_toshiba_init_table));
+	htcraphael_process_mddi_table(client_data, mddi_lcm_init_table,
+				 ARRAY_SIZE(mddi_toshiba_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	if (panel_id > 1) {
@@ -462,27 +497,27 @@ static int htcraphael_mddi_panel_unblank(
 	int panel_id, ret = 0;
 	
 	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_toshiba_panel_init_table,
+	htcraphael_process_mddi_table(client_data, mddi_lcm_init_table,
 		ARRAY_SIZE(mddi_toshiba_panel_init_table));
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	switch(panel_id) {
 	 case 0:
 		printk("init sharp panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_sharp_init_table,
-					 ARRAY_SIZE(mddi_sharp_init_table));
+//		htcraphael_process_mddi_table(client_data,
+//					 mddi_sharp_init_table,
+//					 ARRAY_SIZE(mddi_sharp_init_table));
 		break;
 	case 1:
 		printk("init tpo panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_tpo_init_table,
-					 ARRAY_SIZE(mddi_tpo_init_table));
+//		htcraphael_process_mddi_table(client_data,
+//					 mddi_tpo_init_table,
+//					 ARRAY_SIZE(mddi_tpo_init_table));
 		break;
 	case 3:
 		printk("init hitachi panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_epson_init_table,
-					 ARRAY_SIZE(mddi_epson_init_table));
+//		htcraphael_process_mddi_table(client_data,
+//					 mddi_epson_init_table,
+//					 ARRAY_SIZE(mddi_epson_init_table));
 		break;
 	default:
 		printk("unknown panel_id: %d\n", panel_id);
@@ -512,15 +547,15 @@ static int htcraphael_mddi_panel_blank(
 		break;
 	case 1:
 		printk("deinit tpo panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_tpo_deinit_table,
-					 ARRAY_SIZE(mddi_tpo_deinit_table));
+//		htcraphael_process_mddi_table(client_data,
+//					 mddi_tpo_deinit_table,
+//					 ARRAY_SIZE(mddi_tpo_deinit_table));
 		break;
 	case 3:
 		printk("deinit epson panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_epson_deinit_table,
-					 ARRAY_SIZE(mddi_epson_deinit_table));
+//		htcraphael_process_mddi_table(client_data,
+//					 mddi_epson_deinit_table,
+//					 ARRAY_SIZE(mddi_epson_deinit_table));
 		break;
 	default:
 		printk("unknown panel_id: %d\n", panel_id);
@@ -532,44 +567,7 @@ static int htcraphael_mddi_panel_blank(
 //	client_data->remote_write(client_data, 1, DPSUS);
 	return ret;
 }
-/*
-static void htcraphael_brightness_set(int level) {
-	if(level==0)
-		micropklt_set_lcd_state(0);
-	else
-		micropklt_set_lcd_state(1);
-}
 
-
-#if 1
-static struct led_classdev htcraphael_backlight_led = {
-	.name			= "lcd-backlight",
-	.brightness = htcraphael_DEFAULT_BACKLIGHT_BRIGHTNESS,
-	.brightness_set = htcraphael_brightness_set,
-};
-
-static int htcraphael_backlight_probe(struct platform_device *pdev)
-{
-	led_classdev_register(&pdev->dev, &htcraphael_backlight_led);
-	return 0;
-}
-
-static int htcraphael_backlight_remove(struct platform_device *pdev)
-{
-	led_classdev_unregister(&htcraphael_backlight_led);
-	return 0;
-}
-
-static struct platform_driver htcraphael_backlight_driver = {
-	.probe		= htcraphael_backlight_probe,
-	.remove		= htcraphael_backlight_remove,
-	.driver		= {
-		.name		= "htcraphael-backlight",
-		.owner		= THIS_MODULE,
-	},
-};
-#endif
-*/
 static struct resource resources_msm_fb[] = {
 	{
 		.start = MSM_FB_BASE,

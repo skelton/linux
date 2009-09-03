@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2007 Google Incorporated
  *
- * This software is licensed under the terms of the GNU General Public
+ * This software is licensed under the terms of the GNU General Public``
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
  *
@@ -124,7 +124,7 @@ static void msmfb_handle_dma_interrupt(struct msmfb_callback *callback)
 	static int64_t frame_count;
 	static ktime_t last_sec;
 #endif
-
+	DLOG(SHOW_UPDATES, "dma_int %d %d %d\n",msmfb->frame_requested,msmfb->frame_done,msmfb->update_frame);
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
 	msmfb->frame_done = msmfb->frame_requested;
 	if (msmfb->sleeping == UPDATING &&
@@ -222,6 +222,7 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 		h = area.height;
 	
 	addr = ((msmfb->xres * (yoffset + y) + x) * 2);
+	DLOG(SHOW_UPDATES, "start_dma %d %d %d\n",msmfb->frame_requested,msmfb->frame_done,msmfb->update_frame);
 	mdp->dma(mdp, addr + msmfb->fb->fix.smem_start,
 		 msmfb->xres * 2, w, h, x, y, &msmfb->dma_callback,
 		 panel->interface_type);
