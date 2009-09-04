@@ -53,6 +53,7 @@ static inline void allow_suspend(void)
 #define INT_ADSP INT_ADSP_A11
 
 static unsigned adsp_cid=0;
+module_param_named(cid, adsp_cid, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static struct adsp_info adsp_info;
 static struct msm_rpc_endpoint *rpc_cb_server_client;
@@ -912,8 +913,8 @@ static int __init adsp_init(void)
 {
 	int i;
 	unsigned *rpcchan;
-	printk("Searching for adsp_cid\n");
 	if(!adsp_cid) {
+		printk("Searching for adsp_cid\n");
 		rpcchan=smem_alloc(SMEM_SMD_BASE_ID+0x2,0x4028);
 		for(i=0;i<16384/4;i++)	{
 			if(rpcchan[i]==0xfffffffe && rpcchan[i+1]==7 && rpcchan[i+2]==1) {
@@ -922,6 +923,8 @@ static int __init adsp_init(void)
 				break;
 			}
 		}
+	} else {
+		printk("Using adsp_cid=%08x\n", adsp_cid);
 	}
 
 	return platform_driver_register(&msm_adsp_driver);

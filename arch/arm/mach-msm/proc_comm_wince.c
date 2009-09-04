@@ -164,7 +164,7 @@ end:
 	M = readl(base + 0x8); \
 	N = readl(base + 0xc); \
 	freq = PLL_FREQ(L, M, N); \
-	printk(KERN_WARNING "%s @ %p: MODE=%08x L=%08x M=%08x N=%08x\n freq=%u Hz (%u MHz)\n", \
+	printk(KERN_WARNING "%s @ %p: MODE=%08x L=%08x M=%08x N=%08x freq=%u Hz (%u MHz)\n", \
 		name, base, mode, L, M, N, freq, freq / 1000000); \
 	}
 
