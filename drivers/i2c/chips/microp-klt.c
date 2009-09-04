@@ -349,12 +349,14 @@ static int micropklt_read(struct i2c_client *client, unsigned id, char *buf, int
 static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	D("suspending device...");
+	micropklt_set_led_states(0x10,0x10);
 	return 0;
 }
 
 static int micropklt_resume(struct i2c_client *client)
 {
 	D("resuming device...");
+	micropklt_set_led_states(0x10,0x00);
 	return 0;
 }
 #else

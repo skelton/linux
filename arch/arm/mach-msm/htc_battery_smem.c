@@ -301,12 +301,12 @@ int htc_cable_status_update(int status)
 
 	msm_hsusb_set_vbus_state(source == CHARGER_USB);
 	if (source == CHARGER_USB) {
-		wake_lock(&vbus_wake_lock);
+//		wake_lock(&vbus_wake_lock);
 	} else {
 		/* give userspace some time to see the uevent and update
 		 * LED state or whatnot...
 		 */
-		wake_lock_timeout(&vbus_wake_lock, HZ / 2);
+//		wake_lock_timeout(&vbus_wake_lock, HZ / 2);
 	}
 
 	/* if the power source changes, all power supplies may change state */
