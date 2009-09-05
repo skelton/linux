@@ -50,7 +50,7 @@
 #include "proc_comm_wince.h"
 #include "devices.h"
 #include "htc_hw.h"
-#include "board-htcraphael.h"
+#include "board-htcdiamond.h"
 
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
