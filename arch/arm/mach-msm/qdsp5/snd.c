@@ -118,6 +118,25 @@ static int get_endpoint(struct snd_ctxt *snd, unsigned long arg)
 	return rc;
 }
 
+void snd_set_device(int device,int ear_mute, int mic_mute) {
+	struct snd_ctxt *snd = &the_snd;
+	struct snd_set_device_msg dmsg;
+	dmsg.args.device = cpu_to_be32(device);
+	dmsg.args.ear_mute = cpu_to_be32(ear_mute);
+	dmsg.args.mic_mute = cpu_to_be32(mic_mute);
+	dmsg.args.cb_func = -1;
+	dmsg.args.client_data = 0;
+
+	pr_info("snd_set_device %d %d %d\n", device,
+					 ear_mute, mic_mute);
+
+	msm_rpc_call(snd->ept,
+		SND_SET_DEVICE_PROC,
+		&dmsg, sizeof(dmsg), 5 * HZ);
+}
+EXPORT_SYMBOL(snd_set_device);
+
+
 static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct snd_set_device_msg dmsg;

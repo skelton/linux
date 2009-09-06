@@ -20,6 +20,7 @@
 #include <mach/msm_iomap.h>
 
 #include "htc_hw.h"
+#include "AudioPara.c"
 
 #if 1
  #define DHTC(fmt, arg...) printk(KERN_DEBUG "[HTC] %s: " fmt "\n", __FUNCTION__, ## arg)
@@ -97,12 +98,61 @@ static struct class htc_hw_class = {
 	.name = "htc_hw",
 	.class_attrs = htc_hw_class_attrs,
 };
+
 static ssize_t gsmphone_show(struct class *class, char *buf) {
 	return sprintf(buf, "%d\n", machine_arch_type);
 }
 
+static void set_audio_parameters(char *name) {
+	int i;
+	for(i=0;i<ARRAY_SIZE(audioparams);i++)
+		if(!strcmp(name,audioparams[i].name))
+			break;
+	if(i==ARRAY_SIZE(audioparams)) {
+		printk("Unknown audio parameter: %s\n",name);
+		return;
+	}
+	memcpy((void *)(MSM_SHARED_RAM_BASE+0xfc300),audioparams[i].data,0x140);
+}
+void snd_set_device(int device,int ear_mute, int mic_mute);
+void msm_audio_path(int i) {
+	struct msm_dex_command dex;
+	dex.cmd=PCOM_UPDATE_AUDIO;
+	dex.has_data=1;
+	dex.data=0x10;
+
+	switch (i) {
+		case 2: // Phone Audio Start
+			set_audio_parameters("PHONE_EARCUPLE_VOL2");
+			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0180;
+			msm_proc_comm_wince(&dex,0);
+			snd_set_device(0,0,0);
+			break;
+		case 5: // Phone Audio End
+                        set_audio_parameters("CE_PLAYBACK_HANDSFREE");
+			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080;
+                        msm_proc_comm_wince(&dex,0);
+			snd_set_device(1,1,1);
+                        break;
+	}
+}
+
+static ssize_t audio_store(struct class *class,
+                                   const char *buf,
+                                   size_t count)
+{
+        uint32_t audio;
+        if (sscanf(buf, "%d", &audio) != 1)
+                return -EINVAL;
+        printk("Sound: %d\n",audio);
+        msm_audio_path(audio);
+        return count;
+}
+
+
 // these are for compatability with the vogue ril
 static struct class_attribute vogue_hw_class_attrs[] = {
+	__ATTR(audio, 0222, NULL, audio_store),
 	__ATTR_RO(gsmphone),
 	__ATTR_NULL,
 };
