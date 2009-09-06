@@ -164,9 +164,34 @@ end:
 	M = readl(base + 0x8); \
 	N = readl(base + 0xc); \
 	freq = PLL_FREQ(L, M, N); \
-	printk(KERN_WARNING "%s @ %p: MODE=%08x L=%08x M=%08x N=%08x freq=%u Hz (%u MHz)\n", \
+	printk(KERN_INFO "%s @ %p: MODE=%08x L=%08x M=%08x N=%08x freq=%u Hz (%u MHz)\n", \
 		name, base, mode, L, M, N, freq, freq / 1000000); \
 	}
+
+// Dump useful debug stuff
+void dump_debug_stuff(void)
+{
+	unsigned int pcb_xc;
+	char amss_ver[16];
+
+	// Dump PLL params (for debug purposes, no relation to proc_comm)
+	DUMP_PLL("PLL0", PLLn_BASE(0));
+	DUMP_PLL("PLL1", PLLn_BASE(1));
+	DUMP_PLL("PLL2", PLLn_BASE(2));
+	DUMP_PLL("PLL3", PLLn_BASE(3));
+
+	// Dump PCB XC
+	pcb_xc = readl(MSM_SHARED_RAM_BASE + 0xfc048);
+	printk(KERN_INFO "PCB XC: %08x\n", pcb_xc);
+
+	// Dump AMMS version
+	*(unsigned int *) (amss_ver + 0x0) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x0);
+	*(unsigned int *) (amss_ver + 0x4) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x4);
+	*(unsigned int *) (amss_ver + 0x8) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x8);
+	*(unsigned int *) (amss_ver + 0xc) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0xc);
+	amss_ver[15] = 0;
+	printk(KERN_INFO "AMSS version: %s\n", amss_ver);
+}
 
 // Initialize PCOM registers
 int msm_proc_comm_wince_init()
@@ -188,11 +213,7 @@ int msm_proc_comm_wince_init()
 	spin_unlock_irqrestore(&proc_comm_lock, flags);
 	printk(KERN_INFO "%s: WinCE PCOM initialized.\n", __func__);
 
-	// Dump PLL params (for debug purposes, no relation to proc_comm)
-	DUMP_PLL("PLL0", PLLn_BASE(0));
-	DUMP_PLL("PLL1", PLLn_BASE(1));
-	DUMP_PLL("PLL2", PLLn_BASE(2));
-	DUMP_PLL("PLL3", PLLn_BASE(3));
+	dump_debug_stuff();
 
 	return 0;
 #endif
