@@ -1,9 +1,10 @@
 obj-y += io.o idle.o irq.o timer.o dma.o memory.o
 obj-y += devices.o
+obj-$(CONFIG_MSM_AMSS_VERSION_5200) += proc_comm_wince.o
+obj-$(CONFIG_MSM_AMSS_VERSION_6150) += proc_comm_wince.o
 obj-$(CONFIG_MSM_AMSS_VERSION_6210) += proc_comm.o
 obj-$(CONFIG_MSM_AMSS_VERSION_6220) += proc_comm.o
 obj-$(CONFIG_MSM_AMSS_VERSION_6225) += proc_comm.o
-obj-$(CONFIG_MSM_AMSS_VERSION_WINCE) += proc_comm_wince.o
 obj-y += vreg.o
 obj-y += acpuclock.o
 #obj-y += clock.o
