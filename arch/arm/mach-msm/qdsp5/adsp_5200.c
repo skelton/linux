@@ -270,7 +270,7 @@ int adsp_init_info(struct adsp_info *info)
 	info->max_msg16_size = 193;
 	info->max_msg32_size = 8;
 
-	info->max_task_id = 16;
+	info->max_task_id = QDSP_RTOS_MAX_TASK_ID;
 	info->max_module_id = QDSP_MODULE_MAX - 1;
 	info->max_queue_id = QDSP_QUEUE_MAX;
 	info->max_image_id = 2;
