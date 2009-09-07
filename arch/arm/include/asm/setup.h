@@ -209,6 +209,9 @@ struct meminfo {
 	struct membank bank[NR_BANKS];
 };
 
+#define bank_pfn_start(bank)	__phys_to_pfn((bank)->start)
+#define bank_pfn_end(bank)	__phys_to_pfn((bank)->start + (bank)->size)
+
 /*
  * Early command line parameters.
  */
