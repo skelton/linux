@@ -233,6 +233,9 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 
 		writel(0, A11S_STANDBY_CTL);
 		writel(0, A11RAMBACKBIAS);
+		// proc_comm(1) to copy what wince does
+		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
+		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
 
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_STATE)
 			printk(KERN_INFO "msm_sleep(): enter "
@@ -252,17 +255,21 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 	if (sleep_mode < MSM_PM_SLEEP_MODE_APPS_SLEEP) {
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_SMSM_STATE)
 			smsm_print_sleep_info();
+		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
 		saved_vector[0] = msm_pm_reset_vector[0];
 		saved_vector[1] = msm_pm_reset_vector[1];
 		msm_pm_reset_vector[0] = 0xE51FF004; /* ldr pc, 4 */
 		msm_pm_reset_vector[1] = virt_to_phys(msm_pm_collapse_exit);
+		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_RESET_VECTOR)
 			printk(KERN_INFO "msm_sleep(): vector %x %x -> "
 			       "%x %x\n", saved_vector[0], saved_vector[1],
 			       msm_pm_reset_vector[0], msm_pm_reset_vector[1]);
 		collapsed = msm_pm_collapse();
+		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
 		msm_pm_reset_vector[0] = saved_vector[0];
 		msm_pm_reset_vector[1] = saved_vector[1];
+		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 		if (collapsed) {
 			cpu_init();
 			local_fiq_enable();

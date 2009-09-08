@@ -50,7 +50,7 @@ enum {
 	MSM_SMSM_DEBUG = 1U << 0,
 };
 
-static int msm_smd_debug_mask;
+static int msm_smd_debug_mask=2;
 
 module_param_named(debug_mask, msm_smd_debug_mask,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);

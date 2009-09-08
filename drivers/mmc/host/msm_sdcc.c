@@ -1232,7 +1232,7 @@ msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 				clk_disable(host->pclk);
 				host->clks_on = 0;
 			}
-		}
+		} else printk("mmc_suspend_host failed\n");
 	}
 	return rc;
 }

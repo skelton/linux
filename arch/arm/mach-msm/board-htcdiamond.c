@@ -25,6 +25,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/i2c.h>
 #include <linux/mm.h>
+#include <linux/gpio_event.h>
+
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -145,18 +147,22 @@ static struct i2c_board_info i2c_devices[] = {
 		// LED & Backlight controller
 		I2C_BOARD_INFO("microp-klt", 0x66),
 	},
+/*
 	{
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
-		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
+		// .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N),
 	},
+*/
 	{
 		// Raphael NaviPad (cy8c20434)
 		I2C_BOARD_INFO("raph_navi_pad", 0x62),
 	},
+/*
 	{
 		// Accelerometer
 		I2C_BOARD_INFO("kionix-kxsd9", 0x18),
 	},
+*/
 };
 
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -308,6 +314,38 @@ static struct platform_device ram_console_device = {
 	.resource       = ram_console_resource,
 };
 
+struct gpio_event_direct_entry button_keymap[] = {
+	{.gpio=RAPH100_PWR_BTN,.code=KEY_HOME},
+};
+
+static struct gpio_event_input_info button_event_info = {
+	.info.func      = gpio_event_input_func,
+	.keymap         = button_keymap,
+	.keymap_size    = ARRAY_SIZE(button_keymap),
+	.debounce_time.tv.nsec = 1 * NSEC_PER_MSEC,
+	.poll_time.tv.nsec = 20 * NSEC_PER_MSEC,
+	.flags          = 0,
+	.type=EV_KEY,
+};
+
+static struct gpio_event_info *button_info[] = {
+	&button_event_info.info
+};
+
+static struct gpio_event_platform_data button_data = {
+	.name           = "buttons",
+	.info           = button_info,
+	.info_count     = ARRAY_SIZE(button_info)
+};
+
+static struct platform_device msm_device_buttons = {
+	.name           = GPIO_EVENT_DEV_NAME,
+	.id             = -1,
+	.num_resources  = 0,
+	.dev            = {
+		.platform_data  = &button_data,
+        }
+};
 
 static struct platform_device *devices[] __initdata = {
 	&ram_console_device,
@@ -331,6 +369,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&raphael_snd,
 	&raphael_gps,
+	&msm_device_buttons,
 };
 
 extern struct sys_timer msm_timer;
