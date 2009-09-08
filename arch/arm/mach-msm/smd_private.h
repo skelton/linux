@@ -68,7 +68,7 @@ struct smsm_interrupt_info
 	uint32_t aArm_en_mask;
 	uint32_t aArm_interrupts_pending;
 	uint32_t aArm_wakeup_reason;
-	uint32_t unknown;
+	uint32_t padding;
 };
 
 #define SZ_DIAG_ERR_MSG 0xC8

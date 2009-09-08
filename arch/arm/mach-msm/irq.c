@@ -267,6 +267,7 @@ void msm_irq_enter_sleep1(bool arm9_wake, int from_idle)
 		int_info.aArm_en_mask = msm_irq_smsm_wake_enable[!from_idle];
 		int_info.aArm_en_mask = 0x00c40000; // hard coded for now - MJ
 		int_info.aArm_interrupts_pending = 0;
+		int_info.aArm_wakeup_reason=0;
 		smsm_set_interrupt_info(&int_info);
 	}
 }

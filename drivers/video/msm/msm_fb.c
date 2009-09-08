@@ -363,7 +363,7 @@ restart:
 	spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
 
 	/* if the panel is all the way on wait for vsync, otherwise sleep
-	 * for 16 ms (long enough for the dma to panel) and then begin dma */
+	 * for 50ms (long enough for the dma to panel) and then begin dma */
 	msmfb->vsync_request_time = ktime_get();
 	if (panel->request_vsync && (sleeping == AWAKE)) {
 		wake_lock_timeout(&msmfb->idle_lock, HZ/4);
@@ -371,7 +371,7 @@ restart:
 	} else {
 		if (!hrtimer_active(&msmfb->fake_vsync)) {
 			hrtimer_start(&msmfb->fake_vsync,
-				      ktime_set(0, NSEC_PER_SEC/60),
+				      ktime_set(0, NSEC_PER_SEC/20),
 				      HRTIMER_MODE_REL);
 		}
 	}

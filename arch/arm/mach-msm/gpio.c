@@ -450,6 +450,7 @@ static void msm_gpio_sleep_int(unsigned long arg)
 		int count = smem_gpio->num_fired[i];
 		for(j = 0; j < count; j++) {
 			/* TODO: Check mask */
+			printk("msm_gpio_sleep_int %d\n",smem_gpio->fired[i][j]);
 			generic_handle_irq(MSM_GPIO_TO_INT(smem_gpio->fired[i][j]));
 		}
 	}
@@ -460,7 +461,7 @@ static DECLARE_TASKLET(msm_gpio_sleep_int_tasklet, msm_gpio_sleep_int, 0);
 
 void msm_gpio_enter_sleep(int from_idle)
 {
-	int i;
+	int i,j;
 	struct tramp_gpio_smem *smem_gpio;
 
 	BUILD_BUG_ON(ARRAY_SIZE(msm_gpio_chips) != ARRAY_SIZE(smem_gpio->enabled));
@@ -474,6 +475,7 @@ void msm_gpio_enter_sleep(int from_idle)
 			smem_gpio->polarity[i] = 0;
 		}
 	}
+//	writel(0,msm_gpio_chips[3].regs.int_edge);
 	for (i = 0; i < ARRAY_SIZE(msm_gpio_chips); i++) {
 		writel(msm_gpio_chips[i].int_enable[!from_idle], msm_gpio_chips[i].regs.int_en);
 		if (smem_gpio) {
@@ -504,8 +506,12 @@ void msm_gpio_enter_sleep(int from_idle)
 				       smem_gpio->detection[i],
 				       smem_gpio->polarity[i]);
 			}
-		for(i = 0; i < GPIO_SMEM_NUM_GROUPS; i++)
+		for(i = 0; i < GPIO_SMEM_NUM_GROUPS; i++) {
 			smem_gpio->num_fired[i] = 0;
+//			for(j=0;j<GPIO_SMEM_MAX_PC_INTERRUPTS;j++)
+//				smem_gpio->fired[i][j]=0;
+		}
+			
 	}
 }
 

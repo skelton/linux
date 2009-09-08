@@ -180,8 +180,8 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 
 	if (params.ns_only > 0)
 	{
-#if 0
-		nsreg = readl(MSM_CLK_CTL_BASE + offset);
+#if 1
+		nsreg = readl(MSM_CLK_CTL_BASE + offset) & 0xfffff000;
 		writel( nsreg | params.ns_only, MSM_CLK_CTL_BASE + offset);
 #else
 		writel(params.ns_only, MSM_CLK_CTL_BASE + offset);
@@ -310,7 +310,7 @@ static int pc_clk_enable(uint32_t id)
 		return 0;
 	} else if (params.ns_only > 0 && params.offset)
 	{
-		writel(readl(MSM_CLK_CTL_BASE + params.offset) | params.ns_only, MSM_CLK_CTL_BASE + params.offset);
+		writel((readl(MSM_CLK_CTL_BASE + params.offset) &0xfffff000) | params.ns_only, MSM_CLK_CTL_BASE + params.offset);
 		return 0;
 	}
 	printk(KERN_WARNING "%s: FIXME! enabling a clock that doesn't have an ena bit "
@@ -331,7 +331,7 @@ static void pc_clk_disable(uint32_t id)
 		writel(readl(MSM_CLK_CTL_BASE) & ~(1U << params.idx), MSM_CLK_CTL_BASE);
 	} else if (params.ns_only > 0 && params.offset)
 	{
-		writel(readl(MSM_CLK_CTL_BASE + params.offset) & ~params.ns_only, MSM_CLK_CTL_BASE + params.offset);
+		writel(readl(MSM_CLK_CTL_BASE + params.offset) & 0xfffff000, MSM_CLK_CTL_BASE + params.offset);
 	} else {
 		printk(KERN_WARNING "%s: FIXME! disabling a clock that doesn't have an "
 		       "ena bit: %u\n", __func__, id);

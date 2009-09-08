@@ -451,6 +451,7 @@ static void mddi_suspend(struct msm_mddi_client_data *cdata)
 	/* turn off the clock */
 	clk_disable(mddi->clk);
 	wake_unlock(&mddi->idle_lock);
+	printk("mddi_suspended\n");
 }
 
 static void mddi_resume(struct msm_mddi_client_data *cdata)
@@ -473,6 +474,7 @@ static void mddi_resume(struct msm_mddi_client_data *cdata)
 	mddi_wait_interrupt(mddi, MDDI_INT_NO_CMD_PKTS_PEND);
 	mddi_set_auto_hibernate(&mddi->client_data, 1);
 	wake_unlock(&mddi->idle_lock);
+	printk("mddi_resumed\n");
 }
 
 static int __init mddi_get_client_caps(struct mddi_info *mddi)

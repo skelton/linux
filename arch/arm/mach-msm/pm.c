@@ -49,7 +49,7 @@ enum {
 	MSM_PM_DEBUG_SMSM_STATE = 1U << 5,
 	MSM_PM_DEBUG_IDLE = 1U << 6,
 };
-static int msm_pm_debug_mask=0xff;
+static int msm_pm_debug_mask=255;
 module_param_named(debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 enum {
@@ -233,6 +233,7 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 
 		writel(0, A11S_STANDBY_CTL);
 		writel(0, A11RAMBACKBIAS);
+		writel(0,MSM_GPIOCFG1_BASE+0x220); // disable  keysense IRQ
 		// proc_comm(1) to copy what wince does
 		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
 		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
@@ -302,6 +303,7 @@ ramp_down_failed:
 	msm_irq_exit_sleep1();
 enter_failed:
 	if (enter_state) {
+		writel(7,MSM_GPIOCFG1_BASE+0x220); // enable keysense IRQ
 		writel(0x00, A11S_CLK_SLEEP_EN);
 		writel(0, A11S_PWRDOWN);
 		smsm_change_state(enter_state, exit_state);
@@ -327,6 +329,15 @@ enter_failed:
 	msm_irq_exit_sleep3();
 	msm_gpio_exit_sleep();
 	smd_sleep_exit();
+	if(msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE) { // vibrate to test pc
+		struct msm_dex_command vibra;
+		vibra.cmd = PCOM_VIBRA_ON;
+		writel(0xb22, MSM_SHARED_RAM_BASE + 0xfc130);
+		msm_proc_comm_wince(&vibra, 0);
+		mdelay(20);
+		vibra.cmd = PCOM_VIBRA_OFF;
+		msm_proc_comm_wince(&vibra, 0);
+	}
 	return rv;
 }
 

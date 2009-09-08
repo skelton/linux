@@ -47,7 +47,7 @@ void (*msm_hw_reset_hook)(void);
 
 enum {
 	MSM_SMD_DEBUG = 1U << 0,
-	MSM_SMSM_DEBUG = 1U << 0,
+	MSM_SMSM_DEBUG = 1U << 1,
 };
 
 static int msm_smd_debug_mask=2;
