@@ -508,8 +508,8 @@ void msm_gpio_enter_sleep(int from_idle)
 			}
 		for(i = 0; i < GPIO_SMEM_NUM_GROUPS; i++) {
 			smem_gpio->num_fired[i] = 0;
-//			for(j=0;j<GPIO_SMEM_MAX_PC_INTERRUPTS;j++)
-//				smem_gpio->fired[i][j]=0;
+			for(j=0;j<GPIO_SMEM_MAX_PC_INTERRUPTS;j++)
+				smem_gpio->fired[i][j]=0;
 		}
 			
 	}

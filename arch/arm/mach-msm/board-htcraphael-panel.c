@@ -408,6 +408,7 @@ static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_dat
 	
 
 	if(on) {
+		/*
 		gpio_set_value(RAPH100_LCD_PWR1, 1);
 		dex.cmd=PCOM_PMIC_REG_ON;
 		dex.has_data=1;
@@ -420,6 +421,7 @@ static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_dat
 //		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR2,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		gpio_set_value(RAPH100_LCD_PWR2,1);		
 		mdelay(50);
+		*/
 	} else {
 /*
 		gpio_set_value(RAPH100_LCD_PWR2, 0);
@@ -471,8 +473,8 @@ static int htcraphael_mddi_toshiba_client_init(
 	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_lcm_init_table,
-				 ARRAY_SIZE(mddi_toshiba_init_table));
+//	htcraphael_process_mddi_table(client_data, mddi_lcm_init_table,
+//				 ARRAY_SIZE(mddi_lcm_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	if (panel_id > 1) {

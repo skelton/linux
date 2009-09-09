@@ -875,6 +875,7 @@ static void *_smem_find(unsigned id, unsigned *size)
 	return 0;
 }
 
+
 void *smem_find(unsigned id, unsigned size_in)
 {
 	unsigned size;
@@ -1050,9 +1051,12 @@ void smsm_print_sleep_info(void)
 	struct tramp_gpio_smem *gpio;
 	struct smsm_interrupt_info *int_info;
 
+	int i,j;
+	struct smem_shared *shared = (void *) MSM_SHARED_RAM_BASE;
+	struct smem_heap_entry *toc = shared->heap_toc;
 
 	spin_lock_irqsave(&smem_lock, flags);
-
+/*
 	ptr = smem_alloc(SMEM_SMSM_SLEEP_DELAY, sizeof(*ptr));
 	if (ptr)
 		pr_info("SMEM_SMSM_SLEEP_DELAY: %x\n", *ptr);
@@ -1085,7 +1089,16 @@ void smsm_print_sleep_info(void)
 				i, gpio->num_fired[i], gpio->fired[i][0],
 				gpio->fired[i][1]);
 	}
+*/
 
+
+	for(i=0;i<SMEM_NUM_ITEMS;i++)
+		if(toc[i].size && toc[i].size<0x100) {
+			printk("SMEM %d at %x: ",i,toc[i].offset);
+			for(j=0;j<toc[i].size;j+=4)
+				printk("%x,",readl(MSM_SHARED_RAM_BASE+toc[i].offset+j));
+			printk("\n");
+		}
 	spin_unlock_irqrestore(&smem_lock, flags);
 }
 

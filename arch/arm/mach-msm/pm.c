@@ -49,7 +49,7 @@ enum {
 	MSM_PM_DEBUG_SMSM_STATE = 1U << 5,
 	MSM_PM_DEBUG_IDLE = 1U << 6,
 };
-static int msm_pm_debug_mask=255;
+static int msm_pm_debug_mask=0;
 module_param_named(debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 enum {
@@ -209,7 +209,7 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 	msm_gpio_enter_sleep(from_idle);
 
 	if (enter_state) {
-		if (sleep_delay == 0 && sleep_mode >= MSM_PM_SLEEP_MODE_APPS_SLEEP)
+//		if (sleep_delay == 0 && sleep_mode >= MSM_PM_SLEEP_MODE_APPS_SLEEP)
 			sleep_delay = 192000*5; /* APPS_SLEEP does not allow infinite timeout */
 		smsm_set_sleep_duration(sleep_delay);
 		ret = smsm_change_state(SMSM_RUN, enter_state);
@@ -228,15 +228,22 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		goto enter_failed;
 
 	if (enter_state) {
+		// proc_comm(1) to copy what wince does
+		printk("0xfc128=%x\n",readl(MSM_SHARED_RAM_BASE+0xfc128));
+		printk("0xfc138=%x\n",readl(MSM_SHARED_RAM_BASE+0xfc138));
+		printk("0xfc0c0=%x\n",readl(MSM_SHARED_RAM_BASE+0xfc0c0));
+
+		writel(0,MSM_SHARED_RAM_BASE+0xfc0c0);
+		writel(0,MSM_SHARED_RAM_BASE+0xfc128);
+		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
+		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
+		
 		writel(0x1f, A11S_CLK_SLEEP_EN);
 		writel(1, A11S_PWRDOWN);
-
 		writel(0, A11S_STANDBY_CTL);
 		writel(0, A11RAMBACKBIAS);
 		writel(0,MSM_GPIOCFG1_BASE+0x220); // disable  keysense IRQ
-		// proc_comm(1) to copy what wince does
-		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
-		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
+		udelay(50);
 
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_STATE)
 			printk(KERN_INFO "msm_sleep(): enter "
@@ -262,20 +269,25 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		msm_pm_reset_vector[0] = 0xE51FF004; /* ldr pc, 4 */
 		msm_pm_reset_vector[1] = virt_to_phys(msm_pm_collapse_exit);
 		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
+//		pmdh_pad=readl(MSM_PMDH_BASE+0x68);
+//		emdh_pad=readl(MSM_EMDH_BASE+0x68);
+		writel(0,MSM_PMDH_BASE+0x68);
+		writel(0,MSM_EMDH_BASE+0x68);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_RESET_VECTOR)
 			printk(KERN_INFO "msm_sleep(): vector %x %x -> "
 			       "%x %x\n", saved_vector[0], saved_vector[1],
 			       msm_pm_reset_vector[0], msm_pm_reset_vector[1]);
+		mb();
 		collapsed = msm_pm_collapse();
-		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
-		msm_pm_reset_vector[0] = saved_vector[0];
-		msm_pm_reset_vector[1] = saved_vector[1];
-		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 		if (collapsed) {
 			cpu_init();
 			local_fiq_enable();
 			rv = 0;
 		}
+		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
+		msm_pm_reset_vector[0] = saved_vector[0];
+		msm_pm_reset_vector[1] = saved_vector[1];
+		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE)
 			printk(KERN_INFO "msm_pm_collapse(): returned %d\n",
 			       collapsed);
@@ -360,8 +372,8 @@ void arch_idle(void)
 		msm_irq_idle_sleep_allowed();
 	if (msm_pm_reset_vector == NULL)
 		return;
-	msm_arch_idle();
-	return;
+//	msm_arch_idle();
+//	return;
 	
 	sleep_time = msm_timer_enter_idle();
 #ifdef CONFIG_MSM_IDLE_STATS

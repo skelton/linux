@@ -11,7 +11,7 @@ obj-y += acpuclock.o
 obj-y += clock-wince.o
 obj-y += gpio.o generic_gpio.o
 obj-y += nand_partitions.o
-obj-y += htc_hw.o
+obj-y += htc_hw.o smem_log.o
 
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o
