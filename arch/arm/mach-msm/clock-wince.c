@@ -79,7 +79,11 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
 	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
+	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa19, .name="PMDH_CLK"},
+#else
 	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa04, .name="PMDH_CLK"},
+#endif
 	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, .name="I2C_CLK"},
 //	{ .clk_id = UART1_CLK, .offset = 0xc0, .ns_only = 0xa00, .name="UART1_CLK"},
 };
