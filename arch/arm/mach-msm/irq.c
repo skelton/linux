@@ -301,6 +301,8 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 	    
 	writel(0, VIC_INT_EN0);
 	writel(0, VIC_INT_EN1);
+	
+	writel(3, VIC_INT_MASTEREN);
 
 	while (limit-- > 0) {
 		int pend_irq;

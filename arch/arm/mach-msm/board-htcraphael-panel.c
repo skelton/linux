@@ -448,8 +448,8 @@ static int htcraphael_mddi_epson_client_init(
 	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_epson_init_table,
-				 ARRAY_SIZE(mddi_epson_init_table));
+//	htcraphael_process_mddi_table(client_data, mddi_epson_init_table,
+//				 ARRAY_SIZE(mddi_epson_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	if (panel_id > 1) {
@@ -499,8 +499,8 @@ static int htcraphael_mddi_panel_unblank(
 	int panel_id, ret = 0;
 	
 	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_lcm_init_table,
-		ARRAY_SIZE(mddi_toshiba_panel_init_table));
+//	htcraphael_process_mddi_table(client_data, mddi_lcm_init_table,
+//		ARRAY_SIZE(mddi_toshiba_panel_init_table));
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	switch(panel_id) {
 	 case 0:

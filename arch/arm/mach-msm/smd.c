@@ -1005,6 +1005,22 @@ int smsm_set_sleep_duration(uint32_t delay)
 	return 0;
 }
 
+int smsm_limit_sleep(uint32_t delay)
+{
+	uint32_t *ptr;
+
+	ptr = smem_alloc(SMEM_SMSM_LIMIT_SLEEP, sizeof(*ptr));
+	if (ptr == NULL) {
+		pr_err("smsm_set_sleep_duration <SM NO SLEEP_DELAY>\n");
+		return -EIO;
+	}
+	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+		pr_info("smsm_set_sleep_duration %d -> %d\n",
+			*ptr, delay);
+	*ptr = delay;
+	return 0;
+}
+
 int smsm_set_interrupt_info(struct smsm_interrupt_info *info)
 {
 	struct smsm_interrupt_info *ptr;
@@ -1056,7 +1072,7 @@ void smsm_print_sleep_info(void)
 	struct smem_heap_entry *toc = shared->heap_toc;
 
 	spin_lock_irqsave(&smem_lock, flags);
-/*
+
 	ptr = smem_alloc(SMEM_SMSM_SLEEP_DELAY, sizeof(*ptr));
 	if (ptr)
 		pr_info("SMEM_SMSM_SLEEP_DELAY: %x\n", *ptr);
@@ -1089,16 +1105,17 @@ void smsm_print_sleep_info(void)
 				i, gpio->num_fired[i], gpio->fired[i][0],
 				gpio->fired[i][1]);
 	}
-*/
 
+/*
 
 	for(i=0;i<SMEM_NUM_ITEMS;i++)
-		if(toc[i].size && toc[i].size<0x100) {
+		if(toc[i].size && toc[i].size<0x900) {
 			printk("SMEM %d at %x: ",i,toc[i].offset);
 			for(j=0;j<toc[i].size;j+=4)
 				printk("%x,",readl(MSM_SHARED_RAM_BASE+toc[i].offset+j));
 			printk("\n");
 		}
+	*/
 	spin_unlock_irqrestore(&smem_lock, flags);
 }
 
