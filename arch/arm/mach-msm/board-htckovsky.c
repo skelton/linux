@@ -295,7 +295,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_nand,
 	&msm_device_i2c,
 	&msm_device_rtc,
-//	&msm_device_htc_hw,
+	&msm_device_htc_hw,
 #if !defined(CONFIG_MSM_SERIAL_DEBUGGER) && !defined(CONFIG_HTC_HEADSET)
 //	&msm_device_uart1,
 #endif
@@ -303,8 +303,8 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_uart_dm2,
 #endif
 	&msm_device_htc_battery,
-//	&raphael_snd,
-//	&raphael_gps,
+	&raphael_snd,
+	&raphael_gps,
 };
 
 extern struct sys_timer msm_timer;
