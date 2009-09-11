@@ -231,16 +231,12 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		goto enter_failed;
 
 	if (enter_state) {
-		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
-		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
-
-		
 		writel(0x7f, A11S_CLK_SLEEP_EN);
 		writel(1, A11S_PWRDOWN);
 		writel(15, A11S_STANDBY_CTL);
 //		writel(0, A11RAMBACKBIAS);
 //		writel(0,MSM_GPIOCFG1_BASE+0x220); // disable  keysense IRQ
-		udelay(10);
+		udelay(50);
 
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_STATE)
 			printk(KERN_INFO "msm_sleep(): enter "
@@ -272,6 +268,9 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 			printk(KERN_INFO "msm_sleep(): vector %x %x -> "
 			       "%x %x\n", saved_vector[0], saved_vector[1],
 			       msm_pm_reset_vector[0], msm_pm_reset_vector[1]);
+		printk("Enter Power Collapse\n");
+		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
+		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);		
 		collapsed = msm_pm_collapse();
 		if (collapsed) {
 			cpu_init();
@@ -279,10 +278,11 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 			rv = 0;
 		}
 		writel(0,MSM_SHARED_RAM_BASE+0xfc128);
-		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
+//		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
 		msm_pm_reset_vector[0] = saved_vector[0];
 		msm_pm_reset_vector[1] = saved_vector[1];
-		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
+//		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
+		printk("Exit Power Collapse %d\n",collapsed);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE)
 			printk(KERN_INFO "msm_pm_collapse(): returned %d\n",
 			       collapsed);
