@@ -40,7 +40,7 @@ enum {
 	IRQ_DEBUG_SLEEP = 1U << 3,
 	IRQ_DEBUG_SLEEP_REQUEST = 1U << 4,
 };
-static int msm_irq_debug_mask=255;
+static int msm_irq_debug_mask;
 module_param_named(debug_mask, msm_irq_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define VIC_REG(off) (MSM_VIC_BASE + (off))
@@ -281,7 +281,7 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 
 	if (from_idle && !arm9_wake)
 		return 0;
-	writel(0x80,VIC_INT_ENCLEAR0);
+	writel(0x80,VIC_INT_CLEAR0);
 	udelay(10);
 	if (msm_irq_debug_mask & IRQ_DEBUG_SLEEP)
 		printk("irq_sleep %x %x %x %x %x %x\n",
@@ -313,8 +313,6 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 	    
 	writel(0, VIC_INT_EN0);
 	writel(0, VIC_INT_EN1);
-	
-//	writel(3, VIC_INT_MASTEREN);
 
 	while (limit-- > 0) {
 		int pend_irq;
@@ -327,6 +325,10 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 			       "int %d (%d)\n", irq, pend_irq);
 	}
 
+	// Make really sure all the interrupts are cleared - MJ
+	writel(-1, VIC_INT_CLEAR0);
+	writel(-1, VIC_INT_CLEAR1);
+
 	if (arm9_wake) {
 		msm_irq_set_type(INT_A9_M2A_6, IRQF_TRIGGER_RISING);
 		writel(1U << INT_A9_M2A_6, VIC_INT_ENSET0);
@@ -334,6 +336,8 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 		writel(msm_irq_shadow_reg[0].int_en[1], VIC_INT_ENSET0);
 		writel(msm_irq_shadow_reg[1].int_en[1], VIC_INT_ENSET1);
 	}
+	
+
 	return 0;
 }
 
@@ -349,7 +353,9 @@ void msm_irq_exit_sleep1(void)
 		writel(msm_irq_shadow_reg[i].int_en[0], VIC_INT_EN0 + i * 4);
 		writel(msm_irq_shadow_reg[i].int_select, VIC_INT_SELECT0 + i * 4);
 	}
+
 	writel(3, VIC_INT_MASTEREN);
+
 	int_info = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*int_info));
 	if (int_info == NULL) {
 		printk(KERN_ERR "msm_irq_exit_sleep <SM NO INT_INFO>\n");
@@ -374,11 +380,11 @@ void msm_irq_exit_sleep2(void)
 		return;
 	}
 	if (msm_irq_debug_mask & IRQ_DEBUG_SLEEP)
-		printk(KERN_INFO "msm_irq_exit_sleep2 %x %x %x now %x %x\n",
+		printk(KERN_INFO "msm_irq_exit_sleep2 %x %x %x now %x %x %x %x\n",
 		       int_info->aArm_en_mask,
 		       int_info->aArm_interrupts_pending,
 		       int_info->aArm_wakeup_reason,
-		       readl(VIC_IRQ_STATUS0), readl(VIC_IRQ_STATUS1));
+	 readl(VIC_IRQ_STATUS0), readl(VIC_IRQ_STATUS1),readl(VIC_FIQ_STATUS0), readl(VIC_FIQ_STATUS1));
 	pending = int_info->aArm_interrupts_pending;
 	for (i = 0; pending && i < ARRAY_SIZE(msm_irq_to_smsm); i++) {
 		unsigned reg_offset = (i & 32) ? 4 : 0;

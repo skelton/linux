@@ -50,7 +50,7 @@ enum {
 	MSM_SMSM_DEBUG = 1U << 1,
 };
 
-static int msm_smd_debug_mask=2;
+static int msm_smd_debug_mask;
 
 module_param_named(debug_mask, msm_smd_debug_mask,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);
@@ -1245,6 +1245,9 @@ static int debug_read_mem(char *buf, int max)
 			       "%04d: offset %08x size %08x\n",
 			       n, toc[n].offset, toc[n].size);
 	}
+	for(i=0;i<0x200;i+=4)
+		printk("%x,",readl(MSM_SHARED_RAM_BASE+0xfc000+i));
+	
 	return i;
 }
 

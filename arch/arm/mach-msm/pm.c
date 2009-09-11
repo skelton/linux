@@ -50,7 +50,7 @@ enum {
 	MSM_PM_DEBUG_SMSM_STATE = 1U << 5,
 	MSM_PM_DEBUG_IDLE = 1U << 6,
 };
-static int msm_pm_debug_mask=0x7f;
+static int msm_pm_debug_mask=0;
 module_param_named(debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 enum {
@@ -180,10 +180,6 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 	int ret;
 	int rv = -EINTR;
 	
-//	struct msm_dex_command dex = { .cmd = 0x1d,.has_data=0,.data=0 };
-//	msm_proc_comm_wince(&dex,0); // set arm9 low power
-//	local_irq_disable();
-
 	if (msm_pm_debug_mask & MSM_PM_DEBUG_SUSPEND)
 		printk(KERN_INFO "msm_sleep(): mode %d delay %u idle %d\n",
 		       sleep_mode, sleep_delay, from_idle);
@@ -216,11 +212,9 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 
 	if (enter_state) {
 		if (sleep_delay == 0 && sleep_mode >= MSM_PM_SLEEP_MODE_APPS_SLEEP)
-			sleep_delay = 192000*1; /* APPS_SLEEP does not allow infinite timeout */
+			sleep_delay = 192000*5; /* APPS_SLEEP does not allow infinite timeout */
 		smsm_set_sleep_duration(sleep_delay);
 		
-//		smsm_set_sleep_duration(19200*1);
-//		smsm_limit_sleep(19200*8);
 		ret = smsm_change_state(SMSM_RUN, enter_state);
 		if (ret) {
 			printk(KERN_ERR "msm_sleep(): smsm_change_state %x failed\n", enter_state);
@@ -237,14 +231,6 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		goto enter_failed;
 
 	if (enter_state) {
-		// proc_comm(1) to copy what wince does
-//		printk("0xfc128=%x\n",readl(MSM_SHARED_RAM_BASE+0xfc128));
-//		printk("0xfc138=%x\n",readl(MSM_SHARED_RAM_BASE+0xfc138));
-//		printk("0xfc0c0=%x\n",readl(MSM_SHARED_RAM_BASE+0xfc0c0));
-
-
-//		writel(0,MSM_SHARED_RAM_BASE+0xfc0c0);
-//		writel(0,MSM_SHARED_RAM_BASE+0xfc128);
 		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
 		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
 
@@ -277,36 +263,26 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_SMSM_STATE)
 			smsm_print_sleep_info();
 		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
-//		udelay(1);
 		saved_vector[0] = msm_pm_reset_vector[0];
 		saved_vector[1] = msm_pm_reset_vector[1];
 		msm_pm_reset_vector[0] = 0xE51FF004; /* ldr pc, 4 */
 		msm_pm_reset_vector[1] = virt_to_phys(msm_pm_collapse_exit);
-//		udelay(1);
 		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
-//		pmdh_pad=readl(MSM_PMDH_BASE+0x68);
-//		emdh_pad=readl(MSM_EMDH_BASE+0x68);
-//		writel(0,MSM_PMDH_BASE+0x68);
-//		writel(0,MSM_EMDH_BASE+0x68);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_RESET_VECTOR)
 			printk(KERN_INFO "msm_sleep(): vector %x %x -> "
 			       "%x %x\n", saved_vector[0], saved_vector[1],
 			       msm_pm_reset_vector[0], msm_pm_reset_vector[1]);
-//		udelay(10);
-		printk("pc at %x\n",readl(MSM_CSR_BASE+4));
 		collapsed = msm_pm_collapse();
 		if (collapsed) {
 			cpu_init();
 			local_fiq_enable();
 			rv = 0;
 		}
-		printk("wakeup:%d at %x\n",readl(MSM_SHARED_RAM_BASE+0xfc128),readl(MSM_CSR_BASE+4));
 		writel(0,MSM_SHARED_RAM_BASE+0xfc128);
-//		udelay(10);
-//		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
+		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
 		msm_pm_reset_vector[0] = saved_vector[0];
 		msm_pm_reset_vector[1] = saved_vector[1];
-//		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
+		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE)
 			printk(KERN_INFO "msm_pm_collapse(): returned %d\n",
 			       collapsed);
@@ -335,13 +311,10 @@ ramp_down_failed:
 	msm_irq_exit_sleep1();
 enter_failed:
 	if (enter_state) {
-//		writel(7,MSM_GPIOCFG1_BASE+0x220); // enable keysense IRQ
 		writel(0x00, A11S_CLK_SLEEP_EN);
 		writel(0, A11S_PWRDOWN);
 		smsm_change_state(enter_state, exit_state);
-//		udelay(1);
 		msm_pm_wait_state(exit_wait_set, exit_wait_clear, 0, 0);
-//		udelay(1);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_STATE)
 			printk(KERN_INFO "msm_sleep(): sleep exit "
 			       "A11S_CLK_SLEEP_EN %x, A11S_PWRDOWN %x, "
@@ -353,23 +326,17 @@ enter_failed:
 	msm_irq_exit_sleep2();
 	if (enter_state) {
 		smsm_change_state(exit_state, SMSM_RUN);
-//		udelay(1);
 		msm_pm_wait_state(SMSM_RUN, 0, 0, 0);
-//		udelay(1);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_STATE)
 			printk(KERN_INFO "msm_sleep(): sleep exit "
 			       "A11S_CLK_SLEEP_EN %x, A11S_PWRDOWN %x, "
 			       "smsm_get_state %x\n", readl(A11S_CLK_SLEEP_EN),
 			       readl(A11S_PWRDOWN), smsm_get_state());
 
-//		writel(1, MSM_CSR_BASE+0x418);
-//		writel(1, MSM_CSR_BASE+0x414);
-
 	}
 	msm_irq_exit_sleep3();
 	msm_gpio_exit_sleep();
 	smd_sleep_exit();
-//	sync_timer();
 	if(msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE) { // vibrate to test pc
 		struct msm_dex_command vibra;
 		vibra.cmd = PCOM_VIBRA_ON;
@@ -608,7 +575,10 @@ void msm_pm_set_max_sleep_time(int64_t max_sleep_time_ns)
 EXPORT_SYMBOL(msm_pm_set_max_sleep_time);
 
 void fiq(void *data,void *regs) {
+	// clear fiq
+	writel(0x40,MSM_VIC_BASE + 0x20);
 	printk("fiq triggered\n");
+	msm_pm_collapse_exit();
 }
 
 static int __init msm_pm_init(void)
@@ -619,7 +589,7 @@ static int __init msm_pm_init(void)
 
 	register_reboot_notifier(&msm_reboot_notifier);
 	
-	msm_fiq_set_handler(fiq,0);
+//	msm_fiq_set_handler(0,0);
 
 	writel(0,MSM_AXIGS_BASE+0x800);
 	msm_pm_reset_vector = ioremap(0, PAGE_SIZE);
