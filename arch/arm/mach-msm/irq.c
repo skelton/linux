@@ -21,6 +21,8 @@
 #include <linux/timer.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/delay.h>
+
 
 #include <asm/cacheflush.h>
 
@@ -38,7 +40,7 @@ enum {
 	IRQ_DEBUG_SLEEP = 1U << 3,
 	IRQ_DEBUG_SLEEP_REQUEST = 1U << 4,
 };
-static int msm_irq_debug_mask;
+static int msm_irq_debug_mask=255;
 module_param_named(debug_mask, msm_irq_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define VIC_REG(off) (MSM_VIC_BASE + (off))
@@ -265,7 +267,7 @@ void msm_irq_enter_sleep1(bool arm9_wake, int from_idle)
 	struct smsm_interrupt_info int_info;
 	if (arm9_wake) {
 		int_info.aArm_en_mask = msm_irq_smsm_wake_enable[!from_idle];
-		int_info.aArm_en_mask = 0x00c40000; // hard coded for now - MJ
+	//	int_info.aArm_en_mask = 0;//0x00c40000; // hard coded for now - MJ
 		int_info.aArm_interrupts_pending = 0;
 		int_info.aArm_wakeup_reason=0;
 		smsm_set_interrupt_info(&int_info);
@@ -279,7 +281,17 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 
 	if (from_idle && !arm9_wake)
 		return 0;
-
+	writel(0x80,VIC_INT_ENCLEAR0);
+	udelay(10);
+	if (msm_irq_debug_mask & IRQ_DEBUG_SLEEP)
+		printk("irq_sleep %x %x %x %x %x %x\n",
+			readl(VIC_INT_SELECT0),
+			readl(VIC_INT_SELECT1),
+			readl(VIC_IRQ_STATUS0),
+			readl(VIC_IRQ_STATUS1),
+			readl(VIC_FIQ_STATUS0),
+			readl(VIC_FIQ_STATUS1)
+		);
 	/* edge triggered interrupt may get lost if this mode is used */
 	WARN_ON_ONCE(!arm9_wake && !from_idle);
 
@@ -302,7 +314,7 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 	writel(0, VIC_INT_EN0);
 	writel(0, VIC_INT_EN1);
 	
-	writel(3, VIC_INT_MASTEREN);
+//	writel(3, VIC_INT_MASTEREN);
 
 	while (limit-- > 0) {
 		int pend_irq;

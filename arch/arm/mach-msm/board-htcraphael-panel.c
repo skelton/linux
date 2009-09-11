@@ -425,6 +425,7 @@ static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_dat
 	} else {
 /*
 		gpio_set_value(RAPH100_LCD_PWR2, 0);
+		mdelay(1);
 		dex.cmd=PCOM_PMIC_REG_OFF;
 		dex.has_data=1;
 		dex.data=0x2000;

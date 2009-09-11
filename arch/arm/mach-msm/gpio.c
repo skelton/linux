@@ -17,10 +17,14 @@
 #include <asm/gpio.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/delay.h>
+
 #include "gpio_chip.h"
 #include "gpio_hw.h"
 
 #include "smd_private.h"
+
+#include "proc_comm_wince.h"
 
 enum {
 	GPIO_DEBUG_SLEEP = 1U << 0,
@@ -459,6 +463,23 @@ static void msm_gpio_sleep_int(unsigned long arg)
 
 static DECLARE_TASKLET(msm_gpio_sleep_int_tasklet, msm_gpio_sleep_int, 0);
 
+
+static void dumpgpios(void) {
+	int i;
+	for (i = 0; i < ARRAY_SIZE(msm_gpio_chips); i++) {
+		printk("GPIO %d\n",i);
+		printk("out:%x in:%x sta:%x ena:%x \nedg:%x pos:%x oe:%x own:%x\n",
+		       readl(msm_gpio_chips[i].regs.out),
+			     readl(msm_gpio_chips[i].regs.in),
+				   readl(msm_gpio_chips[i].regs.int_status),
+					 readl(msm_gpio_chips[i].regs.int_en),
+					       readl(msm_gpio_chips[i].regs.int_edge),
+							       readl(msm_gpio_chips[i].regs.int_pos),
+									       readl(msm_gpio_chips[i].regs.oe),
+										readl(msm_gpio_chips[i].regs.owner));
+	}
+}
+
 void msm_gpio_enter_sleep(int from_idle)
 {
 	int i,j;
@@ -468,6 +489,12 @@ void msm_gpio_enter_sleep(int from_idle)
 
 	smem_gpio = smem_alloc(SMEM_GPIO_INT, sizeof(*smem_gpio));
 	
+//	writel(0,msm_gpio_chips[4].regs.int_en);
+	writel(4,msm_gpio_chips[4].regs.int_clear);
+	
+	udelay(10);
+	if (msm_gpio_debug_mask & GPIO_DEBUG_SLEEP)
+		dumpgpios();
 	if (smem_gpio) {
 		for (i = 0; i < ARRAY_SIZE(smem_gpio->enabled); i++) {
 			smem_gpio->enabled[i] = 0;
@@ -488,10 +515,11 @@ void msm_gpio_enter_sleep(int from_idle)
 			tmp = msm_gpio_chips[i].int_enable[!from_idle];
 			smem_gpio->enabled[index] |= tmp << shiftl;
 			smem_gpio->enabled[index+1] |= tmp >> shiftr;
-			smem_gpio->detection[index] |= readl(msm_gpio_chips[i].regs.int_edge) << shiftl;
-			smem_gpio->detection[index+1] |= readl(msm_gpio_chips[i].regs.int_edge) >> shiftr;
-			smem_gpio->polarity[index] |= readl(msm_gpio_chips[i].regs.int_pos) << shiftl;
-			smem_gpio->polarity[index+1] |= readl(msm_gpio_chips[i].regs.int_pos) >> shiftr;
+			smem_gpio->detection[index] |= (
+			readl(msm_gpio_chips[i].regs.int_edge) & tmp) << shiftl;
+			smem_gpio->detection[index+1] |= (readl(msm_gpio_chips[i].regs.int_edge) & tmp) >> shiftr;
+			smem_gpio->polarity[index] |= (readl(msm_gpio_chips[i].regs.int_pos) & tmp) << shiftl;
+			smem_gpio->polarity[index+1] |= (readl(msm_gpio_chips[i].regs.int_pos) & tmp) >> shiftr;
 		}
 		
 	}
@@ -533,6 +561,7 @@ void msm_gpio_exit_sleep(void)
 			      smem_gpio->num_fired[0], smem_gpio->num_fired[1]);
 		tasklet_schedule(&msm_gpio_sleep_int_tasklet);
 	}
+//	msm_gpio_set_function(DEX_GPIO_CFG(97,1,GPIO_INPUT,GPIO_NO_PULL,GPIO_2MA,0));
 }
 
 void msm_gpio_set_function(struct msm_gpio_config cfg)

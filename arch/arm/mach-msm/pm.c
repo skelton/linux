@@ -26,6 +26,7 @@
 #include <linux/reboot.h>
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
+#include <mach/fiq.h>
 #include <asm/io.h>
 
 #include "smd_private.h"
@@ -156,6 +157,7 @@ msm_pm_wait_state(uint32_t wait_state_all_set, uint32_t wait_state_all_clear,
 	return -ETIMEDOUT;
 }
 void smsm_limit_sleep(int);
+void sync_timer(void);
 static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 {
 	uint32_t saved_vector[2];
@@ -213,11 +215,12 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 	msm_gpio_enter_sleep(from_idle);
 
 	if (enter_state) {
-//		if (sleep_delay == 0 && sleep_mode >= MSM_PM_SLEEP_MODE_APPS_SLEEP)
+		if (sleep_delay == 0 && sleep_mode >= MSM_PM_SLEEP_MODE_APPS_SLEEP)
 			sleep_delay = 192000*1; /* APPS_SLEEP does not allow infinite timeout */
 		smsm_set_sleep_duration(sleep_delay);
-		smsm_set_sleep_duration(19200*1);
-		smsm_limit_sleep(19200*8);
+		
+//		smsm_set_sleep_duration(19200*1);
+//		smsm_limit_sleep(19200*8);
 		ret = smsm_change_state(SMSM_RUN, enter_state);
 		if (ret) {
 			printk(KERN_ERR "msm_sleep(): smsm_change_state %x failed\n", enter_state);
@@ -246,9 +249,9 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
 
 		
-		writel(0x1f, A11S_CLK_SLEEP_EN);
+		writel(0x7f, A11S_CLK_SLEEP_EN);
 		writel(1, A11S_PWRDOWN);
-//		writel(0, A11S_STANDBY_CTL);
+		writel(15, A11S_STANDBY_CTL);
 //		writel(0, A11RAMBACKBIAS);
 //		writel(0,MSM_GPIOCFG1_BASE+0x220); // disable  keysense IRQ
 		udelay(10);
@@ -366,6 +369,7 @@ enter_failed:
 	msm_irq_exit_sleep3();
 	msm_gpio_exit_sleep();
 	smd_sleep_exit();
+//	sync_timer();
 	if(msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE) { // vibrate to test pc
 		struct msm_dex_command vibra;
 		vibra.cmd = PCOM_VIBRA_ON;
@@ -603,6 +607,10 @@ void msm_pm_set_max_sleep_time(int64_t max_sleep_time_ns)
 }
 EXPORT_SYMBOL(msm_pm_set_max_sleep_time);
 
+void fiq(void *data,void *regs) {
+	printk("fiq triggered\n");
+}
+
 static int __init msm_pm_init(void)
 {
 	pm_power_off = msm_pm_power_off;
@@ -610,6 +618,8 @@ static int __init msm_pm_init(void)
 	msm_pm_max_sleep_time = 0;
 
 	register_reboot_notifier(&msm_reboot_notifier);
+	
+	msm_fiq_set_handler(fiq,0);
 
 	writel(0,MSM_AXIGS_BASE+0x800);
 	msm_pm_reset_vector = ioremap(0, PAGE_SIZE);

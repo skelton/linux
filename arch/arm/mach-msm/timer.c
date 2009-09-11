@@ -288,6 +288,10 @@ static uint32_t msm_timer_sync_smem_clock(int exit_sleep)
 	return smem_clock_val;
 }
 
+void sync_timer(void) {
+	msm_timer_sync_smem_clock(1);
+}
+
 static void msm_timer_reactivate_alarm(struct msm_clock *clock)
 {
 	long alarm_delta = clock->alarm_vtime - clock->offset -
