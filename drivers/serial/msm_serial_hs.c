@@ -913,6 +913,14 @@ static irqreturn_t msm_hs_isr(int irq, void *dev)
 
 	isr_status = msm_hs_read(uport, UARTDM_MISR_ADDR);
 
+#if 1
+	printk(KERN_DEBUG "msm_hs_isr: MISR=%08x ISR=%08x SR=%08x\n",
+		msm_hs_read(uport, UARTDM_MISR_ADDR),
+		msm_hs_read(uport, UARTDM_ISR_ADDR),
+		msm_hs_read(uport, UARTDM_SR_ADDR));
+	msleep(500);
+#endif
+
 	/* Uart RX starting */
 	if (isr_status & UARTDM_ISR_RXLEV_BMSK) {
 		wake_lock(&rx->wake_lock);  /* hold wakelock while rx dma */
@@ -1106,6 +1114,8 @@ static int msm_hs_startup(struct uart_port *uport)
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_STALE_INT);
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_CTS);
 	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_LOW);
+	/* Just to be sure */
+	msm_hs_write(uport, UARTDM_CR_ADDR, CLEAR_TX_READY);
 	/* Turn on Uart Receiver */
 	msm_hs_write(uport, UARTDM_CR_ADDR, UARTDM_CR_RX_EN_BMSK);
 
@@ -1145,6 +1155,9 @@ static int msm_hs_startup(struct uart_port *uport)
 	msm_uport->imr_reg |= UARTDM_ISR_RXSTALE_BMSK;
 	/* Enable reading the current CTS, no harm even if CTS is ignored */
 	msm_uport->imr_reg |= UARTDM_ISR_CURRENT_CTS_BMSK;
+	/* Enable TXLEV */
+	msm_uport->imr_reg |= UARTDM_ISR_TXLEV_BMSK;
+	msm_hs_write(uport, UARTDM_IMR_ADDR, msm_uport->imr_reg);
 
 	msm_hs_write(uport, UARTDM_TFWR_ADDR, 0);  /* TXLEV on empty TX fifo */
 
