@@ -326,8 +326,8 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 	}
 
 	// Make really sure all the interrupts are cleared - MJ
-	writel(-1, VIC_INT_CLEAR0);
-	writel(-1, VIC_INT_CLEAR1);
+	writel(0xffffffff, VIC_INT_CLEAR0);
+	writel(0xffffffff, VIC_INT_CLEAR1);
 
 	if (arm9_wake) {
 		msm_irq_set_type(INT_A9_M2A_6, IRQF_TRIGGER_RISING);
@@ -337,7 +337,6 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 		writel(msm_irq_shadow_reg[1].int_en[1], VIC_INT_ENSET1);
 	}
 	
-
 	return 0;
 }
 

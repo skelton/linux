@@ -490,10 +490,7 @@ void msm_gpio_enter_sleep(int from_idle)
 	BUILD_BUG_ON(ARRAY_SIZE(msm_gpio_chips) != ARRAY_SIZE(smem_gpio->enabled));
 
 	smem_gpio = smem_alloc(SMEM_GPIO_INT, sizeof(*smem_gpio));
-	
-//	writel(0,msm_gpio_chips[4].regs.int_en);
-	writel(4,msm_gpio_chips[4].regs.int_clear);
-	
+		
 	udelay(10);
 	if (msm_gpio_debug_mask & GPIO_DEBUG_SLEEP)
 		dumpgpios();
@@ -504,7 +501,6 @@ void msm_gpio_enter_sleep(int from_idle)
 			smem_gpio->polarity[i] = 0;
 		}
 	}
-//	writel(0,msm_gpio_chips[3].regs.int_edge);
 	for (i = 0; i < ARRAY_SIZE(msm_gpio_chips); i++) {
 		writel(msm_gpio_chips[i].int_enable[!from_idle], msm_gpio_chips[i].regs.int_en);
 		if (smem_gpio) {

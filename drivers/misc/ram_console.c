@@ -21,6 +21,8 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
+#include <asm/pgtable.h>
+#include <asm/mach/map.h>
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_ERROR_CORRECTION
 #include <linux/rslib.h>
@@ -38,6 +40,8 @@ struct ram_console_buffer {
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 static char __initdata
 	ram_console_old_log_init_buffer[CONFIG_ANDROID_RAM_CONSOLE_EARLY_SIZE];
+extern void create_mapping(struct map_desc *md);
+
 #endif
 static char *ram_console_old_log;
 static size_t ram_console_old_log_size;
@@ -301,10 +305,19 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 static int __init ram_console_early_init(void)
 {
+	struct map_desc map1;
+	map1.pfn = __phys_to_pfn(0x0e0000);
+	map1.virtual = (unsigned long)0xe2200000;
+	map1.length = (unsigned long)0x20000;
+	map1.type = MT_DEVICE;
+	/* Ugly hack, but we're not sure what works and what doesn't,
+	* so better use the lowest level we have for setting the mapping */
+	create_mapping(&map1);
+
 	return ram_console_init((struct ram_console_buffer *)
-		CONFIG_ANDROID_RAM_CONSOLE_EARLY_ADDR,
-		CONFIG_ANDROID_RAM_CONSOLE_EARLY_SIZE,
-		ram_console_old_log_init_buffer);
+		0xe2200000,
+		0x20000,
+		0);
 }
 #else
 static int ram_console_driver_probe(struct platform_device *pdev)
@@ -376,6 +389,7 @@ static int __init ram_console_late_init(void)
 
 	if (ram_console_old_log == NULL)
 		return 0;
+/*
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 	ram_console_old_log = kmalloc(ram_console_old_log_size, GFP_KERNEL);
 	if (ram_console_old_log == NULL) {
@@ -387,6 +401,7 @@ static int __init ram_console_late_init(void)
 	memcpy(ram_console_old_log,
 	       ram_console_old_log_init_buffer, ram_console_old_log_size);
 #endif
+*/
 	entry = create_proc_entry("last_kmsg", S_IFREG | S_IRUGO, NULL);
 	if (!entry) {
 		printk(KERN_ERR "ram_console: failed to create proc entry\n");
