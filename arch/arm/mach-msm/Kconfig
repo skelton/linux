@@ -19,10 +19,10 @@ choice
 	default MSM_AMSS_VERSION_6225
 
         config MSM_AMSS_VERSION_5200
-                bool "5.2.00 - WinCE compatible AMSS"
+                bool "5.2.00 - WinCE compatible AMSS (GSM)"
 
         config MSM_AMSS_VERSION_6150
-                bool "6.1.50 - WinCE compatible AMSS (work in progress)"
+                bool "6.1.50 - WinCE compatible AMSS (CDMA) - experimental"
 
 	config MSM_AMSS_VERSION_6210
 		bool "6.2.10"

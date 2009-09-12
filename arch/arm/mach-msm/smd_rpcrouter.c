@@ -129,7 +129,7 @@ static int rpcrouter_send_control_msg(union rr_control_msg *msg)
 	unsigned long flags;
 	int need;
 
-	RR("send control message %x %x %x %x %x\n", msg->cmd, msg->srv.cmd, msg->srv.prog, msg->srv.pid, msg->srv.cid);
+	RR("send control message cmd=%d srv.cmd=%d prog=%x:%x id=%d:%x\n", msg->cmd, msg->srv.cmd, msg->srv.prog, msg->srv.vers,  msg->srv.pid, msg->srv.cid);
 	
 	if (!(msg->cmd == RPCROUTER_CTRL_CMD_HELLO) && !initialized) {
 		printk(KERN_ERR "rpcrouter_send_control_msg(): Warning, "
@@ -143,7 +143,7 @@ static int rpcrouter_send_control_msg(union rr_control_msg *msg)
 	hdr.src_cid = RPCROUTER_ROUTER_ADDRESS;
 	hdr.confirm_rx = 0;
 	hdr.size = sizeof(*msg);
-	hdr.dst_pid = 0;
+	hdr.dst_pid = RPCROUTER_PID_REMOTE;
 	hdr.dst_cid = RPCROUTER_ROUTER_ADDRESS;
 
 	/* TODO: what if channel is full? */
@@ -430,7 +430,7 @@ static int process_control_msg(union rr_control_msg *msg, int len)
 		break;
 
 	case RPCROUTER_CTRL_CMD_NEW_SERVER:
-		RR("o NEW_SERVER id=%d:%08x prog=%08x:%d\n",
+		RR("o NEW_SERVER id=%d:%08x prog=%08x:%x\n",
 		   msg->srv.pid, msg->srv.cid, msg->srv.prog, msg->srv.vers);
 
 		server = rpcrouter_lookup_server(msg->srv.prog, msg->srv.vers);
@@ -633,7 +633,7 @@ static void do_read_data(struct work_struct *work)
 
 	ept = rpcrouter_lookup_local_endpoint(hdr.dst_cid);
 	if (!ept) {
-		DIAG("no local ept for cid %08x\n", hdr.dst_cid);
+		DIAG("no local ept for dst cid %08x\n", hdr.dst_cid);
 		kfree(frag);
 		goto done;
 	}
@@ -801,7 +801,7 @@ int msm_rpc_write(struct msm_rpc_endpoint *ept, void *buffer, int count)
 	if (!r_ept) {
 		printk(KERN_ERR
 			"msm_rpc_write(): No route to ept "
-			"[PID %x CID %x]\n", hdr.dst_pid, hdr.dst_cid);
+			"[PID %d CID %x]\n", hdr.dst_pid, hdr.dst_cid);
 		return -EHOSTUNREACH;
 	}
 
