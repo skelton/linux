@@ -44,6 +44,7 @@
 #include <linux/dmapool.h>
 #include <linux/wait.h>
 #include <linux/wakelock.h>
+#include <linux/delay.h>
 
 #include <asm/atomic.h>
 #include <asm/irq.h>
