@@ -382,7 +382,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		return -ENOTSUPP;
 	}
 
-#if 1
+#if 0
 	for (i=0x85;i<=0x8a;i++)
 	{
 	 dex.cmd = i;
