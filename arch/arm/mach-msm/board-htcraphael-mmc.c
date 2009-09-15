@@ -445,7 +445,7 @@ int __init htcraphael_init_mmc(void)
 
 	sdslot_vreg_enabled = 0;
 
-	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) {
+	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma500()) {
 		htcraphael_mmc_pdata = htcraphael_cdma_mmc_pdata;
 	} else {
 		htcraphael_mmc_pdata = htcraphael_gsm_mmc_pdata;

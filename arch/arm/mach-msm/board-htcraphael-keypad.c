@@ -106,7 +106,7 @@ static struct platform_device htcraphael_keypad_device = {
 void htcraphael_init_keypad(void)
 {
 	/* keyboard slide is only for raphael, this check assumes slider to be last in array */
-	if (!machine_is_htcraphael() && !machine_is_htcraphael_cdma()) {
+	if (!machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcraphael_cdma500()) {
 		printk(KERN_INFO "%s: not a raphael, disabling hardware keyboard slider detection\n", __func__);
 		htcraphael_keypad_data.info_count = ARRAY_SIZE(htcraphael_keypad_info) - 1;
 	}

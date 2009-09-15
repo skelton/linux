@@ -465,6 +465,11 @@ static int microp_keypad_probe(struct platform_device *pdev)
 		input->keycodemax = ARRAY_SIZE(microp_keymap_raph800);
 		input->keycode = data->keymap = microp_keymap_raph800;
 	}
+	else if (machine_is_htcraphael_cdma500()) {
+		/* clone raph800 for now */
+		input->keycodemax = ARRAY_SIZE(microp_keymap_raph800);
+		input->keycode = data->keymap = microp_keymap_raph800;
+	}
 	else if (machine_is_htcraphael()) {
 		input->keycodemax = ARRAY_SIZE(microp_keymap_raph100);
 		input->keycode = data->keymap = microp_keymap_raph100;

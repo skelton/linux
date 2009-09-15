@@ -116,7 +116,7 @@ void do_smd_7500_probe(unsigned char *smd_ch_allocated, struct list_head *smd_ch
 	struct smd_7500_buffer *p;
 	int i;
 
-	if (!machine_is_htcraphael_cdma() && !machine_is_htcdiamond_cdma())
+	if (!machine_is_htcraphael_cdma() && !machine_is_htcdiamond_cdma() && !machine_is_htcraphael_cdma500())
 		return;
 
 	// 7500 only needs special attention on ports 0 and 1

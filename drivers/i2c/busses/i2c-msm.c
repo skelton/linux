@@ -231,8 +231,8 @@ msm_i2c_poll_notbusy(struct msm_i2c_dev *dev)
 
 		if (!(status & I2C_STATUS_BUS_ACTIVE)) {
 			if (retries)
-				dev_warn(dev->dev,
-					"Warning bus was busy (%d)\n", retries);
+//				dev_warn(dev->dev,
+//					"Warning bus was busy (%d)\n", retries);
 			return 0;
 		}
 		if (retries++ > 100)

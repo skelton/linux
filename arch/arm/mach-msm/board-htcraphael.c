@@ -464,6 +464,16 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
+static void htcraphael_cdma_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
+};
+
+static void htcraphael_cdma500_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
+	mi->nr_banks = 1;
+	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
+	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
+	mi->bank[0].size = (89 * 1024 * 1024);
+};
+
 static void htcraphael_device_specific_fixes(void)
 {
 	if (machine_is_htcraphael()) {
@@ -490,6 +500,19 @@ static void htcraphael_device_specific_fixes(void)
 		msm_battery_pdata.smem_offset = 0xfc140;
 		msm_battery_pdata.smem_field_size = 4;
 	}
+	if (machine_is_htcraphael_cdma500()) {
+		/* copied from raph800, fix the bt rfkill */
+                raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
+                raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(27);
+                raphael_keypad_data.clamshell.gpio = 39;
+                raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(39);
+                raphael_keypad_data.backlight_gpio = 86;
+                msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph800;
+                msm_htc_hw_pdata.battery_smem_offset = 0xfc140;
+                msm_htc_hw_pdata.battery_smem_field_size = 4;
+                msm_battery_pdata.smem_offset = 0xfc140;
+                msm_battery_pdata.smem_field_size = 4;
+	}
 }
 
 MACHINE_START(HTCRAPHAEL, "HTC Raphael GSM phone (aka HTC Touch Pro)")
@@ -502,10 +525,20 @@ MACHINE_START(HTCRAPHAEL, "HTC Raphael GSM phone (aka HTC Touch Pro)")
 MACHINE_END
 
 MACHINE_START(HTCRAPHAEL_CDMA, "HTC Raphael CDMA phone (aka HTC Touch Pro)")
-	.fixup 		= htcraphael_fixup,
+	.fixup 		= htcraphael_cdma_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,
 	.init_machine	= halibut_init,
 	.timer		= &msm_timer,
 MACHINE_END
+
+MACHINE_START(HTCRAPHAEL_CDMA500, "HTC Raphael CDMA phone (Touch Pro) raph500")
+	.fixup		= htcraphael_cdma500_fixup,
+	.boot_params	= 0x10000100,
+	.map_io		= halibut_map_io,
+	.init_irq	= halibut_init_irq,
+	.init_machine	= halibut_init,
+	.timer		= &msm_timer,
+MACHINE_END
+

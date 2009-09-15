@@ -341,6 +341,9 @@ void msm_vkeyb_draw_keyboard(struct msmfb_update_area *area)
 		vkeyb_landscape = gpio_get_value(38);
 	else if (machine_is_htcraphael_cdma())
 		vkeyb_landscape = gpio_get_value(39);
+		/* clone raph800 for now */
+	else if (machine_is_htcraphael_cdma500())
+		vkeyb_landscape = gpio_get_value(39);
 	else
 		vkeyb_landscape = 0;
 	
