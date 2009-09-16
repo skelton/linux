@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/qdsp5/adsp_6210.h
+/* arch/arm/mach-msm/qdsp5/adsp_5200.h
  *
  * Copyright (c) 2008 QUALCOMM Incorporated.
  *
@@ -30,8 +30,8 @@ typedef enum {
 	QDSP_MODULE_AUDIO_DEC_WMA,	// 0xa
 	QDSP_MODULE_HOSTPCM,		// 0xb
 	QDSP_MODULE_DTMF,		// 0xc
-	QDSP_MODULE_AUDRECTASK,		// 0xd+, should be 0xc for amss6150 
-	QDSP_MODULE_AUDPREPROCTASK,	// 0xe+, should be 0xd for amss6150
+	QDSP_MODULE_AUDRECTASK,		// 0xd+
+	QDSP_MODULE_AUDPREPROCTASK,	// 0xe+
 	QDSP_MODULE_SBC_ENC,		// 0xf
 	QDSP_MODULE_VOC,		// 0x10
 	QDSP_MODULE_VOC_PCM,		// 0x11

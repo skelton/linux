@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/qdsp5/adsp_6210.h
+/* arch/arm/mach-msm/qdsp5/adsp_6150.h
  *
  * Copyright (c) 2008 QUALCOMM Incorporated.
  *
@@ -235,7 +235,7 @@ static qdsp_module_type qdsp_image4_task_to_module_table[] = {
 };
 
 /* Queue offset table indexed by queue ID for the image 4*/
-static uint32_t qdsp_qtv_lp_queue_offset_table[] = {
+static uint32_t qdsp_image4_queue_offset_table[] = {
 	QDSP_RTOS_NO_QUEUE,
 	0x55a,             
 	QDSP_RTOS_NO_QUEUE,

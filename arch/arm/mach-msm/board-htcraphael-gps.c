@@ -21,6 +21,7 @@
 
 #define RPC_PDAPI_PROG          0x3000005b
 #define RPC_PDAPI_CB_PROG       0x3100005b
+
 #define CLIENT_INIT             3
 #define CLIENT_PD_REG           5
 #define CLIENT_PA_REG           6
@@ -31,7 +32,8 @@
 #define GET_POSITION            0xc
 #define END_SESSION             0xd
 
-//#define RPC_PDSM_ATL_PROG       0x3000001d
+#define RPC_PDSM_ATL_PROG          0x3000001d
+#define RPC_PDSM_ATL_CB_PROG       0x3100001d
 //#define L2_PROXY_REG            4
 
 /* TODO: replace with msm_rpc_call_reply() values */

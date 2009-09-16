@@ -32,13 +32,7 @@
 #define SYSTEM_BLOCK1_BASE     0x160000
 #define SYSTEM_BLOCK2_BASE     0x170000
 
-
-#define	DPSUS       (MDDI_CLIENT_CORE_BASE|0x24)
-#define	SYSCLKENA   (MDDI_CLIENT_CORE_BASE|0x2C)
 #define	PWM0OFF	      (PWM_BLOCK_BASE|0x1C)
-
-#define V_VDDE2E_VDD2_GPIO 0
-#define MDDI_RST_N 82
 
 #define	MDDICAP0    (MDDI_CLIENT_CORE_BASE|0x00)
 #define	MDDICAP1    (MDDI_CLIENT_CORE_BASE|0x04)
@@ -518,6 +512,9 @@ static int htcraphael_mddi_toshiba_client_init(
 //				 ARRAY_SIZE(mddi_lcm_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
+
+	printk("toshiba GPIODATA=0x%08x at mddi_enable\n", client_data->remote_read(client_data, GPIODATA));
+
 	if (panel_id > 1) {
 		printk("unknown panel id (0x%08x) at mddi_enable\n", panel_id);
 		return -1;
