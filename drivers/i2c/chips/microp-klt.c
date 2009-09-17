@@ -150,6 +150,61 @@ int micropklt_set_kbd_state(int on)
 }
 EXPORT_SYMBOL(micropklt_set_kbd_state);
 
+#define send_command(x) micropklt_write(client, x,ARRAY_SIZE(x));
+
+void micropklt_lcd_ctrl(int v)
+{
+	struct microp_klt *data=micropklt_t;;
+	struct i2c_client *client;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	// for power up
+	char c1[]={0x20,0x48};
+	char c2[]={0x20,0x0c};
+        char c3[]={0x23,0,0x80};
+	char c4[]={0x40,0x10,0x20};
+	char c5[]={0x22,0x0};
+	char c6[]={0x22,0x60};
+
+	// for power down
+	char c7[]={0x20,0x4c};
+	char c8[]={0x40,0x10,0x00};
+	
+        int r;
+
+        data = micropklt_t;
+        if (!data) return -EAGAIN;
+        client = data->client;
+
+	switch(v) {
+	case 1: // power up
+		send_command(c1);
+		break;
+	case 2: 
+		send_command(c2);
+		break;
+	case 3:
+		send_command(c3);
+		send_command(c4);
+		send_command(c3);
+		send_command(c3);
+		send_command(c5);
+		send_command(c3);
+		send_command(c6);
+		break;
+	case 4: // power down
+		send_command(c7);
+		send_command(c3);
+		send_command(c8);
+		send_command(c3);
+		break;
+		
+	}
+}
+
+EXPORT_SYMBOL(micropklt_lcd_ctrl);
+
 static int micropklt_remove(struct i2c_client *client)
 {
 	struct microp_klt *data;
@@ -349,6 +404,7 @@ static int micropklt_read(struct i2c_client *client, unsigned id, char *buf, int
 static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	D("suspending device...");
+//	micropklt_lcd_ctrl(4);
 //	micropklt_set_led_states(0x10,0x10);
 	return 0;
 }
@@ -356,6 +412,7 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 static int micropklt_resume(struct i2c_client *client)
 {
 	D("resuming device...");
+//	micropklt_lcd_ctrl(1);
 //	micropklt_set_led_states(0x10,0x00);
 	return 0;
 }

@@ -294,7 +294,7 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		msm_pm_reset_vector[0] = saved_vector[0];
 		msm_pm_reset_vector[1] = saved_vector[1];
 		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
-		printk("Exit Power Collapse %d\n",collapsed);
+//		printk("Exit Power Collapse %d\n",collapsed);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE)
 			printk(KERN_INFO "msm_pm_collapse(): returned %d\n",
 			       collapsed);
@@ -380,10 +380,12 @@ void arch_idle(void)
 		msm_irq_idle_sleep_allowed();
 	if (msm_pm_reset_vector == NULL)
 		return;
+	/*
 	writel(1, A11S_CLK_SLEEP_EN);
 	msm_arch_idle();
 	writel(0, A11S_CLK_SLEEP_EN);
 	return;
+	*/
 	
 	sleep_time = msm_timer_enter_idle();
 #ifdef CONFIG_MSM_IDLE_STATS

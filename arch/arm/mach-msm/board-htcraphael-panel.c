@@ -628,7 +628,7 @@ struct msm_mddi_bridge_platform_data toshiba_client_data = {
 	},
 };
 
-struct msm_mddi_bridge_platform_data epson_client_data = {
+static struct msm_mddi_bridge_platform_data epson_client_data = {
 	.init = htcraphael_mddi_epson_client_init,
 	.uninit = htcraphael_mddi_epson_client_uninit,
 	.blank = htcraphael_mddi_panel_blank,
@@ -640,7 +640,7 @@ struct msm_mddi_bridge_platform_data epson_client_data = {
 	},
 };
 
-struct msm_mddi_platform_data mddi_pdata = {
+static struct msm_mddi_platform_data mddi_pdata = {
 	.clk_rate = 122880000,
 	.power_client = htcraphael_mddi_power_client,
 	.fb_resource = resources_msm_fb,
@@ -669,8 +669,8 @@ int __init htcraphael_init_panel(void)
 	
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
 
-	if (!machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcdiamond() && !machine_is_htcdiamond_cdma()) {
-		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
+	if (!machine_is_htcraphael() && !machine_is_htcraphael_cdma() /*&& !machine_is_htcdiamond()*/ && !machine_is_htcdiamond_cdma()) {
+		printk(KERN_INFO "%s: disabling raphael panel\n", __func__);
 		return 0;
 	}
 

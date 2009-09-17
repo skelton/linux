@@ -598,7 +598,8 @@ void mddi_remote_write(struct msm_mddi_client_data *cdata, uint32_t val,
 	ll->reserved = 0;
 
 	/* s = mddi_readl(STAT); */
-	/* printk(KERN_INFO "mddi_remote_write(%x, %x), stat = %x\n", val,
+	//printk(KERN_INFO "mddi_remote_write(%x, %x)\n", val, reg);
+	/*printk(KERN_INFO "mddi_remote_write(%x, %x), stat = %x\n", val,
 	 * reg, s); */
 
 	mddi_writel(mddi->reg_write_addr, PRI_PTR);

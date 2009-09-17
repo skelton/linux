@@ -455,7 +455,7 @@ static void msm_gpio_sleep_int(unsigned long arg)
 		smem_gpio->num_fired[i]=0;
 		for(j = 0; j < count; j++) {
 			/* TODO: Check mask */
-			printk("msm_gpio_sleep_int %d\n",smem_gpio->fired[i][j]);
+//			printk("msm_gpio_sleep_int %d\n",smem_gpio->fired[i][j]);
 			generic_handle_irq(MSM_GPIO_TO_INT(smem_gpio->fired[i][j]));
 			smem_gpio->fired[i][j]=0;
 		}
