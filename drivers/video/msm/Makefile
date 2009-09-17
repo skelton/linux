@@ -19,5 +19,5 @@ obj-y += mddi.o
 #obj-y += mddi_client_dummy.o
 obj-y += mddi_client_toshiba.o
 #obj-y += mddi_client_nt35399.o
-#obj-y += mddi_client_epson.o
+obj-y += mddi_client_epson.o
 
