@@ -398,8 +398,8 @@ static uint16_t mddi_init_registers(struct mddi_info *mddi)
 	mddi_writel(0x0005, TA1_LEN);
 	mddi_writel(MDDI_HOST_TA2_LEN, TA2_LEN);
 	mddi_writel(0x0096, DRIVE_HI);
-	/* 0x32 normal, 0x50 for Toshiba display */
-	mddi_writel(0x0050, DRIVE_LO);
+	/* 0x32 normal, 0x50 for Toshiba display, 0xd0 on diam100, raph */
+	mddi_writel(0x00d0, DRIVE_LO);
 	mddi_writel(0x003C, DISP_WAKE); /* wakeup counter */
 	mddi_writel(MDDI_HOST_REV_RATE_DIV, REV_RATE_DIV);
 
@@ -418,7 +418,7 @@ static uint16_t mddi_init_registers(struct mddi_info *mddi)
 	}
 
 	/* Recommendation from PAD hw team */
-	mddi_writel(0xa850f, PAD_CTL);
+	mddi_writel(0xa850a, PAD_CTL);
 
 
 	/* Need an even number for counts */
@@ -445,6 +445,7 @@ static void mddi_suspend(struct msm_mddi_client_data *cdata)
 	/* turn off the client */
 	if (mddi->power_client)
 		mddi->power_client(&mddi->client_data, 0);
+	mddi_writel(0x0, PAD_CTL);	
 	/* turn off the link */
 	mddi_writel(MDDI_CMD_RESET, CMD);
 	mddi_wait_interrupt(mddi, MDDI_INT_NO_CMD_PKTS_PEND);
@@ -465,6 +466,7 @@ static void mddi_resume(struct msm_mddi_client_data *cdata)
 		mddi->power_client(&mddi->client_data, 1);
 	/* turn on the clock */
 	clk_enable(mddi->clk);
+
 	/* set up the local registers */
 	mddi->rev_data_curr = 0;
 	mddi_init_registers(mddi);
