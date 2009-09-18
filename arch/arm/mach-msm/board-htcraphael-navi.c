@@ -511,7 +511,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW, 
 			"raphnavi_tp", navi) != 0)
 		goto fail_tp_irq;
-	set_irq_wake(navi->tp_irq, 1);
+//	set_irq_wake(navi->tp_irq, 1);
 	disable_irq(navi->tp_irq);
 
 #ifdef RAPHNAVI_LID_SWITCH
@@ -547,7 +547,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		irq = gpio_to_irq(navi->info->cols[i]);
 		if (request_irq(irq, raphnavi_irq_handler, IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
 			goto fail_gpio_irq;
-		set_irq_wake(irq, 1);
+//		set_irq_wake(irq, 1);
 		disable_irq(irq);
 	}
 

@@ -242,6 +242,7 @@ static struct spi_table hitachi_spi_table[] = {
 	{1,0x33,0},
 	{0x23,0x7400,0},
  
+ 
 };
 
 static int client_state=1; // we are booting with the panel on.
@@ -291,7 +292,7 @@ static void htcdiamond_process_spi_table(struct msm_mddi_client_data *client_dat
 	}
 }
 
-extern void  micropklt_lcd_ctrl(int);
+//extern void  micropklt_lcd_ctrl(int);
 
 static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_data,
 				    int on)
@@ -306,6 +307,7 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 		
 
 		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR1,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+//		micropklt_lcd_ctrl(1);
 		dex.cmd=PCOM_PMIC_REG_ON;
 		dex.has_data=1;
 		dex.data=0x800;
@@ -327,6 +329,7 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		msm_gpio_set_function(DEX_GPIO_CFG(0x1b,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
+//		micropklt_lcd_ctrl(2);
 		dex.data=0x2000;
 		msm_proc_comm_wince(&dex,0);
 		mdelay(50);
@@ -335,7 +338,6 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 		mdelay(200);
 	} else {
 		gpio_set_value(RAPH100_LCD_PWR2, 0);
-//		micropklt_lcd_ctrl(4);
 		mdelay(1);
 		dex.cmd=PCOM_PMIC_REG_OFF;
 		dex.has_data=1;
@@ -344,6 +346,7 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 		mdelay(7);
 		msm_gpio_set_function(DEX_GPIO_CFG(0x1b,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
 		dex.data=0x800;
+//		micropklt_lcd_ctrl(5);
 		msm_proc_comm_wince(&dex,0);
 		mdelay(3);
 		gpio_set_value(RAPH100_LCD_PWR1, 0);

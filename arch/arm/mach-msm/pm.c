@@ -159,7 +159,6 @@ msm_pm_wait_state(uint32_t wait_state_all_set, uint32_t wait_state_all_clear,
 }
 void smsm_limit_sleep(int);
 void sync_timer(void);
-static int firstsleep=1;
 static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 {
 	uint32_t saved_vector[2];
@@ -367,6 +366,8 @@ void arch_idle(void)
 	int spin;
 	int64_t sleep_time;
 	int low_power = 0;
+	unsigned long saved_rate;
+
 #ifdef CONFIG_MSM_IDLE_STATS
 	int64_t t1;
 	static int64_t t2;
@@ -380,12 +381,15 @@ void arch_idle(void)
 		msm_irq_idle_sleep_allowed();
 	if (msm_pm_reset_vector == NULL)
 		return;
-	/*
+	
+	// idle pm not working yet so do this instead
+//	saved_rate = acpuclk_wait_for_irq();
 	writel(1, A11S_CLK_SLEEP_EN);
 	msm_arch_idle();
 	writel(0, A11S_CLK_SLEEP_EN);
+//	acpuclk_set_rate(saved_rate, 1);
 	return;
-	*/
+	
 	
 	sleep_time = msm_timer_enter_idle();
 #ifdef CONFIG_MSM_IDLE_STATS

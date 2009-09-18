@@ -68,7 +68,6 @@ static void smd_tty_notify(void *priv, unsigned event)
 			*/
 			printk(KERN_ERR "OOPS - smd_tty_buffer mismatch?!");
 		}
-
 		wake_lock_timeout(&info->wake_lock, HZ / 2);
 		tty_flip_buffer_push(tty);
 	}
@@ -142,7 +141,7 @@ static int smd_tty_write(struct tty_struct *tty, const unsigned char *buf, int l
 {
 	struct smd_tty_info *info = tty->driver_data;
 	int avail;
-
+	
 	/* if we're writing to a packet channel we will
 	** never be able to write more data than there
 	** is currently space for
