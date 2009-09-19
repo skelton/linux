@@ -304,8 +304,6 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 	
 
 	if(on) {
-		
-
 		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR1,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		micropklt_lcd_ctrl(1);
 		dex.cmd=PCOM_PMIC_REG_ON;
@@ -313,6 +311,7 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 		dex.data=0x800;
 		msm_proc_comm_wince(&dex,0);
 		mdelay(40);
+
 		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		gpio_set_value(0x3d,0);
@@ -329,12 +328,12 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		msm_gpio_set_function(DEX_GPIO_CFG(0x1b,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
+
 		micropklt_lcd_ctrl(2);
 		dex.data=0x2000;
 		msm_proc_comm_wince(&dex,0);
 		mdelay(50);
 		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR2,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
-
 		mdelay(200);
 	} else {
 		gpio_set_value(RAPH100_LCD_PWR2, 0);
