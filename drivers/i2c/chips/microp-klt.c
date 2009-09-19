@@ -77,23 +77,20 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 
 	b = 1U << idx;
 
-	if ( brightness == LED_OFF ) {
+	if ( brightness == LED_OFF )
 		state &= ~b;
-	} else {
-
-		// lcd-backlight lets us do varied brightness
-		if ( idx == 5+8 ) {
-
-			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
-			buffer[1] = brightness/2 & 0xf0;
-
-			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n", 
-				led_cdev->name, buffer[1]);
-			micropklt_write(client, buffer, 2);
-//			msleep(1);
-		}
-
+	else 
 		state |= b;
+
+	// lcd-backlight lets us do varied brightness
+	if ( idx==5+8 /*&& brightness>0*/) {
+		buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
+		buffer[1] = brightness/2 & 0xf0;
+
+		printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n", 
+			led_cdev->name, buffer[1]);
+		micropklt_write(client, buffer, 2);
+		msleep(1);
 	}
 
 	if ( data->led_states != state ) {
@@ -102,7 +99,6 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 		buffer[2] = 0xff & (state >> 8);
 		data->led_states = state;
 		micropklt_write(client, buffer, 3);
-//		msleep(1);
 	}
 	mutex_unlock(&data->lock);
 }
