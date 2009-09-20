@@ -77,23 +77,20 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 
 	b = 1U << idx;
 
-	if ( brightness == LED_OFF ) {
+	if ( brightness == LED_OFF )
 		state &= ~b;
-	} else {
-
-		// lcd-backlight lets us do varied brightness
-		if ( idx == 5 ) {
-
-			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
-			buffer[1] = 0xff & brightness;
-			buffer[2] = 0xff & (brightness >> 8);
-
-			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x%02x\n", 
-				led_cdev->name, buffer[2], buffer[1]);
-			micropklt_write(client, buffer, 3);
-		}
-
+	else 
 		state |= b;
+
+	// lcd-backlight lets us do varied brightness
+	if ( idx==5+8 /*&& brightness>0*/) {
+		buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
+		buffer[1] = brightness/2 & 0xf0;
+
+		printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n", 
+			led_cdev->name, buffer[1]);
+		micropklt_write(client, buffer, 2);
+		msleep(1);
 	}
 
 	if ( data->led_states != state ) {
@@ -101,10 +98,8 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 		buffer[1] = 0xff & state;
 		buffer[2] = 0xff & (state >> 8);
 		data->led_states = state;
+		micropklt_write(client, buffer, 3);
 	}
-
-	micropklt_write(client, buffer, 3);
-
 	mutex_unlock(&data->lock);
 }
 
@@ -149,6 +144,59 @@ int micropklt_set_kbd_state(int on)
 	return micropklt_set_led_states(1 << MICROP_KLT_BKL_KBD,on ? 1 << MICROP_KLT_BKL_KBD : 0);
 }
 EXPORT_SYMBOL(micropklt_set_kbd_state);
+
+#define send_command(x) micropklt_write(client, x,ARRAY_SIZE(x));
+
+void micropklt_lcd_ctrl(int v)
+{
+	struct microp_klt *data=micropklt_t;;
+	struct i2c_client *client;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	// for power up
+	char c1[]={0x20,0x48};
+	char c2[]={0x20,0x0c};
+        char c3[]={0x23,0,0};
+	char c4[]={0x22,0x0};
+	char c6[]={0x22,0x60};
+
+	// for power down
+	char c7[]={0x20,0x4c};
+	char c8[]={0x40,0x10,0x00};
+	char c9[]={0x20,0x08};
+
+	
+        int r;
+
+        data = micropklt_t;
+        if (!data) return -EAGAIN;
+        client = data->client;
+
+	switch(v) {
+	case 1: // power up
+		send_command(c1);
+		break;
+	case 2: 
+		send_command(c2);
+		break;
+	case 3:
+		send_command(c3);
+		break;
+	case 4: // power down
+		send_command(c7);
+		send_command(c3);
+		send_command(c8);
+		send_command(c3);
+		break;
+	case 5: 
+		send_command(c9);
+		break;
+		
+	}
+}
+
+EXPORT_SYMBOL(micropklt_lcd_ctrl);
 
 static int micropklt_remove(struct i2c_client *client)
 {
@@ -349,6 +397,9 @@ static int micropklt_read(struct i2c_client *client, unsigned id, char *buf, int
 static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	D("suspending device...");
+//	char cmd[]={0x20,0x08};
+//	send_command(cmd);
+//	micropklt_lcd_ctrl(4);
 //	micropklt_set_led_states(0x10,0x10);
 	return 0;
 }
@@ -356,6 +407,9 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 static int micropklt_resume(struct i2c_client *client)
 {
 	D("resuming device...");
+//	char cmd[]={0x20,0x48};
+//	send_command(cmd);
+//	micropklt_lcd_ctrl(1);
 //	micropklt_set_led_states(0x10,0x00);
 	return 0;
 }

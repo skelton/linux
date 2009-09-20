@@ -56,6 +56,8 @@
 
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
+static int adb=1;
+module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void htcraphael_device_specific_fixes(void);
 
@@ -112,7 +114,7 @@ static void halibut_phy_reset(void)
 static char *halibut_usb_functions[] = {
 	"ether",
 //	"diag",
-//	"adb",
+       "adb",
 };
 
 static struct msm_hsusb_product halibut_usb_products[] = {
@@ -146,6 +148,20 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.num_functions	= ARRAY_SIZE(halibut_usb_functions),
 	.products = halibut_usb_products,
 	.num_products = ARRAY_SIZE(halibut_usb_products),
+};
+
+static struct msm_hsusb_platform_data msm_hsusb_pdata_adb = {
+        .phy_reset      = halibut_phy_reset,
+        .phy_init_seq   = halibut_phy_init_seq_raph100, /* Modified in htcraphael_device_specific_fixes() */
+        .vendor_id      = 0x0bb4, // Not sure if these are right - copied from Diamond
+        .product_id     = 0x0c02, // Same.
+        .version        = 0x0100,
+        .product_name   = "MSM USB",
+        .manufacturer_name = "HTC",
+        .functions      = halibut_usb_functions,
+        .num_functions  = ARRAY_SIZE(halibut_usb_functions),
+        .products = halibut_usb_products,
+        .num_products = 0,
 };
 
 static struct i2c_board_info i2c_devices[] = {
@@ -304,8 +320,26 @@ static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
 
+#define MSM_LOG_BASE 0x0e0000
+#define MSM_LOG_SIZE 0x020000
+static struct resource ram_console_resource[] = {
+        {
+                .start = MSM_LOG_BASE,
+                .end = MSM_LOG_BASE+MSM_LOG_SIZE-1,
+                .flags  = IORESOURCE_MEM,
+        }
+};
+
+static struct platform_device ram_console_device = {
+        .name = "ram_console",
+        .id = -1,
+        .num_resources  = ARRAY_SIZE(ram_console_resource),
+        .resource       = ram_console_resource,
+};
+
 
 static struct platform_device *devices[] __initdata = {
+       &ram_console_device,
 	&msm_device_hsusb,
 	&raphael_keypad_device,
 	&android_pmem_device,
@@ -403,6 +437,8 @@ static void __init halibut_init(void)
 
 	// Device pdata overrides
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+        if(adb)
+                msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata_adb;
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 

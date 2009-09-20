@@ -16,6 +16,7 @@
  * GNU General Public License for more details.
  *
  */
+#define DEBUG
 
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -31,7 +32,7 @@ enum {
 	PWRSINK_DEBUG_CURR_CHANGE = 1U << 0,
 	PWRSINK_DEBUG_CURR_CHANGE_AUDIO = 1U << 1,
 };
-static int pwrsink_debug_mask;
+static int pwrsink_debug_mask=3;
 module_param_named(debug_mask, pwrsink_debug_mask, int,
 		S_IRUGO | S_IWUSR | S_IWGRP);
 

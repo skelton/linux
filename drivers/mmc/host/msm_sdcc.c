@@ -1253,7 +1253,6 @@ msmsdcc_resume(struct platform_device *dev)
 			clk_enable(host->clk);
 			host->clks_on = 1;
 		}
-
 		writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 
 		spin_unlock_irqrestore(&host->lock, flags);

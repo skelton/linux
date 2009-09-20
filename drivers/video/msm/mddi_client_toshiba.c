@@ -22,7 +22,7 @@
 #include <linux/gpio.h>
 #include <mach/msm_fb.h>
 
-
+/*
 #define LCD_CONTROL_BLOCK_BASE 0x110000
 #define CMN         (LCD_CONTROL_BLOCK_BASE|0x10)
 #define INTFLG      (LCD_CONTROL_BLOCK_BASE|0x18)
@@ -49,7 +49,7 @@
 #define INTMASK_VWAKEOUT_ACTIVE_LOW (1U << 8)
 #define GPIOSEL     (BASE7 + 0x00)
 #define GPIOSEL_VWAKEINT (1U << 0)
-
+*/
 static DECLARE_WAIT_QUEUE_HEAD(toshiba_vsync_wait);
 
 struct panel_info {
@@ -226,9 +226,10 @@ static int mddi_toshiba_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, panel);
 
+	printk("mddi_toshiba_probe\n");
 	/* mddi_remote_write(mddi, 0, WAKEUP); */
-	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
-	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
+//	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
+//	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
 
 	ret = setup_vsync(panel, 1);
 	if (ret) {

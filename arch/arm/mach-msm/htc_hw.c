@@ -31,6 +31,14 @@
 
 static htc_hw_pdata_t *htc_hw_pdata;
 
+extern void micropklt_lcd_ctrl(int);
+
+static ssize_t test_store(struct class *class, const char *buf, size_t count)
+{
+	int v;
+	sscanf(buf, "%d", &v);
+	micropklt_lcd_ctrl(v);
+}
 static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
 {
 	uint32_t vibrate;
@@ -92,6 +100,7 @@ static struct class_attribute htc_hw_class_attrs[] = {
 	__ATTR_RO(radio),
 	__ATTR_RO(machtype),
 	__ATTR(vibrate, 0222, NULL, vibrate_store),
+	__ATTR(test,0222, NULL, test_store),
 	__ATTR_NULL,
 };
 

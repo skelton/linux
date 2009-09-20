@@ -190,7 +190,7 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	w = msmfb->update_info.eright - x;
 	h = msmfb->update_info.ebottom - y;
 #if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA) || defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
-	x = 0; y = 0; w = msmfb->xres; h = msmfb->yres;
+//	x = 0; y = 0; w = msmfb->xres; h = msmfb->yres;
 #endif
 	yoffset = msmfb->yoffset;
 	msmfb->update_info.left = msmfb->xres + 1;

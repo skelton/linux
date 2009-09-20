@@ -44,6 +44,7 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/vreg.h>
 #include <mach/htc_battery.h>
+#include <mach/htc_pwrsink.h>
 
 #include <mach/gpio.h>
 #include <mach/io.h>
@@ -346,8 +347,73 @@ static struct platform_device msm_device_buttons = {
 		.platform_data  = &button_data,
         }
 };
+static struct pwr_sink diamond_pwrsink_table[] = {
+        {
+                .id     = PWRSINK_AUDIO,
+                .ua_max = 90000,
+        },
+        {
+                .id     = PWRSINK_BACKLIGHT,
+                .ua_max = 128000,
+        },
+        {
+                .id     = PWRSINK_LED_BUTTON,
+                .ua_max = 17000,
+        },
+        {
+                .id     = PWRSINK_LED_KEYBOARD,
+                .ua_max = 22000,
+        },
+        {
+                .id     = PWRSINK_GP_CLK,
+                .ua_max = 30000,
+        },
+        {
+                .id     = PWRSINK_BLUETOOTH,
+                .ua_max = 15000,
+        },
+        {
+                .id     = PWRSINK_CAMERA,
+                .ua_max = 0,
+        },
+        {
+                .id     = PWRSINK_SDCARD,
+                .ua_max = 0,
+        },
+        {
+                .id     = PWRSINK_VIDEO,
+                .ua_max = 0,
+        },
+        {
+                .id     = PWRSINK_WIFI,
+                .ua_max = 200000,
+        },
+        {
+                .id     = PWRSINK_SYSTEM_LOAD,
+                .ua_max = 100000,
+                .percent_util = 38,
+        },
+};
+
+static struct pwr_sink_platform_data diamond_pwrsink_data = {
+        .num_sinks      = ARRAY_SIZE(diamond_pwrsink_table),
+        .sinks          = diamond_pwrsink_table,
+        .suspend_late   = NULL,
+        .resume_early   = NULL,
+        .suspend_early  = NULL,
+        .resume_late    = NULL,
+};
+
+static struct platform_device diamond_pwr_sink = {
+        .name = "htc_pwrsink",
+        .id = -1,
+        .dev    = {
+                .platform_data = &diamond_pwrsink_data,
+        },
+};
 
 static struct platform_device *devices[] __initdata = {
+	&diamond_pwr_sink,
 	&ram_console_device,
 	&msm_device_hsusb,
 	&android_pmem_device,
