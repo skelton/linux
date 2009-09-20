@@ -21,6 +21,7 @@
 
 #include "htc_hw.h"
 #include "AudioPara.c"
+#include <linux/msm_audio.h>
 
 #if 1
  #define DHTC(fmt, arg...) printk(KERN_DEBUG "[HTC] %s: " fmt "\n", __FUNCTION__, ## arg)
@@ -128,15 +129,21 @@ void msm_audio_path(int i) {
 	switch (i) {
 		case 2: // Phone Audio Start
 			set_audio_parameters("PHONE_EARCUPLE_VOL2");
-			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0180;
+
+                        /*  enable handset mic */
+			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080 | 0x100;
 			msm_proc_comm_wince(&dex,0);
-			snd_set_device(0,0,0);
+
+			snd_set_device(0,SND_MUTE_UNMUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
 			break;
 		case 5: // Phone Audio End
                         set_audio_parameters("CE_PLAYBACK_HANDSFREE");
+
+                        /* disable handset mic */
 			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080;
                         msm_proc_comm_wince(&dex,0);
-			snd_set_device(1,1,1);
+
+			snd_set_device(1,SND_MUTE_MUTED,SND_MUTE_MUTED); /* "SPEAKER" */
                         break;
 	}
 }
