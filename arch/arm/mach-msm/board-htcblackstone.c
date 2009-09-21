@@ -51,12 +51,13 @@
 
 #include "proc_comm_wince.h"
 #include "devices.h"
+#include "htc_hw.h"
 #include "board-htcblackstone.h"
 
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-static void htcraphael_device_specific_fixes(void);
+static void blackstone_device_specific_fixes(void);
 
 extern int htcraphael_init_mmc(void);
 
@@ -85,7 +86,6 @@ static struct platform_device gpio_keys = {
 
 //END GPIO keys
 
-#if 0
 static struct resource msm_serial0_resources[] = {
 	{
 		.start	= INT_UART1,
@@ -105,19 +105,11 @@ static struct platform_device msm_serial0_device = {
 	.num_resources	= ARRAY_SIZE(msm_serial0_resources),
 	.resource	= msm_serial0_resources,
 };
-#endif
 
 static int halibut_phy_init_seq_raph100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
 	0x1D, 0x0D,
 	0x1D, 0x10,
-	-1
-};
-
-static int halibut_phy_init_seq_raph800[] = {
-	0x04, 0x48, /* Host mode is unsure for raph800 */
-	0x3A, 0x10,
-	0x3B, 0x10,
 	-1
 };
 
@@ -151,12 +143,9 @@ static struct msm_hsusb_product halibut_usb_products[] = {
 	},
 };
 
-// netripper
-// orig vendor_id 0x18d1
-// orig product_id 0xd00d
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.phy_reset      = halibut_phy_reset,
-	.phy_init_seq	= halibut_phy_init_seq_raph100, /* Modified in htcraphael_device_specific_fixes() */
+	.phy_init_seq	= halibut_phy_init_seq_raph100,
 	.vendor_id      = 0x049F,
 	.product_id     = 0x0002, // by default (no funcs)
 	.version        = 0x0100,
@@ -169,32 +158,14 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 };
 
 static struct i2c_board_info i2c_devices[] = {
-#if 0
-	{
-		// Navi cap sense controller
-		I2C_BOARD_INFO("cy8c20434", 0x62),
-	},
-#endif
 	{
 		// LED & Backlight controller
 		I2C_BOARD_INFO("microp-klt", 0x66),
 	},
-#if 0 //ORUX
-	{
-		// Keyboard controller
-		I2C_BOARD_INFO("microp-ksc", 0x67),
-	},
-#endif
 	{		
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
 	},
-#if 0 //ORUX
-	{
-		// Raphael NaviPad
-		I2C_BOARD_INFO("raph_navi_pad", 0x62),
-	},
-#endif
 };
 
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -251,6 +222,24 @@ static struct platform_device android_pmem_gpu1_device = {
 	.name = "android_pmem",
 	.id = 3,
 	.dev = { .platform_data = &android_pmem_gpu1_pdata },
+};
+
+#define MSM_LOG_BASE 0x0e0000
+#define MSM_LOG_SIZE 0x020000
+
+static struct resource ram_console_resource[] = {
+        {
+                .start = MSM_LOG_BASE,
+                .end = MSM_LOG_BASE+MSM_LOG_SIZE-1,
+                .flags  = IORESOURCE_MEM,
+        }
+};
+ 
+static struct platform_device ram_console_device = {
+        .name = "ram_console",
+        .id = -1,
+        .num_resources  = ARRAY_SIZE(ram_console_resource),
+        .resource       = ram_console_resource,
 };
 
 #define SND(num, desc) { .name = desc, .id = num }
@@ -313,22 +302,28 @@ static struct platform_device blac_snd = {
 	},
 };
 
+static struct platform_device raphael_gps = {
+    .name       = "raphael_gps",
+};
+
+
 static struct platform_device *devices[] __initdata = {
-#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
+        &ram_console_device,
+//#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
 //	&msm_serial0_device,
-#endif
+//#endif
 	&msm_device_hsusb,
-//orux	&raphael_keypad_device,
 	&android_pmem_device,
 	&android_pmem_adsp_device,
 	&android_pmem_gpu0_device,
 	&android_pmem_gpu1_device,
-	&msm_device_smd,
-	&msm_device_nand,
-	&msm_device_i2c,
+    &msm_device_smd,
+    &msm_device_nand,
+    &msm_device_i2c,
 	&msm_device_rtc,
-	&gpio_keys,
-	&blac_snd,
+	&msm_device_htc_hw,	
+    &gpio_keys,
+    &blac_snd,
 };
 
 extern struct sys_timer msm_timer;
@@ -359,13 +354,34 @@ static void htcraphael_reset(void)
 	printk(KERN_INFO "%s: Soft reset done.\n", __func__);
 }
 
+static void blac_set_vibrate(uint32_t val)
+{
+	struct msm_dex_command vibra;
+
+	if (val == 0) {
+		vibra.cmd = PCOM_VIBRA_OFF;
+		msm_proc_comm_wince(&vibra, 0);
+	} else if (val > 0) {
+		if (val == 1 || val > 0xb22)
+			val = 0xb22;
+		writel(val, MSM_SHARED_RAM_BASE + 0xfc130);
+		vibra.cmd = PCOM_VIBRA_ON;
+		msm_proc_comm_wince(&vibra, 0);
+	}
+}
+
+static htc_hw_pdata_t msm_htc_hw_pdata = {
+	.set_vibrate = blac_set_vibrate,
+	.battery_smem_offset = 0xfc140, //XXX: raph800
+	.battery_smem_field_size = 4,
+};
+
 static void __init halibut_init(void)
 {
 	int i;
-	struct msm_dex_command vibra = { .cmd = 0, };
 
 	// Fix data in arrays depending on GSM/CDMA version
-	htcraphael_device_specific_fixes();
+	blackstone_device_specific_fixes();
 
     msm_acpu_clock_init(&halibut_clock_data);
 	msm_proc_comm_wince_init();
@@ -373,7 +389,8 @@ static void __init halibut_init(void)
     msm_hw_reset_hook = htcraphael_reset;
 
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
-
+	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
+	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	htcraphael_init_mmc();
@@ -386,11 +403,9 @@ static void __init halibut_init(void)
 
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
-		vibra.cmd = PCOM_VIBRA_ON;
-		msm_proc_comm_wince(&vibra, 0);
+		blac_set_vibrate(1);
 		mdelay(150);
-		vibra.cmd = PCOM_VIBRA_OFF;
-		msm_proc_comm_wince(&vibra, 0);
+		blac_set_vibrate(0);
 		mdelay(75);
 	}
 }
@@ -401,7 +416,7 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
-static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
+static void __init blac_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks = 1;
@@ -421,27 +436,15 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
-static void htcraphael_device_specific_fixes(void)
+static void blackstone_device_specific_fixes(void)
 {
-#if 0 //TODO ORUX, WHICH???
-		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
-		raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(27);
-		raphael_keypad_data.clamshell.gpio = 38;
-		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(38);
-		raphael_keypad_data.backlight_gpio = 86;
 		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
-#else
-//		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
-//		raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(27);
-//		raphael_keypad_data.clamshell.gpio = 39;
-//		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(39);
-//		raphael_keypad_data.backlight_gpio = 86;
-		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph800;
-#endif
+		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
+		msm_htc_hw_pdata.battery_smem_field_size = 2;
 }
 
 MACHINE_START(HTCBLACKSTONE, "HTC blackstone cellphone (aka HTC Touch HD)")
-	.fixup 		= htcraphael_fixup,
+	.fixup 		= blac_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,

@@ -251,6 +251,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	 *   0105, 0205, 0a05, 0b05, 0d02
 	 *   8182, 8185
 	 *   0c82, 0c85
+	 *   060d
 	 */
 	supported = 0;
 	switch (buf[0]) {
@@ -277,6 +278,13 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		switch (buf[1])	{
 		case 0x82:
 		case 0x85:
+			supported = 1;
+			break;
+		}
+		break;
+	case 0x06:
+		switch (buf[1])	{
+		case 0x0d:
 			supported = 1;
 			break;
 		}
