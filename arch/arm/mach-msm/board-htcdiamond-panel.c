@@ -195,8 +195,6 @@ static struct mddi_table mddi_sharp_table[] = {
 	{0x11005c,0x1},
 	{0x110008,1},
 };
-	
-
 
 
 static struct mddi_table mddi_toshiba_prim_start_table[] = {
@@ -285,7 +283,7 @@ static void htcdiamond_process_mddi_table(struct msm_mddi_client_data *client_da
 		if (reg == 0)
 			udelay(value);
 		else if (reg == 1)
-			mdelay(value);
+			msleep(value);
 		else {
 			client_data->remote_write(client_data, value, reg);
 		}
@@ -316,7 +314,7 @@ static void htcdiamond_process_spi_table(struct msm_mddi_client_data *client_dat
 		client_data->remote_write(client_data, 0x172, SSICTL);
 
 		if(delay)
-			mdelay(delay);
+			msleep(delay);
 	}
 }
 
@@ -420,13 +418,12 @@ static int htcdiamond_mddi_toshiba_client_init(
 	printk("htcdiamond_mddi_toshiba_client_init\n");
 	client_data->auto_hibernate(client_data, 0);
 	
-	htcdiamond_process_mddi_table(client_data, mddi_toshiba_common_init_table,
-		ARRAY_SIZE(mddi_toshiba_common_init_table));
-	mdelay(50);
-	htcdiamond_process_mddi_table(client_data, mddi_toshiba_prim_start_table,
-						ARRAY_SIZE(mddi_toshiba_prim_start_table));
-
 	if(!client_state) {
+		htcdiamond_process_mddi_table(client_data, mddi_toshiba_common_init_table,
+			ARRAY_SIZE(mddi_toshiba_common_init_table));
+		mdelay(50);
+		htcdiamond_process_mddi_table(client_data, mddi_toshiba_prim_start_table,
+						ARRAY_SIZE(mddi_toshiba_prim_start_table));
 		switch(type) {
 			case 0:
 				printk("unknown panel\n");
