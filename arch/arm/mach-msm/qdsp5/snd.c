@@ -43,7 +43,7 @@ static struct snd_ctxt the_snd;
 #define RPC_SND_VERS                    0x94756085 /* 2490720389 */
 #define SND_SET_DEVICE_PROC 2
 #define SND_SET_VOLUME_PROC 3
-#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
+#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225) ||  (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125) 
 #define RPC_SND_VERS                    0xaa2b1a44 /* 2854951492 */
 #define SND_SET_DEVICE_PROC 2
 #define SND_SET_VOLUME_PROC 3
