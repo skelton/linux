@@ -56,7 +56,7 @@
 
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
-static int adb=1;
+static int adb=0;
 module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void htcraphael_device_specific_fixes(void);

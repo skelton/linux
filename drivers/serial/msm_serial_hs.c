@@ -914,12 +914,12 @@ static irqreturn_t msm_hs_isr(int irq, void *dev)
 
 	isr_status = msm_hs_read(uport, UARTDM_MISR_ADDR);
 
-#if 1
+#if 0
 	printk(KERN_DEBUG "msm_hs_isr: MISR=%08x ISR=%08x SR=%08x\n",
 		msm_hs_read(uport, UARTDM_MISR_ADDR),
 		msm_hs_read(uport, UARTDM_ISR_ADDR),
 		msm_hs_read(uport, UARTDM_SR_ADDR));
-	msleep(500);
+//	msleep(500);
 #endif
 
 	/* Uart RX starting */
@@ -1269,7 +1269,7 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	if (unlikely(!uport->membase))
 		return -ENOMEM;
 
-	uport->irq = platform_get_irq(pdev, 0);
+	uport->irq = platform_get_irq(pdev, 1);
 	if (unlikely(uport->irq < 0))
 		return -ENXIO;
 	if (unlikely(set_irq_wake(uport->irq, 1)))
