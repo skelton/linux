@@ -1160,8 +1160,8 @@ msmsdcc_probe(struct platform_device *pdev)
 	mmc_add_host(mmc);
 
 	printk(KERN_INFO
-	       "%s: Qualcomm MSM SDCC at 0x%016llx irq %d,%d dma %d\n",
-	       mmc_hostname(mmc), (unsigned long long)memres->start,
+	       "%s: Qualcomm MSM SDCC at 0x%08lx irq %d,%d dma %d\n",
+	       mmc_hostname(mmc), (unsigned long )memres->start,
 	       (unsigned int) irqres->start,
 	       (unsigned int) plat->status_irq, host->dma.channel);
 	printk(KERN_INFO "%s: 4 bit data mode %s\n", mmc_hostname(mmc),

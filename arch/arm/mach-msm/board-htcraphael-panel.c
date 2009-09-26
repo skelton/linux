@@ -439,6 +439,7 @@ static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_dat
 	int i;
 	
 	printk("htcraphael_mddi_power_client(%d)\n", on);
+	printk("XC=%x\n", i=readl(MSM_SHARED_RAM_BASE + 0xfc048));
 	
 
 	if(on) {
@@ -486,11 +487,13 @@ static int htcraphael_mddi_epson_client_init(
 //	htcraphael_process_mddi_table(client_data, mddi_epson_init_table,
 //				 ARRAY_SIZE(mddi_epson_init_table));
 	client_data->auto_hibernate(client_data, 1);
+#if 0
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	if (panel_id > 1) {
 		printk("unknown panel id (0x%08x) at mddi_enable\n", panel_id);
 		return -1;
 	}
+#endif
 	return 0;
 }
 
@@ -505,20 +508,24 @@ static int htcraphael_mddi_toshiba_client_init(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
-	int panel_id;
+	int panel_id, gpio_val;
+	char *panels[]={"Hitachi","Sharp","Toppoly","Toppoly2"};
 
 	client_data->auto_hibernate(client_data, 0);
 //	htcraphael_process_mddi_table(client_data, mddi_lcm_init_table,
 //				 ARRAY_SIZE(mddi_lcm_init_table));
 	client_data->auto_hibernate(client_data, 1);
-	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 
-	printk("toshiba GPIODATA=0x%08x at mddi_enable\n", client_data->remote_read(client_data, GPIODATA));
+	gpio_val = client_data->remote_read(client_data, GPIODATA);
+	panel_id=0;
 
-	if (panel_id > 1) {
-		printk("unknown panel id (0x%08x) at mddi_enable\n", panel_id);
-		return -1;
-	}
+	if ( (gpio_val & 0x10) != 0 ) panel_id++;
+	if ( (gpio_val & 4) != 0 ) panel_id+=2;
+
+	printk("toshiba GPIODATA=0x%08x panel_id=%d at toshiba_mddi_enable\n", gpio_val, panel_id);
+
+	printk("found panel_id=%d at toshiba_mddi_enable, panel=%s\n", panel_id,panels[panel_id]);
+	
 	return 0;
 }
 
@@ -648,14 +655,14 @@ static struct msm_mddi_platform_data mddi_pdata = {
 	.client_platform_data = {
 		{
 			.product_id = (0xd263 << 16 | 0),
-			.name = "mddi_c_d263_0000",
+			.name = "TC358720XBG",
 			.id = 0,
 			.client_data = &toshiba_client_data,
 			.clk_rate = 0,
 		},
 		{
 			.product_id = (0x4ca3 << 16 | 0),
-			.name = "mddi_c_4ca3_0000",
+			.name = "S1D13774",
 			.id = 0,
 			.client_data = &epson_client_data,
 			.clk_rate = 0,

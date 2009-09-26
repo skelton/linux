@@ -22,34 +22,6 @@
 #include <linux/gpio.h>
 #include <mach/msm_fb.h>
 
-/*
-#define LCD_CONTROL_BLOCK_BASE 0x110000
-#define CMN         (LCD_CONTROL_BLOCK_BASE|0x10)
-#define INTFLG      (LCD_CONTROL_BLOCK_BASE|0x18)
-#define HCYCLE      (LCD_CONTROL_BLOCK_BASE|0x34)
-#define HDE_START   (LCD_CONTROL_BLOCK_BASE|0x3C)
-#define VPOS        (LCD_CONTROL_BLOCK_BASE|0xC0)
-#define MPLFBUF     (LCD_CONTROL_BLOCK_BASE|0x20)
-#define WAKEUP      (LCD_CONTROL_BLOCK_BASE|0x54)
-#define WSYN_DLY    (LCD_CONTROL_BLOCK_BASE|0x58)
-#define REGENB      (LCD_CONTROL_BLOCK_BASE|0x5C)
-
-#define BASE5 0x150000
-#define BASE6 0x160000
-#define BASE7 0x170000
-
-#define GPIOIEV     (BASE5 + 0x10)
-#define GPIOIE      (BASE5 + 0x14)
-#define GPIORIS     (BASE5 + 0x18)
-#define GPIOMIS     (BASE5 + 0x1C)
-#define GPIOIC      (BASE5 + 0x20)
-
-#define INTMASK     (BASE6 + 0x0C)
-#define INTMASK_VWAKEOUT (1U << 0)
-#define INTMASK_VWAKEOUT_ACTIVE_LOW (1U << 8)
-#define GPIOSEL     (BASE7 + 0x00)
-#define GPIOSEL_VWAKEINT (1U << 0)
-*/
 static DECLARE_WAIT_QUEUE_HEAD(toshiba_vsync_wait);
 
 struct panel_info {
@@ -227,9 +199,6 @@ static int mddi_toshiba_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, panel);
 
 	printk("mddi_toshiba_probe\n");
-	/* mddi_remote_write(mddi, 0, WAKEUP); */
-//	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
-//	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
 
 	ret = setup_vsync(panel, 1);
 	if (ret) {
@@ -271,7 +240,7 @@ static int mddi_toshiba_remove(struct platform_device *pdev)
 static struct platform_driver mddi_client_d263_0000 = {
 	.probe = mddi_toshiba_probe,
 	.remove = mddi_toshiba_remove,
-	.driver = { .name = "mddi_c_d263_0000" },
+	.driver = { .name = "TC358720XBG" },
 };
 
 static int __init mddi_client_toshiba_init(void)

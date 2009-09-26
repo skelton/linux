@@ -86,18 +86,18 @@ static struct msm_clock_params msm_clock_parameters[] = {
 #endif
 
 	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, .name="I2C_CLK"},
-//	{ .clk_id = UART1_CLK, .offset = 0xc0, .ns_only = 0xa00, .name="UART1_CLK"},
+//	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
 };
 
 // This formula is used to generate md and ns reg values
-#define MSM_CLOCK_REG(frequency,a1,a2,a3,a4,a5,a6,a7) { \
+#define MSM_CLOCK_REG(frequency,M,N,D,PRE,a5,SRC,MNE) { \
 	.freq = (frequency), \
-	.md = ((0xffff & (a1)) << 16) | (0xffff & ~((a3) << 1)), \
-	.ns = ((0xffff & ~((a2) - (a1))) << 16) \
-	    | ((0xff & (0xa | (a7))) << 8) \
+	.md = ((0xffff & (M)) << 16) | (0xffff & ~((D) << 1)), \
+	.ns = ((0xffff & ~((N) - (M))) << 16) \
+	    | ((0xff & (0xa | (MNE))) << 8) \
 	    | ((0x7 & (a5)) << 5) \
-	    | ((0x3 & (a4)) << 3) \
-	    | (0x7 & (a6)), \
+	    | ((0x3 & (PRE)) << 3) \
+	    | (0x7 & (SRC)), \
 }
 
 
@@ -105,7 +105,7 @@ struct mdns_clock_params msm_clock_freq_parameters[] = {
 	/* SD */
 	MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
 	/* UART2DM */
-//	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* 19.2MHz for 120000 bps */
+//	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* 1.92MHz for 120000 bps */
 
 #if 0 /* wince uses different baud divisors */
 	MSM_CLOCK_REG( 460800/4*16,    3, 0x64, 0x32, 3, 2, 4, 1), /*  115200/4*16 */
@@ -181,14 +181,12 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 
 	if (params.ns_only > 0)
 	{
-#if 1
 		nsreg = readl(MSM_CLK_CTL_BASE + offset) & 0xfffff000;
 		writel( nsreg | params.ns_only, MSM_CLK_CTL_BASE + offset);
-#else
-		writel(params.ns_only, MSM_CLK_CTL_BASE + offset);
-#endif
+
 		found = 1;
 		retval = 0;
+
 	} else {
 		for (n = ARRAY_SIZE(msm_clock_freq_parameters)-1; n >= 0; n--) {
 			if (freq >= msm_clock_freq_parameters[n].freq) {
@@ -217,6 +215,32 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 //     return retval;
        return 0;
 }
+
+#if 0
+#define PLLn_BASE(n)		(MSM_CLK_CTL_BASE + 0x300 + 28 * (n))
+#define TCX0			19200000 // Hz
+#define PLL_FREQ(l, m, n)	(TCX0 * (l) + TCX0 * (m) / (n))
+
+static unsigned long pll_get_rate(uint32_t n)
+{
+	unsigned int mode, L, M, N, freq;
+
+ if (n > 3)
+  return 0;
+ else
+ {
+        base=PLLn_BASE(n);
+	mode = readl(base);
+	L = readl(base + 0x4);
+	M = readl(base + 0x8);
+	N = readl(base + 0xc);
+	freq = PLL_FREQ(L, M, N); \
+	printk(KERN_INFO "PLL%d @ %p: MODE=%08x L=%08x M=%08x N=%08x freq=%u Hz (%u MHz)\n", \
+		n, base, mode, L, M, N, freq, freq / 1000000); \
+ }
+  
+}
+#endif
 
 static unsigned long get_mdns_host_clock(uint32_t id)
 {
@@ -368,10 +392,18 @@ static unsigned long pc_clk_get_rate(uint32_t id)
 	unsigned long rate = 0;
 
 	switch (id) {
+		/* known MD/NS clocks, MSM_CLK dump and arm/mach-msm/clock-7x30.c */
 		case SDC1_CLK:
 		case SDC2_CLK:
 		case SDC3_CLK:
 		case SDC4_CLK:
+		case UART1DM_CLK:
+		case UART2DM_CLK:
+		case USB_HS_CLK:
+		case SDAC_CLK:
+		case TV_DAC_CLK:
+		case TV_ENC_CLK:
+		case USB_OTG_CLK:
 			rate = get_mdns_host_clock(id);
 			break;
 
@@ -379,7 +411,7 @@ static unsigned long pc_clk_get_rate(uint32_t id)
 		case SDC2_PCLK:
 		case SDC3_PCLK:
 		case SDC4_PCLK:
-			rate = 66000000;
+			rate = 64000000; /* g1 value */
 			break;
 
 		default:
