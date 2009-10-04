@@ -15,6 +15,7 @@
 #include <linux/syscalls.h>
 #include <asm/div64.h>
 #include <mach/msm_rpcrouter.h>
+#include <linux/delay.h>
 
 #include "vogue_gps.h"
 #include "nmea.h"
@@ -95,7 +96,7 @@ pdsm_get_position (void)
     msm_rpc_call (ept, GET_POSITION, &msg,
 		  (28 * 4) + sizeof (struct rpc_request_hdr), 15 * HZ);
     if (rc < 0)
-        printk ("%s:%d %d\n", __func__, __LINE__, rc);
+        printk ("ERROR: %s:%d %d\n", __func__, __LINE__, rc);
 
 }
 
@@ -118,10 +119,44 @@ gps_disable (void)
     rc =
     msm_rpc_call (ept, END_SESSION, &msg, 4*4 + sizeof (struct rpc_request_hdr), 15 * HZ);
     if (rc < 0)
-        printk ("%s:%d %d\n", __func__, __LINE__, rc);
+        printk ("ERROR: %s:%d %d\n", __func__, __LINE__, rc);
 
 //    android_unlock_suspend(&gps_suspend_lock);
 }
+
+
+static int handle_pdapi_rpc_call(struct msm_rpc_server *server,
+			   struct rpc_request_hdr *req, unsigned len)
+{
+//	switch (req->procedure) {
+	 printk("%s req->procedure=0x%x\n",__FUNCTION__,req->procedure);
+//	}
+
+ return 0;
+}
+
+static int handle_pdsm_atl_rpc_call(struct msm_rpc_server *server,
+			   struct rpc_request_hdr *req, unsigned len)
+{
+//	switch (req->procedure) {
+	 printk("%s req->procedure=0x%x\n",__FUNCTION__,req->procedure);
+//	}
+
+ return 0;
+}
+
+static struct msm_rpc_server pdapi_rpc_server = {
+	.prog = RPC_PDAPI_CB_PROG,
+	.vers = 0,
+	.rpc_call = handle_pdapi_rpc_call,
+};
+
+static struct msm_rpc_server pdsm_atl_rpc_server = {
+	.prog = RPC_PDSM_ATL_CB_PROG,
+	.vers = 0,
+	.rpc_call = handle_pdsm_atl_rpc_call,
+};
+
 
 static void
 gps_enable (void)
@@ -133,19 +168,32 @@ gps_enable (void)
      } msg;
     int rc;
 
+    struct
+  {
+        struct rpc_reply_hdr hdr;
+         uint32_t retval;
+     } rep;
+
     				/* The AMSS seems to get upset if we suspend while PDSM is active */
 //    android_lock_suspend(&gps_suspend_lock);
 
+   /* register CB */
+    msm_rpc_create_server(&pdapi_rpc_server);
+    msm_rpc_create_server(&pdsm_atl_rpc_server);
 
     /* init pd */
+    printk ("init_pd\n");
     msg.msg[0] = cpu_to_be32 (INIT_PD);
     rc =
-    msm_rpc_call (ept, CLIENT_INIT, &msg, 1*4 + sizeof (struct rpc_request_hdr),
-		  15 * HZ);
+    msm_rpc_call_reply (ept, CLIENT_INIT, &msg, 1*4 + sizeof (struct rpc_request_hdr),
+		  &rep, sizeof(rep), 5 * HZ);
     if (rc < 0)
-        printk ("%s:%d %d\n", __func__, __LINE__, rc);
+        printk ("ERROR: %s:%d %d\n", __func__, __LINE__, rc);
+
+    printk ("%s:%d init_pd ret=0x%x\n", __func__, __LINE__, be32_to_cpu(rep.retval));
 
     /* pd_reg */
+    printk ("pd_reg\n");
     msg.msg[0] = cpu_to_be32 (PD_CLIENT_ID);
     msg.msg[1] = cpu_to_be32 (0x0);
     msg.msg[2] = cpu_to_be32 (0x0);
@@ -153,12 +201,15 @@ gps_enable (void)
     msg.msg[4] = cpu_to_be32 (0xf310ffff);
     msg.msg[5] = cpu_to_be32 (0xffffffff);
     rc =
-    msm_rpc_call (ept, CLIENT_PD_REG, &msg, 6*4 + sizeof (struct rpc_request_hdr),
-		  15 * HZ);
+    msm_rpc_call_reply (ept, CLIENT_PD_REG, &msg, 6*4 + sizeof (struct rpc_request_hdr),
+		   &rep, sizeof(rep), 5 * HZ);
     if (rc < 0)
-        printk ("%s:%d %d\n", __func__, __LINE__, rc);
+        printk ("ERROR: %s:%d %d\n", __func__, __LINE__, rc);
+
+    printk ("%s:%d pd_reg ret=0x%x\n", __func__, __LINE__, be32_to_cpu(rep.retval));
 
    /* ext_status_reg */
+    printk ("ext_status_reg\n");
     msg.msg[0] = cpu_to_be32 (PD_CLIENT_ID);
     msg.msg[1] = cpu_to_be32 (0x0);
     msg.msg[2] = cpu_to_be32 (0x1);
@@ -166,17 +217,25 @@ gps_enable (void)
     msg.msg[4] = cpu_to_be32 (0x4);
     msg.msg[5] = cpu_to_be32 (0xffffffff);
     rc =
-    msm_rpc_call (ept, CLIENT_EXT_STATUS_REG, &msg, 6*4 + sizeof (struct rpc_request_hdr),
-		  15 * HZ);
+    msm_rpc_call_reply (ept, CLIENT_EXT_STATUS_REG, &msg, 6*4 + sizeof (struct rpc_request_hdr),
+		  &rep, sizeof(rep), 5 * HZ);
     if (rc < 0)
-        printk ("%s:%d %d\n", __func__, __LINE__, rc);
+        printk ("ERROR: %s:%d %d\n", __func__, __LINE__, rc);
+
+    printk ("%s:%d ext_status_reg ret=0x%x\n", __func__, __LINE__, be32_to_cpu(rep.retval));
 
     /* pd_act */
+    printk ("pd_act\n");
     msg.msg[0] = cpu_to_be32 (PD_CLIENT_ID);
     rc =
-    msm_rpc_call (ept, CLIENT_ACT, &msg, 1*4 + sizeof (struct rpc_request_hdr), 15 * HZ);
-    if (rc)
-        printk ("%s:%d %d\n", __func__, __LINE__, rc);
+    msm_rpc_call_reply (ept, CLIENT_ACT, &msg, 1*4 + sizeof (struct rpc_request_hdr), 
+                        &rep, sizeof(rep), 5 * HZ);
+    if (rc < 0)
+        printk ("ERROR: %s:%d %d\n", __func__, __LINE__, rc);
+
+    printk ("%s:%d pd_act ret=0x%x\n", __func__, __LINE__, be32_to_cpu(rep.retval));
+
+#if 0 /* AGPS */
 
     /* pa_reg */
     msg.msg[0] = cpu_to_be32 (PD_CLIENT_ID);
@@ -247,23 +306,9 @@ gps_enable (void)
     if (rc)
         printk ("%s:%d %d\n", __func__, __LINE__, rc);
 
+#endif
+    printk ("get_position ->\n");
     pdsm_get_position ();
-}
-
-/* RPC functions for handling received GPS data */
-static void
-rpc_ack ( /* struct msm_rpc_endpoint *ept, */ uint32_t xid)
-{
-          uint32_t rep[6];
-
-          rep[0] = cpu_to_be32 (xid);
-          rep[1] = cpu_to_be32 (1);
-          rep[2] = 0;
-          rep[3] = 0;
-          rep[4] = 0;
-          rep[5] = 0;
-
-          msm_rpc_write (ept, rep, sizeof (rep));
 }
 
 enum GpsState
@@ -358,10 +403,13 @@ gps_rpc_thread (void *data)
 				        * Kaiser data comes form NMEA, currently */
       while (!kthread_should_stop ())
     {
+#if 0
           msm_rpc_read (ept, (void **) &hdr, -1, 15*HZ);
 
           rpc_ack (be32_to_cpu (hdr->xid));
           kfree (hdr);
+#endif
+//       printk("gps_rpc_thread called\n");
       }
 
     return 0;
@@ -375,16 +423,20 @@ gps_nmea_thread (void *data)
     char buf[256];
     struct nmea_state nmea;
 
+#if 0
     fd = sys_open ("/dev/smd27", O_RDONLY, 0);
     if (fd < 0)
         printk ("Unable to open NMEA device %d\n", fd);
     nmea_init (&nmea, NULL, handle_pos_data, handle_sat_data,
 		        handle_bearing_speed);
+#endif
+
     while (!kthread_should_stop ())
     {
-          if (state->state == GPS_STATE_ON)
+//          if (state->state == GPS_STATE_ON)
 	      pdsm_get_position ();
-          
+	      msleep(1000);
+#if 0          
       do
 	{
 	        count = sys_read (fd, buf, sizeof (buf));
@@ -392,8 +444,10 @@ gps_nmea_thread (void *data)
       while (count == -EINTR);
           printk ("NMEA read.  Size %d\n", count);
           nmea_parse (&nmea, buf, count);
+#endif
       }
-    sys_close (fd);
+
+//    sys_close (fd);
 
     return 0;
 }
@@ -515,6 +569,7 @@ static struct msm_rpc_endpoint *rpc_cb_server_client;
           			/* Only do this on the first open.  This is less than ideal */
 //	    msm_rpc_register_server (NULL, RPC_PDAPI_CB_PROG, 0);
 
+#if 0
 	rpc_cb_server_client = msm_rpc_open();
 	if (IS_ERR(rpc_cb_server_client)) {
 		rpc_cb_server_client = NULL;
@@ -530,16 +585,16 @@ static struct msm_rpc_endpoint *rpc_cb_server_client;
 		printk("gps: could not register callback server (%d)\n", rc);
 		return -1;
 	}
-          ept =
-//	msm_rpc_connect (RPC_PDAPI_CB_PROG, 0, MSM_RPC_UNINTERRUPTIBLE);
-	msm_rpc_connect (RPC_PDAPI_PROG, 0, MSM_RPC_UNINTERRUPTIBLE);
+#endif
+          ept = msm_rpc_connect (RPC_PDAPI_PROG, 0, MSM_RPC_UNINTERRUPTIBLE);
           if (!ept || IS_ERR (ept))
 	{
 	        printk ("msm_rpc_connect failed (%d)\n", (int) ept);
 	        return -1;
 	    }
-          kthread_run (gps_rpc_thread, ept, "gps_thread");
-          kthread_run (gps_nmea_thread, ept, "gps_nmea_thread");
+
+//          kthread_run (gps_rpc_thread, ept, "gps_thread");
+//          kthread_run (gps_nmea_thread, ept, "gps_nmea_thread");
       }
 
     fd_state = kmalloc (sizeof (struct gps_fd_state), GFP_KERNEL);
@@ -601,6 +656,7 @@ vogue_gps_probe (struct platform_device *pdev)
     return 0;
 }
 
+
 static struct platform_driver raphael_gps_driver = {
     .probe = vogue_gps_probe,
     .driver = {
@@ -612,6 +668,8 @@ static struct platform_driver raphael_gps_driver = {
 static int __init
 gps_init (void)
 {
+    printk("GPS init\n");
+
     return platform_driver_register (&raphael_gps_driver);
 }
 
