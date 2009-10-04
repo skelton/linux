@@ -500,7 +500,7 @@ static struct msm_mddi_platform_data mddi_pdata = {
 	.client_platform_data = {
 		{
 			.product_id = (0xd263 << 16 | 0),
-			.name = "mddi_c_d263_0000",
+			.name = "TC358720XBG",
 			.id = 0,
 			.client_data = &toshiba_client_data,
 			.clk_rate = 0,
