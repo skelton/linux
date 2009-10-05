@@ -36,6 +36,7 @@ obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-navi.o
 
 obj-$(CONFIG_MACH_HTCBLACKSTONE) += board-htcblackstone.o board-htcblackstone-panel.o htc_wifi_nvs.o board-htcblackstone-mmc.o
 obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htcblackstone-panel.o htc_wifi_nvs.o board-htckovsky-mmc.o
+obj-$(CONFIG_MACH_HTCTOPAZ) += board-htctopaz.o board-htctopaz-panel.o htc_wifi_nvs.o board-htctopaz-mmc.o
 
 obj-$(CONFIG_MACH_HALIBUT) += board-halibut.o board-halibut-keypad.o
 obj-$(CONFIG_MACH_TROUT) += board-trout.o board-trout-gpio.o
