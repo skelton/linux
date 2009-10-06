@@ -1,648 +1,546 @@
-/* linux/arch/arm/mach-msm/board-htctopaz-panel.c
-** Based on board-trout-panel.c by: Brian Swetland <swetland@google.com>
+/* linux/arch/arm/mach-msm/board-trout-mmc.c
+** Author: Brian Swetland <swetland@google.com>
 */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/leds.h>
-#include <linux/clk.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sdio_ids.h>
 #include <linux/err.h>
+#include <linux/debugfs.h>
 
-#include <asm/io.h>
-#include <asm/gpio.h>
 #include <asm/mach-types.h>
+#include <asm/gpio.h>
+#include <asm/io.h>
 
-#include <mach/msm_fb.h>
 #include <mach/vreg.h>
+#include <mach/htc_pwrsink.h>
 
-#include "board-htcraphael.h"
-#include "proc_comm_wince.h"
+#include <asm/mach/mmc.h>
+
 #include "devices.h"
 
-static struct clk *gp_clk;
+#include "board-htcraphael.h"
 
-#define MDDI_CLIENT_CORE_BASE  0x108000
-#define LCD_CONTROL_BLOCK_BASE 0x110000
-#define SPI_BLOCK_BASE         0x120000
-#define I2C_BLOCK_BASE         0x130000
-#define PWM_BLOCK_BASE         0x140000
-#define GPIO_BLOCK_BASE        0x150000
-#define SYSTEM_BLOCK1_BASE     0x160000
-#define SYSTEM_BLOCK2_BASE     0x170000
+#include "proc_comm_wince.h"
+
+#define DEBUG_SDSLOT_VDD 1
+
+extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat);
 
 
-#define	DPSUS       (MDDI_CLIENT_CORE_BASE|0x24)
-#define	SYSCLKENA   (MDDI_CLIENT_CORE_BASE|0x2C)
-#define	PWM0OFF	      (PWM_BLOCK_BASE|0x1C)
-
-#define V_VDDE2E_VDD2_GPIO 0
-#define MDDI_RST_N 82
-
-#define	MDDICAP0    (MDDI_CLIENT_CORE_BASE|0x00)
-#define	MDDICAP1    (MDDI_CLIENT_CORE_BASE|0x04)
-#define	MDDICAP2    (MDDI_CLIENT_CORE_BASE|0x08)
-#define	MDDICAP3    (MDDI_CLIENT_CORE_BASE|0x0C)
-#define	MDCAPCHG    (MDDI_CLIENT_CORE_BASE|0x10)
-#define	MDCRCERC    (MDDI_CLIENT_CORE_BASE|0x14)
-#define	TTBUSSEL    (MDDI_CLIENT_CORE_BASE|0x18)
-#define	DPSET0      (MDDI_CLIENT_CORE_BASE|0x1C)
-#define	DPSET1      (MDDI_CLIENT_CORE_BASE|0x20)
-#define	DPSUS       (MDDI_CLIENT_CORE_BASE|0x24)
-#define	DPRUN       (MDDI_CLIENT_CORE_BASE|0x28)
-#define	SYSCKENA    (MDDI_CLIENT_CORE_BASE|0x2C)
-#define	TESTMODE    (MDDI_CLIENT_CORE_BASE|0x30)
-#define	FIFOMONI    (MDDI_CLIENT_CORE_BASE|0x34)
-#define	INTMONI     (MDDI_CLIENT_CORE_BASE|0x38)
-#define	MDIOBIST    (MDDI_CLIENT_CORE_BASE|0x3C)
-#define	MDIOPSET    (MDDI_CLIENT_CORE_BASE|0x40)
-#define	BITMAP0     (MDDI_CLIENT_CORE_BASE|0x44)
-#define	BITMAP1     (MDDI_CLIENT_CORE_BASE|0x48)
-#define	BITMAP2     (MDDI_CLIENT_CORE_BASE|0x4C)
-#define	BITMAP3     (MDDI_CLIENT_CORE_BASE|0x50)
-#define	BITMAP4     (MDDI_CLIENT_CORE_BASE|0x54)
-
-#define	SRST        (LCD_CONTROL_BLOCK_BASE|0x00)
-#define	PORT_ENB    (LCD_CONTROL_BLOCK_BASE|0x04)
-#define	START       (LCD_CONTROL_BLOCK_BASE|0x08)
-#define	PORT        (LCD_CONTROL_BLOCK_BASE|0x0C)
-#define	CMN         (LCD_CONTROL_BLOCK_BASE|0x10)
-#define	GAMMA       (LCD_CONTROL_BLOCK_BASE|0x14)
-#define	INTFLG      (LCD_CONTROL_BLOCK_BASE|0x18)
-#define	INTMSK      (LCD_CONTROL_BLOCK_BASE|0x1C)
-#define	MPLFBUF     (LCD_CONTROL_BLOCK_BASE|0x20)
-#define	HDE_LEFT    (LCD_CONTROL_BLOCK_BASE|0x24)
-#define	VDE_TOP     (LCD_CONTROL_BLOCK_BASE|0x28)
-#define	PXL         (LCD_CONTROL_BLOCK_BASE|0x30)
-#define	HCYCLE      (LCD_CONTROL_BLOCK_BASE|0x34)
-#define	HSW         (LCD_CONTROL_BLOCK_BASE|0x38)
-#define	HDE_START   (LCD_CONTROL_BLOCK_BASE|0x3C)
-#define	HDE_SIZE    (LCD_CONTROL_BLOCK_BASE|0x40)
-#define	VCYCLE      (LCD_CONTROL_BLOCK_BASE|0x44)
-#define	VSW         (LCD_CONTROL_BLOCK_BASE|0x48)
-#define	VDE_START   (LCD_CONTROL_BLOCK_BASE|0x4C)
-#define	VDE_SIZE    (LCD_CONTROL_BLOCK_BASE|0x50)
-#define	WAKEUP      (LCD_CONTROL_BLOCK_BASE|0x54)
-#define	WSYN_DLY    (LCD_CONTROL_BLOCK_BASE|0x58)
-#define	REGENB      (LCD_CONTROL_BLOCK_BASE|0x5C)
-#define	VSYNIF      (LCD_CONTROL_BLOCK_BASE|0x60)
-#define	WRSTB       (LCD_CONTROL_BLOCK_BASE|0x64)
-#define	RDSTB       (LCD_CONTROL_BLOCK_BASE|0x68)
-#define	ASY_DATA    (LCD_CONTROL_BLOCK_BASE|0x6C)
-#define	ASY_DATB    (LCD_CONTROL_BLOCK_BASE|0x70)
-#define	ASY_DATC    (LCD_CONTROL_BLOCK_BASE|0x74)
-#define	ASY_DATD    (LCD_CONTROL_BLOCK_BASE|0x78)
-#define	ASY_DATE    (LCD_CONTROL_BLOCK_BASE|0x7C)
-#define	ASY_DATF    (LCD_CONTROL_BLOCK_BASE|0x80)
-#define	ASY_DATG    (LCD_CONTROL_BLOCK_BASE|0x84)
-#define	ASY_DATH    (LCD_CONTROL_BLOCK_BASE|0x88)
-#define	ASY_CMDSET  (LCD_CONTROL_BLOCK_BASE|0x8C)
-
-#define	SSICTL      (SPI_BLOCK_BASE|0x00)
-#define	SSITIME     (SPI_BLOCK_BASE|0x04)
-#define	SSITX       (SPI_BLOCK_BASE|0x08)
-#define	SSIRX       (SPI_BLOCK_BASE|0x0C)
-#define	SSIINTC     (SPI_BLOCK_BASE|0x10)
-#define	SSIINTS     (SPI_BLOCK_BASE|0x14)
-#define	SSIDBG1     (SPI_BLOCK_BASE|0x18)
-#define	SSIDBG2     (SPI_BLOCK_BASE|0x1C)
-#define	SSIID       (SPI_BLOCK_BASE|0x20)
-
-#define	WKREQ       (SYSTEM_BLOCK1_BASE|0x00)
-#define	CLKENB      (SYSTEM_BLOCK1_BASE|0x04)
-#define	DRAMPWR     (SYSTEM_BLOCK1_BASE|0x08)
-#define	INTMASK     (SYSTEM_BLOCK1_BASE|0x0C)
-#define	GPIOSEL     (SYSTEM_BLOCK2_BASE|0x00)
-
-#define	GPIODATA    (GPIO_BLOCK_BASE|0x00)
-#define	GPIODIR     (GPIO_BLOCK_BASE|0x04)
-#define	GPIOIS      (GPIO_BLOCK_BASE|0x08)
-#define	GPIOIBE     (GPIO_BLOCK_BASE|0x0C)
-#define	GPIOIEV     (GPIO_BLOCK_BASE|0x10)
-#define	GPIOIE      (GPIO_BLOCK_BASE|0x14)
-#define	GPIORIS     (GPIO_BLOCK_BASE|0x18)
-#define	GPIOMIS     (GPIO_BLOCK_BASE|0x1C)
-#define	GPIOIC      (GPIO_BLOCK_BASE|0x20)
-#define	GPIOOMS     (GPIO_BLOCK_BASE|0x24)
-#define	GPIOPC      (GPIO_BLOCK_BASE|0x28)
-#define	GPIOID      (GPIO_BLOCK_BASE|0x30)
-
-#define SPI_WRITE(reg, val) \
-	{ SSITX,        0x00010000 | (((reg) & 0xff) << 8) | ((val) & 0xff) }, \
-	{ 0, 5 },
-
-#define SPI_WRITE1(reg) \
-	{ SSITX,        (reg) & 0xff }, \
-	{ 0, 5 },
-
-struct mddi_table {
-	uint32_t reg;
-	uint32_t value;
-};
-static struct mddi_table mddi_toshiba_init_table[] = {
-#if 0
-	{ DPSET0,       0x09e90046 },
-	{ DPSET1,       0x00000118 },
-	{ DPSUS,        0x00000000 },
-	{ DPRUN,        0x00000001 },
-	{ 1,            14         }, /* msleep 14 */
-	{ SYSCKENA,     0x00000001 },
-	//{ CLKENB,       0x000000EF },
-	{ CLKENB,       0x0000A1EF },  /*    # SYS.CLKENB  # Enable clocks for each module (without DCLK , i2cCLK) */
-	//{ CLKENB,       0x000025CB }, /* Clock enable register */
-
-	{ GPIODATA,     0x02000200 },  /*   # GPI .GPIODATA  # GPIO2(RESET_LCD_N) set to 0 , GPIO3(eDRAM_Power) set to 0 */
-	{ GPIODIR,      0x000030D  },  /* 24D   # GPI .GPIODIR  # Select direction of GPIO port (0,2,3,6,9 output) */
-	{ GPIOSEL,      0/*0x00000173*/},  /*   # SYS.GPIOSEL  # GPIO port multiplexing control */
-	{ GPIOPC,       0x03C300C0 },  /*   # GPI .GPIOPC  # GPIO2,3 PD cut */
-	{ WKREQ,        0x00000000 },  /*   # SYS.WKREQ  # Wake-up request event is VSYNC alignment */
-
-	{ GPIOIBE,      0x000003FF },
-	{ GPIOIS,       0x00000000 },
-	{ GPIOIC,       0x000003FF },
-	{ GPIOIE,       0x00000000 },
-
-	{ GPIODATA,     0x00040004 },  /*   # GPI .GPIODATA  # eDRAM VD supply */
-	{ 1,            1          }, /* msleep 1 */
-	{ GPIODATA,     0x02040004 },  /*   # GPI .GPIODATA  # eDRAM VD supply */
-	{ DRAMPWR,      0x00000001 }, /* eDRAM power */
-#endif
-};
-
-static struct mddi_table mddi_toshiba_panel_init_table[] = {
-	{ SRST,         0x00000003 }, /* FIFO/LCDC not reset */
-	{ PORT_ENB,     0x00000001 }, /* Enable sync. Port */
-	{ START,        0x00000000 }, /* To stop operation */
-	//{ START,        0x00000001 }, /* To start operation */
-	{ PORT,         0x00000004 }, /* Polarity of VS/HS/DE. */
-	{ CMN,          0x00000000 },
-	{ GAMMA,        0x00000000 }, /* No Gamma correction */
-	{ INTFLG,       0x00000000 }, /* VSYNC interrupt flag clear/status */
-	{ INTMSK,       0x00000000 }, /* VSYNC interrupt mask is off. */
-	{ MPLFBUF,      0x00000000 }, /* Select frame buffer's base address. */
-	{ HDE_LEFT,     0x00000000 }, /* The value of HDE_LEFT. */
-	{ VDE_TOP,      0x00000000 }, /* The value of VDE_TPO. */
-	{ PXL,          0x00000001 }, /* 1. RGB666 */
-	                              /* 2. Data is valid from 1st frame of beginning. */
-	{ HDE_START,    0x00000006 }, /* HDE_START= 14 PCLK */
-	{ HDE_SIZE,     0x0000009F }, /* HDE_SIZE=320 PCLK */
-	{ HSW,          0x00000004 }, /* HSW= 10 PCLK */
-	{ VSW,          0x00000001 }, /* VSW=2 HCYCLE */
-	{ VDE_START,    0x00000003 }, /* VDE_START=4 HCYCLE */
-	{ VDE_SIZE,     0x000001DF }, /* VDE_SIZE=480 HCYCLE */
-	{ WAKEUP,       0x000001e2 }, /* Wakeup position in VSYNC mode. */
-	{ WSYN_DLY,     0x00000000 }, /* Wakeup position in VSIN mode. */
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ CLKENB,       0x000025CB }, /* Clock enable register */
-
-	{ SSICTL,       0x00000170 }, /* SSI control register */
-	{ SSITIME,      0x00000250 }, /* SSI timing control register */
-	{ SSICTL,       0x00000172 }, /* SSI control register */
-};
-
-static struct mddi_table mddi_epson_init_table[] = {
-	{ SRST,         0x00000003 }, /* FIFO/LCDC not reset */
-	{ PORT_ENB,     0x00000001 }, /* Enable sync. Port */
-	{ START,        0x00000000 }, /* To stop operation */
-#if 0
-	//{ START,        0x00000001 }, /* To start operation */
-	{ PORT,         0x00000004 }, /* Polarity of VS/HS/DE. */
-	{ CMN,          0x00000000 },
-	{ GAMMA,        0x00000000 }, /* No Gamma correction */
-	{ INTFLG,       0x00000000 }, /* VSYNC interrupt flag clear/status */
-	{ INTMSK,       0x00000000 }, /* VSYNC interrupt mask is off. */
-	{ MPLFBUF,      0x00000000 }, /* Select frame buffer's base address. */
-	{ HDE_LEFT,     0x00000000 }, /* The value of HDE_LEFT. */
-	{ VDE_TOP,      0x00000000 }, /* The value of VDE_TPO. */
-	{ PXL,          0x00000001 }, /* 1. RGB666 */
-	                              /* 2. Data is valid from 1st frame of beginning. */
-	{ HDE_START,    0x00000006 }, /* HDE_START= 14 PCLK */
-	{ HDE_SIZE,     0x0000009F }, /* HDE_SIZE=320 PCLK */
-	{ HSW,          0x00000004 }, /* HSW= 10 PCLK */
-	{ VSW,          0x00000001 }, /* VSW=2 HCYCLE */
-	{ VDE_START,    0x00000003 }, /* VDE_START=4 HCYCLE */
-	{ VDE_SIZE,     0x000001DF }, /* VDE_SIZE=480 HCYCLE */
-	{ WAKEUP,       0x000001e2 }, /* Wakeup position in VSYNC mode. */
-	{ WSYN_DLY,     0x00000000 }, /* Wakeup position in VSIN mode. */
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ CLKENB,       0x000025CB }, /* Clock enable register */
-#endif
-	{ SSICTL,       0x00000170 }, /* SSI control register */
-	{ SSITIME,      0x00000250 }, /* SSI timing control register */
-	{ SSICTL,       0x00000172 }, /* SSI control register */
-};
-
-static struct mddi_table mddi_epson_deinit_table[] = {
-	{ 1,            5        }, /* usleep 5 */
-};
-
-static struct mddi_table mddi_sharp_init_table[] = {
-	{ VCYCLE,       0x000001eb },
-	{ HCYCLE,       0x000000ae },
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ GPIODATA,     0x00040000 }, /* GPIO2 low */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ 1,            1          }, /* msleep 1 */
-	{ GPIODATA,     0x00040004 }, /* GPIO2 high */
-	{ 1,            10         }, /* msleep 10 */
-	SPI_WRITE(0x5f, 0x01)
-	SPI_WRITE1(0x11)
-	{ 1,            200        }, /* msleep 200 */
-	SPI_WRITE1(0x29)
-	SPI_WRITE1(0xde)
-	{ START,        0x00000001 }, /* To start operation */
-};
-
-static struct mddi_table mddi_sharp_deinit_table[] = {
-	{ 1,            200        }, /* msleep 200 */
-	SPI_WRITE(0x10, 0x1)
-	{ 1,            100        }, /* msleep 100 */
-	{ GPIODATA,     0x00040004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ GPIODATA,     0x00040000 }, /* GPIO2 low */
-	{ 1,            10         }, /* msleep 10 */
-};
-
-static struct mddi_table mddi_tpo_init_table[] = {
-	{ VCYCLE,       0x000001e5 },
-	{ HCYCLE,       0x000000ac },
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ 0,            20         }, /* udelay 20 */
-	{ GPIODATA,     0x00000004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ 0,            20         }, /* udelay 20 */
-
-	SPI_WRITE(0x08, 0x01)
-	{ 0,            500        }, /* udelay 500 */
-	SPI_WRITE(0x08, 0x00)
-	SPI_WRITE(0x02, 0x00)
-	SPI_WRITE(0x03, 0x04)
-	SPI_WRITE(0x04, 0x0e)
-	SPI_WRITE(0x09, 0x02)
-	SPI_WRITE(0x0b, 0x08)
-	SPI_WRITE(0x0c, 0x53)
-	SPI_WRITE(0x0d, 0x01)
-	SPI_WRITE(0x0e, 0xe0)
-	SPI_WRITE(0x0f, 0x01)
-	SPI_WRITE(0x10, 0x58)
-	SPI_WRITE(0x20, 0x1e)
-	SPI_WRITE(0x21, 0x0a)
-	SPI_WRITE(0x22, 0x0a)
-	SPI_WRITE(0x23, 0x1e)
-	SPI_WRITE(0x25, 0x32)
-	SPI_WRITE(0x26, 0x00)
-	SPI_WRITE(0x27, 0xac)
-	SPI_WRITE(0x29, 0x06)
-	SPI_WRITE(0x2a, 0xa4)
-	SPI_WRITE(0x2b, 0x45)
-	SPI_WRITE(0x2c, 0x45)
-	SPI_WRITE(0x2d, 0x15)
-	SPI_WRITE(0x2e, 0x5a)
-	SPI_WRITE(0x2f, 0xff)
-	SPI_WRITE(0x30, 0x6b)
-	SPI_WRITE(0x31, 0x0d)
-	SPI_WRITE(0x32, 0x48)
-	SPI_WRITE(0x33, 0x82)
-	SPI_WRITE(0x34, 0xbd)
-	SPI_WRITE(0x35, 0xe7)
-	SPI_WRITE(0x36, 0x18)
-	SPI_WRITE(0x37, 0x94)
-	SPI_WRITE(0x38, 0x01)
-	SPI_WRITE(0x39, 0x5d)
-	SPI_WRITE(0x3a, 0xae)
-	SPI_WRITE(0x3b, 0xff)
-	SPI_WRITE(0x07, 0x09)
-	{ 0,            10         }, /* udelay 10 */
-	{ START,        0x00000001 }, /* To start operation */
-};
-
-static struct mddi_table mddi_tpo_deinit_table[] = {
-	SPI_WRITE(0x07, 0x19)
-	{ START,        0x00000000 }, /* To stop operation */
-	{ GPIODATA,     0x00040004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ GPIODATA,     0x00040000 }, /* GPIO2 low */
-	{ 0,            5        }, /* usleep 5 */
-};
+/* This struct holds the device-specific numbers and tables */
+static struct htcraphael_mmc_platform_data {
+	unsigned sdcard_status_gpio;
+	char sdcard_device_id:3;
+	unsigned wifi_power_gpio1;
+	unsigned wifi_power_gpio2;
+	struct msm_gpio_config *sdcard_on_gpio_table;
+	struct msm_gpio_config *sdcard_off_gpio_table;
+	int sdcard_on_gpio_table_size;
+	int sdcard_off_gpio_table_size;
+	struct msm_gpio_config *wifi_on_gpio_table;
+	struct msm_gpio_config *wifi_off_gpio_table;
+	int wifi_on_gpio_table_size;
+	int wifi_off_gpio_table_size;
+} htcraphael_mmc_pdata;
 
 
-#define GPIOSEL_VWAKEINT (1U << 0)
-#define INTMASK_VWAKEOUT (1U << 0)
-
-static void htcraphael_process_mddi_table(struct msm_mddi_client_data *client_data,
-				     struct mddi_table *table, size_t count)
+/* ---- COMMON ---- */
+static void config_gpio_table(struct msm_gpio_config *table, int len)
 {
-	int i;
-	for(i = 0; i < count; i++) {
-		uint32_t reg = table[i].reg;
-		uint32_t value = table[i].value;
-
-		if (reg == 0)
-			udelay(value);
-		else if (reg == 1)
-			msleep(value);
-		else
-			client_data->remote_write(client_data, value, reg);
+	int n;
+	struct msm_gpio_config id;
+	for(n = 0; n < len; n++) {
+		id = table[n];
+		msm_gpio_set_function( id );
 	}
 }
 
-static struct vreg *vreg_mddi_1v5;
-static struct vreg *vreg_lcm_2v85;
+/* ---- SDCARD ---- */
 
-static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_data,
-				    int on)
-{
-	printk("htcraphael_mddi_power_client(%d)\n", on);
-#if 0
- #warning htcraphael_mddi_power_client not yet implemented
-    unsigned id, on_off;
-	if(on) {
-		on_off = 0;
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm_wince(PCOM_VREG_PULLDOWN, &on_off, &id);
-		vreg_enable(vreg_mddi_1v5);
-		mdelay(5); // delay time >5ms and <10ms
-		gpio_set_value(V_VDDE2E_VDD2_GPIO, 1);
-		gpio_set_value(TROUT_GPIO_MDDI_32K_EN, 1);
-		msleep(3);
-		id = PM_VREG_PDOWN_AUX_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-		vreg_enable(vreg_lcm_2v85);
-		msleep(3);
-		gpio_set_value(MDDI_RST_N, 1);
-		msleep(10);
-	} else {
-		gpio_set_value(TROUT_GPIO_MDDI_32K_EN, 0);
-		gpio_set_value(MDDI_RST_N, 0);
-		msleep(10);
-		vreg_disable(vreg_lcm_2v85);
-		on_off = 1;
-		id = PM_VREG_PDOWN_AUX_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-		msleep(5);
-		gpio_set_value(V_VDDE2E_VDD2_GPIO, 0);
-		msleep(200);
-		vreg_disable(vreg_mddi_1v5);
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-	}
-#endif
-}
-
-
-static int htcraphael_mddi_epson_client_init(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
-{
-	int panel_id;
-/* ORUX TODO
-	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_epson_init_table,
-				 ARRAY_SIZE(mddi_epson_init_table));
-	client_data->auto_hibernate(client_data, 1);
-	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	if (panel_id > 1) {
-		printk("unknown panel id (0x%08x) at mddi_enable\n", panel_id);
-		return -1;
-	}
-*/
-
-	return 0;
-}
-
-static int htcraphael_mddi_epson_client_uninit(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
-{
-	return 0;
-}
-
-static int htcraphael_mddi_toshiba_client_init(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
-{
-	int panel_id;
-
-	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_toshiba_init_table,
-				 ARRAY_SIZE(mddi_toshiba_init_table));
-	client_data->auto_hibernate(client_data, 1);
-	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	if (panel_id > 1) {
-		printk("unknown panel id (0x%08x) at mddi_enable\n", panel_id);
-		return -1;
-	}
-	return 0;
-}
-
-static int htcraphael_mddi_toshiba_client_uninit(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
-{
-	return 0;
-}
-
-static int htcraphael_mddi_panel_unblank(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
-{
-
-	int panel_id, ret = 0;
-/* ORUX TODO	
-	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_toshiba_panel_init_table,
-		ARRAY_SIZE(mddi_toshiba_panel_init_table));
-	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	switch(panel_id) {
-	 case 0:
-		printk("init sharp panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_sharp_init_table,
-					 ARRAY_SIZE(mddi_sharp_init_table));
-		break;
-	case 1:
-		printk("init tpo panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_tpo_init_table,
-					 ARRAY_SIZE(mddi_tpo_init_table));
-		break;
-	case 3:
-		printk("init hitachi panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_epson_init_table,
-					 ARRAY_SIZE(mddi_epson_init_table));
-		break;
-	default:
-		printk("unknown panel_id: %d\n", panel_id);
-		ret = -1;
-	};
-	//XXX: client_data->auto_hibernate(client_data, 1);
-	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
-	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
-*/
-
-
-	return ret;
-
-}
-
-static int htcraphael_mddi_panel_blank(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
-{
-	int panel_id, ret = 0;
-/* ORUX TODO
-	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	client_data->auto_hibernate(client_data, 0);
-	switch(panel_id) {
-	case 0:
-		printk("deinit sharp panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_sharp_deinit_table,
-					 ARRAY_SIZE(mddi_sharp_deinit_table));
-		break;
-	case 1:
-		printk("deinit tpo panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_tpo_deinit_table,
-					 ARRAY_SIZE(mddi_tpo_deinit_table));
-		break;
-	case 3:
-		printk("deinit epson panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_epson_deinit_table,
-					 ARRAY_SIZE(mddi_epson_deinit_table));
-		break;
-	default:
-		printk("unknown panel_id: %d\n", panel_id);
-		ret = -1;
-	};
-	client_data->auto_hibernate(client_data, 1);
-	client_data->remote_write(client_data, 0, SYSCLKENA);
-	client_data->remote_write(client_data, 1, DPSUS);
-*/
-	return ret;
-}
-
-#if 0
-static struct led_classdev htcraphael_backlight_led = {
-	.name			= "lcd-backlight",
-	.brightness = htcraphael_DEFAULT_BACKLIGHT_BRIGHTNESS,
-	.brightness_set = htcraphael_brightness_set,
+static struct msm_gpio_config sdcard_on_gpio_table_raph800[] = {
+	DEX_GPIO_CFG( 88, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 89, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 90, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 91, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 92, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 93, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT0 */
 };
 
-static int htcraphael_backlight_probe(struct platform_device *pdev)
+static struct msm_gpio_config sdcard_off_gpio_table_raph800[] = {
+	DEX_GPIO_CFG( 88, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 89, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 90, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 91, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 92, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 93, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT0 */
+};
+
+static uint opt_disable_sdcard;
+static uint opt_disable_wifi;
+
+static int __init htcraphael_disablesdcard_setup(char *str)
 {
-	led_classdev_register(&pdev->dev, &htcraphael_backlight_led);
-	return 0;
-}
-
-static int htcraphael_backlight_remove(struct platform_device *pdev)
-{
-	led_classdev_unregister(&htcraphael_backlight_led);
-	return 0;
-}
-
-static struct platform_driver htcraphael_backlight_driver = {
-	.probe		= htcraphael_backlight_probe,
-	.remove		= htcraphael_backlight_remove,
-	.driver		= {
-		.name		= "htcraphael-backlight",
-		.owner		= THIS_MODULE,
-	},
-};
-#endif
-
-static struct resource resources_msm_fb[] = {
-	{
-		.start = MSM_FB_BASE,
-		.end = MSM_FB_BASE + MSM_FB_SIZE,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct msm_mddi_bridge_platform_data toshiba_client_data = {
-	.init = htcraphael_mddi_toshiba_client_init,
-	.uninit = htcraphael_mddi_toshiba_client_uninit,
-	.blank = htcraphael_mddi_panel_blank,
-	.unblank = htcraphael_mddi_panel_unblank,
-	.fb_data = {
-		.xres = 480,
-		.yres = 800, //orux
-		.output_format = 0,
-	},
-};
-
-struct msm_mddi_bridge_platform_data epson_client_data = {
-	.init = htcraphael_mddi_epson_client_init,
-	.uninit = htcraphael_mddi_epson_client_uninit,
-	.blank = htcraphael_mddi_panel_blank,
-	.unblank = htcraphael_mddi_panel_unblank,
-	.fb_data = {
-		.xres = 480,
-		.yres = 800, //orux
-		.output_format = 0,
-	},
-};
-
-struct msm_mddi_platform_data mddi_pdata = {
-	.clk_rate = 122880000,
-	.power_client = htcraphael_mddi_power_client,
-	.fb_resource = resources_msm_fb,
-	.num_clients = 2,
-	.client_platform_data = {
-		{
-			.product_id = (0xd263 << 16 | 0),
-			.name = "mddi_c_d263_0000",
-			.id = 0,
-			.client_data = &toshiba_client_data,
-			.clk_rate = 0,
-		},
-		{
-			.product_id = (0x4ca3 << 16 | 0),
-			.name = "mddi_c_4ca3_0000",
-			.id = 0,
-			.client_data = &epson_client_data,
-			.clk_rate = 0,
-		},
-	},
-};
-
-int __init htcraphael_init_panel(void)
-{
-	int rc;
+	int cal = simple_strtol(str, NULL, 0);
 	
-	printk(KERN_INFO "%s: Initializing panel\n", __func__);
+	opt_disable_sdcard = cal;
+	return 1;
+}
 
-	if (!machine_is_htcblackstone() && !machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcdiamond() && !machine_is_htcdiamond_cdma() && !machine_is_htckovsky()) {
-		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
+__setup("board_htcraphael.disable_sdcard=", htcraphael_disablesdcard_setup);
+
+static int __init htcraphael_disablewifi_setup(char *str)
+{
+	int cal = simple_strtol(str, NULL, 0);
+	
+	opt_disable_wifi = cal;
+	return 1;
+}
+
+__setup("board_htcraphael.disable_wifi=", htcraphael_disablewifi_setup);
+
+static struct vreg *vreg_sdslot;	/* SD slot power */
+
+struct mmc_vdd_xlat {
+	int mask;
+	int level;
+};
+
+static struct mmc_vdd_xlat mmc_vdd_table[] = {
+	{ MMC_VDD_165_195,	1800 },
+	{ MMC_VDD_20_21,	2050 },
+	{ MMC_VDD_21_22,	2150 },
+	{ MMC_VDD_22_23,	2250 },
+	{ MMC_VDD_23_24,	2350 },
+	{ MMC_VDD_24_25,	2450 },
+	{ MMC_VDD_25_26,	2550 },
+	{ MMC_VDD_26_27,	2650 },
+	{ MMC_VDD_27_28,	2750 },
+	{ MMC_VDD_28_29,	2850 },
+	{ MMC_VDD_29_30,	2950 },
+};
+
+static unsigned int sdslot_vdd = 0xffffffff;
+static unsigned int sdslot_vreg_enabled;
+
+static uint32_t htcraphael_sdslot_switchvdd(struct device *dev, unsigned int vdd)
+{
+	int i, rc;
+
+	BUG_ON(!vreg_sdslot);
+
+	if (vdd == sdslot_vdd)
+		return 0;
+
+	sdslot_vdd = vdd;
+
+	if (vdd == 0) {
+#if DEBUG_SDSLOT_VDD
+		printk("%s: Disabling SD slot power\n", __func__);
+#endif
+		config_gpio_table(htcraphael_mmc_pdata.sdcard_off_gpio_table,
+				  htcraphael_mmc_pdata.sdcard_off_gpio_table_size);
+		vreg_disable(vreg_sdslot);
+		sdslot_vreg_enabled = 0;
 		return 0;
 	}
 
-	vreg_mddi_1v5 = vreg_get(0, "gp2");
-	if (IS_ERR(vreg_mddi_1v5))
-		return PTR_ERR(vreg_mddi_1v5);
-	vreg_lcm_2v85 = vreg_get(0, "gp4");
-	if (IS_ERR(vreg_lcm_2v85))
-		return PTR_ERR(vreg_lcm_2v85);
-
-	gp_clk = clk_get(NULL, "gp_clk");
-	if (IS_ERR(gp_clk)) {
-		printk(KERN_ERR "%s: could not get gp clock\n", __func__);
-		gp_clk = NULL;
-	}
-	rc = clk_set_rate(gp_clk, 19200000);
-	if (rc)
-	{
-		printk(KERN_ERR "%s: set clock rate failed\n", __func__);
+	if (!sdslot_vreg_enabled) {
+		rc = vreg_enable(vreg_sdslot);
+		if (rc) {
+			printk(KERN_ERR "%s: Error enabling vreg (%d)\n",
+			       __func__, rc);
+		}
+		config_gpio_table(htcraphael_mmc_pdata.sdcard_on_gpio_table,
+				  htcraphael_mmc_pdata.sdcard_on_gpio_table_size);
+		sdslot_vreg_enabled = 1;
 	}
 
-	rc = platform_device_register(&msm_device_mdp);
-	if (rc)
-		return rc;
-	msm_device_mddi0.dev.platform_data = &mddi_pdata;
-	return platform_device_register(&msm_device_mddi0);
+	for (i = 0; i < ARRAY_SIZE(mmc_vdd_table); i++) {
+		if (mmc_vdd_table[i].mask == (1 << vdd)) {
+#if DEBUG_SDSLOT_VDD
+			printk("%s: Setting level to %u\n",
+			        __func__, mmc_vdd_table[i].level);
+#endif
+			rc = vreg_set_level(vreg_sdslot,
+					    mmc_vdd_table[i].level);
+			if (rc) {
+				printk(KERN_ERR
+				       "%s: Error setting vreg level (%d)\n",
+				       __func__, rc);
+			}
+			return 0;
+		}
+	}
+
+	printk(KERN_ERR "%s: Invalid VDD %d specified\n", __func__, vdd);
+	return 0;
 }
 
-device_initcall(htcraphael_init_panel);
+static unsigned int htcraphael_sdslot_status(struct device *dev)
+{
+	unsigned int status;
+
+	// For Diamond devices the MMC (MoviNAND) is built-in and always connected
+	if (machine_is_htcdiamond() || machine_is_htcdiamond_cdma()) {
+		return 1;
+	}
+
+	status = (unsigned int) gpio_get_value(htcraphael_mmc_pdata.sdcard_status_gpio);
+	return (!status);
+}
+
+#define RAPH_MMC_VDD	MMC_VDD_165_195 | MMC_VDD_20_21 | MMC_VDD_21_22 \
+			| MMC_VDD_22_23 | MMC_VDD_23_24 | MMC_VDD_24_25 \
+			| MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 \
+			| MMC_VDD_28_29 | MMC_VDD_29_30
+
+static struct mmc_platform_data htcraphael_sdslot_data = {
+	.ocr_mask	= MMC_VDD_28_29,
+	.status_irq	= -1, /* Redefined in _init function */
+	.status		= htcraphael_sdslot_status,
+//	.translate_vdd	= htcraphael_sdslot_switchvdd,
+};
+
+/* ---- WIFI ---- */
+
+static struct msm_gpio_config wifi_on_gpio_table_raph800[] = {
+	DEX_GPIO_CFG( 51, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 52, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 53, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 54, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* DAT0 */
+	DEX_GPIO_CFG( 55, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 56, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 29, 0, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* WLAN IRQ */
+};
+
+static struct msm_gpio_config wifi_off_gpio_table_raph800[] = {
+	DEX_GPIO_CFG( 51, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 52, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 53, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 54, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT0 */
+	DEX_GPIO_CFG( 55, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 56, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 29, 0, GPIO_INPUT , GPIO_NO_PULL, GPIO_2MA, 0 ), /* WLAN IRQ */
+};
+
+#if 0
+//HERMAN:
+	DEX_GPIO_CFG( 51, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 52, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 53, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 54, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT0 */
+	DEX_GPIO_CFG( 55, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_10MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 56, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_10MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 29, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* WLAN IRQ */
+#endif
+
+
+static struct vreg *vreg_wifi_osc;	/* WIFI 32khz oscilator */
+static struct vreg *vreg_wifi_2;	/* WIFI foo? */
+static int htcraphael_wifi_cd = 0;	/* WIFI virtual 'card detect' status */
+
+static struct sdio_embedded_func wifi_func = {
+	.f_class	= SDIO_CLASS_WLAN,
+	.f_maxblksize	= 512,
+};
+
+static struct embedded_sdio_data htcraphael_wifi_emb_data = {
+	.cis	= {
+		.vendor		= 0x104c,
+		.device		= 0x9066,
+		.blksize	= 512,
+		/*.max_dtr	= 24000000,  Max of chip - no worky on Trout */
+		.max_dtr	= 11000000,
+	},
+	.cccr	= {
+		.multi_block	= 0,
+		.low_speed	= 0,
+		.wide_bus	= 1,
+		.high_power	= 0,
+		.high_speed	= 0,
+	},
+	.funcs	= &wifi_func,
+	.num_funcs = 1,
+};
+
+static void (*wifi_status_cb)(int card_present, void *dev_id);
+static void *wifi_status_cb_devid;
+
+static int htcraphael_wifi_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
+{
+	if (wifi_status_cb)
+		return -EAGAIN;
+	wifi_status_cb = callback;
+	wifi_status_cb_devid = dev_id;
+	return 0;
+}
+
+static unsigned int htcraphael_wifi_status(struct device *dev)
+{
+	return htcraphael_wifi_cd;
+}
+
+// trout_wifi_set_carddetect() is hard-coded in wlan driver...
+int trout_wifi_set_carddetect(int val)
+{
+	printk("%s: %d\n", __func__, val);
+	htcraphael_wifi_cd = val;
+	if (wifi_status_cb) {
+		wifi_status_cb(val, wifi_status_cb_devid);
+	} else
+		printk(KERN_WARNING "%s: Nobody to notify\n", __func__);
+	return 0;
+}
+#ifndef CONFIG_WIFI_CONTROL_FUNC
+EXPORT_SYMBOL(trout_wifi_set_carddetect);
+#endif
+
+static int htcraphael_wifi_power_state;
+
+//XXX: trout_wifi_power() is hard-coded in wlan driver
+int trout_wifi_power(int on)
+{
+	int rc;
+
+	printk("%s: %d\n", __func__, on);
+
+	if (on) {
+		config_gpio_table(htcraphael_mmc_pdata.wifi_on_gpio_table,
+				  htcraphael_mmc_pdata.wifi_on_gpio_table_size);
+
+		rc = vreg_enable(vreg_wifi_osc);
+		if (rc)
+			return rc;
+		rc = vreg_enable(vreg_wifi_2);
+		if (rc)
+			return rc;
+
+		htc_pwrsink_set(PWRSINK_WIFI, 70);
+	} else {
+		config_gpio_table(htcraphael_mmc_pdata.wifi_off_gpio_table,
+				  htcraphael_mmc_pdata.wifi_off_gpio_table_size);
+		htc_pwrsink_set(PWRSINK_WIFI, 0);
+	}
+
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, on );
+	mdelay(50);
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio2, on );
+	mdelay(50);
+
+	if (!on) {
+		vreg_disable(vreg_wifi_osc);
+		vreg_disable(vreg_wifi_2);
+	}
+	htcraphael_wifi_power_state = on;
+	return 0;
+}
+#ifndef CONFIG_WIFI_CONTROL_FUNC
+EXPORT_SYMBOL(trout_wifi_power);
+#endif
+
+static int htcraphael_wifi_reset_state;
+int trout_wifi_reset(int on)
+{
+	printk("%s: %d\n", __func__, on);
+//	gpio_set_value( TROUT_GPIO_WIFI_PA_RESETX, !on );
+	htcraphael_wifi_reset_state = on;
+	mdelay(50);
+	return 0;
+}
+#ifndef CONFIG_WIFI_CONTROL_FUNC
+EXPORT_SYMBOL(trout_wifi_reset);
+#endif
+
+static struct mmc_platform_data htcraphael_wifi_data = {
+	.ocr_mask		= MMC_VDD_28_29,
+	.status			= htcraphael_wifi_status,
+	.register_status_notify	= htcraphael_wifi_status_register,
+	.embedded_sdio		= &htcraphael_wifi_emb_data,
+};
+
+static struct htcraphael_mmc_platform_data htcraphael_cdma_mmc_pdata = {
+	.sdcard_status_gpio = 38,
+	.sdcard_device_id = 3,
+	.wifi_power_gpio1 = 102,
+	.wifi_power_gpio2 = 103,
+	// gpio config tables
+	.sdcard_on_gpio_table = sdcard_on_gpio_table_raph800,
+	.sdcard_off_gpio_table = sdcard_off_gpio_table_raph800,
+	.wifi_on_gpio_table = wifi_on_gpio_table_raph800,
+	.wifi_off_gpio_table = wifi_off_gpio_table_raph800,
+	// gpio config table sizes
+	.sdcard_on_gpio_table_size = ARRAY_SIZE(sdcard_on_gpio_table_raph800),
+	.sdcard_off_gpio_table_size = ARRAY_SIZE(sdcard_off_gpio_table_raph800),
+	.wifi_on_gpio_table_size = ARRAY_SIZE(wifi_on_gpio_table_raph800),
+	.wifi_off_gpio_table_size = ARRAY_SIZE(wifi_off_gpio_table_raph800),
+};
+
+static struct htcraphael_mmc_platform_data htcraphael_gsm_mmc_pdata = {
+	.sdcard_status_gpio = 38, //ORUX  23,
+	.sdcard_device_id = 2,
+	.wifi_power_gpio1 = 102,
+	.wifi_power_gpio2 = 103,
+//XXX: redefine these as gsm tables, when they are identified and created
+	.sdcard_on_gpio_table = sdcard_on_gpio_table_raph800,
+	.sdcard_off_gpio_table = sdcard_off_gpio_table_raph800,
+	.wifi_on_gpio_table = wifi_on_gpio_table_raph800,
+	.wifi_off_gpio_table = wifi_off_gpio_table_raph800,
+	// table sizes
+	.sdcard_on_gpio_table_size = ARRAY_SIZE(sdcard_on_gpio_table_raph800),
+	.sdcard_off_gpio_table_size = ARRAY_SIZE(sdcard_off_gpio_table_raph800),
+	.wifi_on_gpio_table_size = ARRAY_SIZE(wifi_on_gpio_table_raph800),
+	.wifi_off_gpio_table_size = ARRAY_SIZE(wifi_off_gpio_table_raph800),
+};
+
+
+int __init htcraphael_init_mmc(void)
+{
+	wifi_status_cb = NULL;
+
+	sdslot_vreg_enabled = 0;
+
+#if 0
+		htcraphael_mmc_pdata = htcraphael_cdma_mmc_pdata;
+#else
+		htcraphael_mmc_pdata = htcraphael_gsm_mmc_pdata;
+#endif
+
+	vreg_sdslot = vreg_get(0, "gp6");
+	if (IS_ERR(vreg_sdslot))
+		return PTR_ERR(vreg_sdslot);
+
+	vreg_wifi_osc = vreg_get(0, "msmp");
+	if (IS_ERR(vreg_wifi_osc))
+		return PTR_ERR(vreg_wifi_osc);
+
+	vreg_wifi_2 = vreg_get(0, "msme1");
+	if (IS_ERR(vreg_wifi_2))
+		return PTR_ERR(vreg_wifi_2);
+
+	if (!opt_disable_wifi)
+		msm_add_sdcc(1, &htcraphael_wifi_data);
+	else
+		printk(KERN_INFO "htcraphael: WiFi device disabled\n");
+
+	if (!opt_disable_sdcard)
+	{
+		htcraphael_sdslot_data.status_irq = MSM_GPIO_TO_INT(htcraphael_mmc_pdata.sdcard_status_gpio);
+		set_irq_wake(htcraphael_sdslot_data.status_irq, 1);
+		gpio_configure(htcraphael_mmc_pdata.sdcard_status_gpio, IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
+		msm_add_sdcc(htcraphael_mmc_pdata.sdcard_device_id, &htcraphael_sdslot_data);
+	} else
+		printk(KERN_INFO "htcraphael: SD-Card interface disabled\n");
+	return 0;
+}
+
+#if defined(CONFIG_DEBUG_FS)
+static int htcraphaelmmc_dbg_wifi_reset_set(void *data, u64 val)
+{
+	trout_wifi_reset((int) val);
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi_reset_get(void *data, u64 *val)
+{
+	*val = htcraphael_wifi_reset_state;
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi_cd_set(void *data, u64 val)
+{
+	trout_wifi_set_carddetect((int) val);
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi_cd_get(void *data, u64 *val)
+{
+	*val = htcraphael_wifi_cd;
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi_pwr_set(void *data, u64 val)
+{
+	trout_wifi_power((int) val);
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi_pwr_get(void *data, u64 *val)
+{
+	
+	*val = htcraphael_wifi_power_state;
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_sd_pwr_set(void *data, u64 val)
+{
+	htcraphael_sdslot_switchvdd(NULL, (unsigned int) val);
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_sd_pwr_get(void *data, u64 *val)
+{
+	*val = sdslot_vdd;
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_sd_cd_set(void *data, u64 val)
+{
+	return -ENOSYS;
+}
+
+static int htcraphaelmmc_dbg_sd_cd_get(void *data, u64 *val)
+{
+	*val = htcraphael_sdslot_status(NULL);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_reset_fops,
+			htcraphaelmmc_dbg_wifi_reset_get,
+			htcraphaelmmc_dbg_wifi_reset_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_cd_fops,
+			htcraphaelmmc_dbg_wifi_cd_get,
+			htcraphaelmmc_dbg_wifi_cd_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_pwr_fops,
+			htcraphaelmmc_dbg_wifi_pwr_get,
+			htcraphaelmmc_dbg_wifi_pwr_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_sd_pwr_fops,
+			htcraphaelmmc_dbg_sd_pwr_get,
+			htcraphaelmmc_dbg_sd_pwr_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_sd_cd_fops,
+			htcraphaelmmc_dbg_sd_cd_get,
+			htcraphaelmmc_dbg_sd_cd_set, "%llu\n");
+
+static int __init htcraphaelmmc_dbg_init(void)
+{
+	struct dentry *dent;
+
+	dent = debugfs_create_dir("htcraphaelmmc_dbg", 0);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+
+	debugfs_create_file("wifi_reset", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_wifi_reset_fops);
+	debugfs_create_file("wifi_cd", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_wifi_cd_fops);
+	debugfs_create_file("wifi_pwr", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_wifi_pwr_fops);
+
+	debugfs_create_file("sd_pwr", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_sd_pwr_fops);
+	debugfs_create_file("sd_cd", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_sd_cd_fops);
+
+	return 0;
+}
+
+device_initcall(htcraphaelmmc_dbg_init);
+
+#endif

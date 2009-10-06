@@ -1,7 +1,7 @@
 /* linux/arch/arm/mach-msm/board-htctopaz.h
  */
-#ifndef __ARCH_ARM_MACH_MSM_BOARD_HTCRAPHAEL_H
-#define __ARCH_ARM_MACH_MSM_BOARD_HTCRAPHAEL_H
+#ifndef __ARCH_ARM_MACH_MSM_BOARD_HTCTOPAZ_H
+#define __ARCH_ARM_MACH_MSM_BOARD_HTCTOPAZ_H
 
 #include <mach/board.h>
 

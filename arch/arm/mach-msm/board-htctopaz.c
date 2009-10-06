@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-msm/board-htcraphael.c
+/* linux/arch/arm/mach-msm/board-htctopaz.c
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
