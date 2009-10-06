@@ -40,6 +40,7 @@
 #include <mach/msm_fb.h>
 #include <mach/msm_hsusb.h>
 #include <mach/vreg.h>
+#include <mach/htc_battery.h>
 
 #include <mach/gpio.h>
 #include <mach/io.h>
@@ -224,6 +225,15 @@ static struct platform_device android_pmem_gpu1_device = {
 	.dev = { .platform_data = &android_pmem_gpu1_pdata },
 };
 
+static smem_batt_t msm_battery_pdata = {
+        .gpio_battery_detect = BLAC100_BAT_IRQ,
+        .gpio_charger_enable = BLAC100_CHARGE_EN_N,
+        .gpio_charger_current_select = BLAC100_USB_AC_PWR,
+        .smem_offset = 0xfc110,
+        .smem_field_size = 2,
+};
+
+
 #define MSM_LOG_BASE 0x0e0000
 #define MSM_LOG_SIZE 0x020000
 
@@ -322,6 +332,7 @@ static struct platform_device *devices[] __initdata = {
     &msm_device_i2c,
 	&msm_device_rtc,
 	&msm_device_htc_hw,	
+	&msm_device_htc_battery,
     &gpio_keys,
     &blac_snd,
 };
@@ -372,8 +383,8 @@ static void blac_set_vibrate(uint32_t val)
 
 static htc_hw_pdata_t msm_htc_hw_pdata = {
 	.set_vibrate = blac_set_vibrate,
-	.battery_smem_offset = 0xfc140, //XXX: raph800
-	.battery_smem_field_size = 4,
+	.battery_smem_offset = 0xfc110, //XXX: raph800
+	.battery_smem_field_size = 2,
 };
 
 static void __init halibut_init(void)
@@ -390,6 +401,7 @@ static void __init halibut_init(void)
 
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
+	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
@@ -441,6 +453,8 @@ static void blackstone_device_specific_fixes(void)
 		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
 		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
 		msm_htc_hw_pdata.battery_smem_field_size = 2;
+		msm_battery_pdata.smem_offset = 0xfc110;
+		msm_battery_pdata.smem_field_size = 2;
 }
 
 MACHINE_START(HTCBLACKSTONE, "HTC blackstone cellphone (aka HTC Touch HD)")

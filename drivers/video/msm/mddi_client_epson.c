@@ -24,6 +24,36 @@
 
 #include <linux/delay.h>
 
+#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#define LCD_CONTROL_BLOCK_BASE 0x110000
+#define CMN         (LCD_CONTROL_BLOCK_BASE|0x10)
+#define INTFLG      (LCD_CONTROL_BLOCK_BASE|0x18)
+#define HCYCLE      (LCD_CONTROL_BLOCK_BASE|0x34)
+#define HDE_START   (LCD_CONTROL_BLOCK_BASE|0x3C)
+#define VPOS        (LCD_CONTROL_BLOCK_BASE|0xC0)
+#define MPLFBUF     (LCD_CONTROL_BLOCK_BASE|0x20)
+#define WAKEUP      (LCD_CONTROL_BLOCK_BASE|0x54)
+#define WSYN_DLY    (LCD_CONTROL_BLOCK_BASE|0x58)
+#define REGENB      (LCD_CONTROL_BLOCK_BASE|0x5C)
+
+#define BASE5 0x150000
+#define BASE6 0x160000
+#define BASE7 0x170000
+
+#define GPIOIEV     (BASE5 + 0x10)
+#define GPIOIE      (BASE5 + 0x14)
+#define GPIORIS     (BASE5 + 0x18)
+#define GPIOMIS     (BASE5 + 0x1C)
+#define GPIOIC      (BASE5 + 0x20)
+
+#define INTMASK     (BASE6 + 0x0C)
+#define INTMASK_VWAKEOUT (1U << 0)
+#define INTMASK_VWAKEOUT_ACTIVE_LOW (1U << 8)
+#define GPIOSEL     (BASE7 + 0x00)
+#define GPIOSEL_VWAKEINT (1U << 0)
+
+#endif
+
 static DECLARE_WAIT_QUEUE_HEAD(epson_vsync_wait);
 
 struct panel_info {
@@ -201,6 +231,10 @@ printk("mddi_epson_probe\n");
 	platform_set_drvdata(pdev, panel);
 
 #if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
+       /* mddi_remote_write(mddi, 0, WAKEUP); */
+       client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
+       client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
+
 	client_data->remote_write(client_data,0x8000,0x400);//rgb565 input
 	client_data->remote_write(client_data,0x8000,0x680);//main memory rgb565
 	client_data->remote_write(client_data,0x4000,0x600);//reset
