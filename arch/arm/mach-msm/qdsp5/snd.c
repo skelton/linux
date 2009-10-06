@@ -176,12 +176,12 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case SND_SET_VOLUME:
-		if (vol.device != 0xd) {
-			pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0xd\n", current->comm, vol.device);
-			vol.device = 0xd;
-			/* rc = -ENODEV;
-			break; */
-		}
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+ 		if (vol.device != 0xd) {
+ 			pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0xd\n", current->comm, vol.device);
+ 			vol.device = 0xd;
+ 		}
+#endif
 
 		if (copy_from_user(&vol, (void __user *) arg, sizeof(vol))) {
 			pr_err("snd_ioctl set volume: invalid pointer.\n");

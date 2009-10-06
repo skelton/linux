@@ -3,6 +3,8 @@ if ARCH_MSM
 config MSM_AMSS_VERSION
 	int
         default 5200 if MSM_AMSS_VERSION_5200
+        default 6120 if MSM_AMSS_VERSION_6120
+        default 6125 if MSM_AMSS_VERSION_6125
         default 6150 if MSM_AMSS_VERSION_6150
 	default 6210 if MSM_AMSS_VERSION_6210
 	default 6220 if MSM_AMSS_VERSION_6220
@@ -127,6 +129,13 @@ config MACH_HTCKOVSKY
         bool "HTC Kovsky cellphone (aka Xperia X1)"
         help
           Support for the HTC Kovsky cellphone
+
+config MACH_HTCTOPAZ
+        depends on ARCH_MSM
+        default n
+        bool "HTC Topaz cellphone"
+        help
+          Support for the HTC Topaz cellphone
 
 config HTC_HEADSET
 	tristate "HTC 2 Wire detection driver"

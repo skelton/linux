@@ -900,7 +900,7 @@ static struct platform_driver msm_adsp_driver = {
 		.name = "rs3000000a:20f17fd3",
 #elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
 		.name = "rs3000000a:71d1094b",
-#elif CONFIG_MSM_AMSS_VERSION == 5200
+#elif (CONFIG_MSM_AMSS_VERSION == 5200)  || (CONFIG_MSM_AMSS_VERSION == 6120)  || (CONFIG_MSM_AMSS_VERSION == 6125)
 		.name = "rs3000000a:00000000",
 #elif CONFIG_MSM_AMSS_VERSION == 6150 /* TODO */
 		.name = "rs3000000a:00000000",

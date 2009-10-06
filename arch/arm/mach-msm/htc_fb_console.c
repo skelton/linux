@@ -61,7 +61,7 @@ extern int num_registered_fb;
 
 /* LCD resolution */
 #define HTC_FB_LCD_WIDTH	480
-#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY) || defined(CONFIG_MACH_HTCTOPAZ)|| defined(CONFIG_MACH_HTCRHODIUM)
 #define HTC_FB_LCD_HEIGHT      800
 #else
 #define HTC_FB_LCD_HEIGHT      640
@@ -73,13 +73,20 @@ extern int num_registered_fb;
 
 /* Framebuffer stuff */
 #define HTC_FB_BASE		0xe2000000 /* virtual page for our fb */
-#define HTC_FB_PHYS		0x16800000 /* physical page for our fb */
+
 #if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
-#define HTC_FB_SIZE            0x00200000 /* map 2 MB (640 * 480 * 2 rounded properly) */
-#else
-#define HTC_FB_SIZE            0x00100000 /* map 1 MB (640 * 480 * 2 rounded properly) */
-#endif
+#define HTC_FB_PHYS		0x16800000 /* physical page for our fb */
 #define HTC_FB_OFF		0x0006a000 /* offset in the page to start of fb */
+#define HTC_FB_SIZE             0x00200000 /* map 2 MB (640 * 480 * 2 rounded properly) */
+#elif defined(CONFIG_MACH_HTCTOPAZ)|| defined(CONFIG_MACH_HTCRHODIUM)
+#define HTC_FB_PHYS		0x15100000 /* physical page for our fb */
+#define HTC_FB_OFF		0x00000780 /* offset in the page to start of fb */
+#define HTC_FB_SIZE             0x00200000 /* map 2 MB (640 * 480 * 2 rounded properly) */
+#else
+#define HTC_FB_PHYS		0x16800000 /* physical page for our fb */
+#define HTC_FB_OFF		0x0006a000 /* offset in the page to start of fb */
+#define HTC_FB_SIZE             0x00100000 /* map 1 MB (640 * 480 * 2 rounded properly) */
+#endif
 
 /* Pack color data in 565 RGB format; r and b are 5 bits, g is 6 bits */
 #define HTC_FB_RGB(r, g, b) 	((((r) & 0x1f) << 11) | (((g) & 0x3f) << 5) | (((b) & 0x1f) << 0))
