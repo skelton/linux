@@ -45,7 +45,7 @@ static struct input_dev *msm_blackstone_pad_dev;
 static int pad_keymap[MSM_BLACKSTONE_PAD_NBUTTONS] =
 {
 	KEY_F3,
-	KEY_END, //KEY_MENU, KEY_MENU
+	KEY_MENU, //KEY_MENU, KEY_MENU
 	KEY_BACK,
 	KEY_F4
 };
