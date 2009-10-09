@@ -361,7 +361,14 @@ int trout_wifi_power(int on)
 		if (rc)
 			return rc;
 
+		mdelay(100);
 		htc_pwrsink_set(PWRSINK_WIFI, 70);
+		gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, 0 );
+		mdelay(50);
+		gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio2, 0 );
+		mdelay(200);
+
+
 	} else {
 		config_gpio_table(htcraphael_mmc_pdata.wifi_off_gpio_table,
 				  htcraphael_mmc_pdata.wifi_off_gpio_table_size);
@@ -371,7 +378,7 @@ int trout_wifi_power(int on)
 	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, on );
 	mdelay(50);
 	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio2, on );
-	mdelay(50);
+	mdelay(150);
 
 	if (!on) {
 		vreg_disable(vreg_wifi_osc);
@@ -390,7 +397,9 @@ int trout_wifi_reset(int on)
 	printk("%s: %d\n", __func__, on);
 //	gpio_set_value( TROUT_GPIO_WIFI_PA_RESETX, !on );
 	htcraphael_wifi_reset_state = on;
-	mdelay(50);
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, !on );
+	mdelay(100);
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, on );
 	return 0;
 }
 #ifndef CONFIG_WIFI_CONTROL_FUNC
@@ -544,6 +553,30 @@ static int htcraphaelmmc_dbg_sd_cd_get(void *data, u64 *val)
 	return 0;
 }
 
+static int htcraphaelmmc_dbg_wifi1_gpio_set(void *data, u64 val)
+{
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, val );
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi1_gpio_get(void *data, u64 *val)
+{
+	*val=0;
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi2_gpio_set(void *data, u64 val)
+{
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio2, val );
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi2_gpio_get(void *data, u64 *val)
+{
+	*val=0;
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_reset_fops,
 			htcraphaelmmc_dbg_wifi_reset_get,
 			htcraphaelmmc_dbg_wifi_reset_set, "%llu\n");
@@ -555,6 +588,14 @@ DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_cd_fops,
 DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_pwr_fops,
 			htcraphaelmmc_dbg_wifi_pwr_get,
 			htcraphaelmmc_dbg_wifi_pwr_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi1_gpio_fops,
+			htcraphaelmmc_dbg_wifi1_gpio_get,
+			htcraphaelmmc_dbg_wifi1_gpio_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi2_gpio_fops,
+			htcraphaelmmc_dbg_wifi2_gpio_get,
+			htcraphaelmmc_dbg_wifi2_gpio_set, "%llu\n");
 
 DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_sd_pwr_fops,
 			htcraphaelmmc_dbg_sd_pwr_get,
@@ -572,6 +613,10 @@ static int __init htcraphaelmmc_dbg_init(void)
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 
+	debugfs_create_file("wifi_gpio1", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_wifi1_gpio_fops);
+	debugfs_create_file("wifi_gpio2", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_wifi2_gpio_fops);
 	debugfs_create_file("wifi_reset", 0644, dent, NULL,
 			    &htcraphaelmmc_dbg_wifi_reset_fops);
 	debugfs_create_file("wifi_cd", 0644, dent, NULL,
