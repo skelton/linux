@@ -154,7 +154,13 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			rc = -EFAULT;
 			break;
 		}
-
+#if defined(CONFIG_MACH_HTCBLACKSTONE)
+		if(dev.device == 1){
+			gpio_set_value(57,1);
+		}else{
+			gpio_set_value(57,0);
+		}
+#endif
 		dmsg.args.device = cpu_to_be32(dev.device);
 		dmsg.args.ear_mute = cpu_to_be32(dev.ear_mute);
 		dmsg.args.mic_mute = cpu_to_be32(dev.mic_mute);
