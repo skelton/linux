@@ -39,6 +39,7 @@
 #include <mach/system.h>
 #include <mach/msm_fb.h>
 #include <mach/msm_hsusb.h>
+#include <mach/msm_serial_hs.h>
 #include <mach/vreg.h>
 #include <mach/htc_battery.h>
 
@@ -57,19 +58,17 @@
 
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
+static int adb=0;
+module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void blackstone_device_specific_fixes(void);
 
 extern int htcraphael_init_mmc(void);
-
-/*
- * GPIO Keys
- */
+extern void msm_init_pmic_vibrator(void);
 
 static struct gpio_keys_button blackstone_button_table[] = {
-        {KEY_POWER,      83,      0, "Power button"},
-        {KEY_UP,         39,      0, "Up button"},
-        {KEY_DOWN,       40,      0, "Down button"},
+        {KEY_VOLUMEUP,         39,      1, "Volume Up"},
+        {KEY_VOLUMEDOWN,       40,      1, "Volume Down"},
 };
 
 static struct gpio_keys_platform_data gpio_keys_data = {
@@ -83,28 +82,6 @@ static struct platform_device gpio_keys = {
                 .platform_data = &gpio_keys_data,
         },
         .id   = -1,
-};
-
-//END GPIO keys
-
-static struct resource msm_serial0_resources[] = {
-	{
-		.start	= INT_UART1,
-		.end	= INT_UART1,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= MSM_UART1_PHYS,
-		.end	= MSM_UART1_PHYS + MSM_UART1_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device msm_serial0_device = {
-	.name	= "msm_serial",
-	.id	= 0,
-	.num_resources	= ARRAY_SIZE(msm_serial0_resources),
-	.resource	= msm_serial0_resources,
 };
 
 static int halibut_phy_init_seq_raph100[] = {
@@ -125,7 +102,7 @@ static void halibut_phy_reset(void)
 static char *halibut_usb_functions[] = {
         "ether",
 //	"diag",
-//	"adb",
+	"adb",
 };
 
 static struct msm_hsusb_product halibut_usb_products[] = {
@@ -158,6 +135,20 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.num_products = ARRAY_SIZE(halibut_usb_products),
 };
 
+static struct msm_hsusb_platform_data msm_hsusb_pdata_adb = {
+        .phy_reset      = halibut_phy_reset,
+        .phy_init_seq   = halibut_phy_init_seq_raph100,
+        .vendor_id      = 0x0bb4,
+        .product_id     = 0x0c02,
+        .version        = 0x0100,
+        .product_name   = "MSM USB",
+        .manufacturer_name = "HTC",
+        .functions      = halibut_usb_functions,
+        .num_functions  = ARRAY_SIZE(halibut_usb_functions),
+        .products = halibut_usb_products,
+        .num_products = 0,
+};
+
 static struct i2c_board_info i2c_devices[] = {
 	{
 		// LED & Backlight controller
@@ -165,7 +156,6 @@ static struct i2c_board_info i2c_devices[] = {
 	},
 	{		
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
-		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
 	},
 };
 
@@ -233,6 +223,10 @@ static smem_batt_t msm_battery_pdata = {
         .smem_field_size = 2,
 };
 
+static struct platform_device raphael_rfkill = {
+	.name = "htcraphael_rfkill",
+	.id = -1,
+};
 
 #define MSM_LOG_BASE 0x0e0000
 #define MSM_LOG_SIZE 0x020000
@@ -318,23 +312,24 @@ static struct platform_device raphael_gps = {
 
 
 static struct platform_device *devices[] __initdata = {
-        &ram_console_device,
-//#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
-//	&msm_serial0_device,
-//#endif
+	&ram_console_device,
 	&msm_device_hsusb,
 	&android_pmem_device,
 	&android_pmem_adsp_device,
 	&android_pmem_gpu0_device,
 	&android_pmem_gpu1_device,
-    &msm_device_smd,
-    &msm_device_nand,
-    &msm_device_i2c,
+	&raphael_rfkill,
+	&msm_device_smd,
+	&msm_device_nand,
+	&msm_device_i2c,
 	&msm_device_rtc,
-	&msm_device_htc_hw,	
+	&msm_device_htc_hw,
+#ifdef CONFIG_SERIAL_MSM_HS
+	&msm_device_uart_dm2,
+#endif
 	&msm_device_htc_battery,
-    &gpio_keys,
-    &blac_snd,
+	&gpio_keys,
+	&blac_snd,
 };
 
 extern struct sys_timer msm_timer;
@@ -354,6 +349,14 @@ static struct msm_acpu_clock_platform_data halibut_clock_data = {
 
 void msm_serial_debug_init(unsigned int base, int irq, 
 			   const char *clkname, int signal_irq);
+
+#ifdef CONFIG_SERIAL_MSM_HS
+static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
+	.wakeup_irq = MSM_GPIO_TO_INT(21),
+	.inject_rx_on_wakeup = 1,
+	.rx_to_inject = 0x32,
+};
+#endif
 
 static void htcraphael_reset(void)
 {
@@ -394,15 +397,25 @@ static void __init halibut_init(void)
 	// Fix data in arrays depending on GSM/CDMA version
 	blackstone_device_specific_fixes();
 
-    msm_acpu_clock_init(&halibut_clock_data);
+	msm_acpu_clock_init(&halibut_clock_data);
 	msm_proc_comm_wince_init();
 
-    msm_hw_reset_hook = htcraphael_reset;
+	msm_hw_reset_hook = htcraphael_reset;
 
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+        if(adb)
+                msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata_adb;
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
-	
+
+#ifdef CONFIG_SERIAL_MSM_HS
+	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
+#endif
+
+#ifndef CONFIG_MACH_SAPPHIRE
+	msm_init_pmic_vibrator();
+#endif
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	htcraphael_init_mmc();
@@ -450,11 +463,11 @@ static void __init blac_fixup(struct machine_desc *desc, struct tag *tags,
 
 static void blackstone_device_specific_fixes(void)
 {
-		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
-		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
-		msm_htc_hw_pdata.battery_smem_field_size = 2;
-		msm_battery_pdata.smem_offset = 0xfc110;
-		msm_battery_pdata.smem_field_size = 2;
+	msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
+	msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
+	msm_htc_hw_pdata.battery_smem_field_size = 2;
+	msm_battery_pdata.smem_offset = 0xfc110;
+	msm_battery_pdata.smem_field_size = 2;
 }
 
 MACHINE_START(HTCBLACKSTONE, "HTC blackstone cellphone (aka HTC Touch HD)")
