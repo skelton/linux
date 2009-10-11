@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/msm_audio.h>
 
+#include <asm/gpio.h>
 #include <asm/atomic.h>
 #include <asm/ioctls.h>
 #include <mach/board.h>
