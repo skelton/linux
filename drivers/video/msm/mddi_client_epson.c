@@ -24,7 +24,7 @@
 
 #include <linux/delay.h>
 
-#if defined(CONFIG_MACH_HTCBLACKSTONE)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
 #define LCD_CONTROL_BLOCK_BASE 0x110000
 #define CMN         (LCD_CONTROL_BLOCK_BASE|0x10)
 #define INTFLG      (LCD_CONTROL_BLOCK_BASE|0x18)
