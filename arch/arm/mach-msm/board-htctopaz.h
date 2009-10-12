@@ -20,7 +20,7 @@
 
 /* Define the EBI layout */
 #define MSM_LINUX_BASE          MSM_EBI_BASE
-#define MSM_LINUX_SIZE          0x5900000 /* 89mb */
+#define MSM_LINUX_SIZE          0x5100000 /* 81mb */
 
 #define MSM_PMEM_MDP_BASE       MSM_LINUX_BASE + MSM_LINUX_SIZE
 #define MSM_PMEM_MDP_SIZE       0x800000 /* 8mb */

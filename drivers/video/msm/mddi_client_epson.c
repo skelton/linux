@@ -24,7 +24,7 @@
 
 #include <linux/delay.h>
 
-#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCTOPAZ) || defined(CONFIG_MACH_HTCRHODIUM) || defined(CONFIG_MACH_HTCKOVSKY)
 #define LCD_CONTROL_BLOCK_BASE 0x110000
 #define CMN         (LCD_CONTROL_BLOCK_BASE|0x10)
 #define INTFLG      (LCD_CONTROL_BLOCK_BASE|0x18)
@@ -230,7 +230,7 @@ printk("mddi_epson_probe\n");
 		return -ENOMEM;
 	platform_set_drvdata(pdev, panel);
 
-#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY) || defined(CONFIG_MACH_HTCTOPAZ) || defined(CONFIG_MACH_HTCRHODIUM)
        /* mddi_remote_write(mddi, 0, WAKEUP); */
        client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
        client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);

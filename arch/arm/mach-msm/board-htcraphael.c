@@ -66,18 +66,18 @@ extern void msm_init_pmic_vibrator(void);
 
 static struct resource raphael_keypad_resources[] = {
 	{ 
-		.start = MSM_GPIO_TO_INT(27), /* Modified in htcraphael_device_specific_fixes() */
-		.end = MSM_GPIO_TO_INT(27), /* Modified in htcraphael_device_specific_fixes() */
+		.start = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ), /* Modified in htcraphael_device_specific_fixes() */
+		.end = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ), /* Modified in htcraphael_device_specific_fixes() */
 		.flags = IORESOURCE_IRQ,
 	},
 };
 
 static struct microp_keypad_platform_data raphael_keypad_data = {
 	.clamshell = { 
-		.gpio = 39, /* Modified in htcraphael_device_specific_fixes() */
-		.irq = MSM_GPIO_TO_INT(39), /* Modified in htcraphael_device_specific_fixes() */
+		.gpio = RAPH800_CLAMSHELL_IRQ, /* Modified in htcraphael_device_specific_fixes() */
+		.irq = MSM_GPIO_TO_INT(RAPH800_CLAMSHELL_IRQ), /* Modified in htcraphael_device_specific_fixes() */
 	},
-	.backlight_gpio = 86, /* Modified in htcraphael_device_specific_fixes() */
+	.backlight_gpio = RAPH100_BKL_PWR, /* Modified in htcraphael_device_specific_fixes() */
 };
 
 static struct platform_device raphael_keypad_device = {
@@ -105,16 +105,16 @@ static int halibut_phy_init_seq_raph800[] = {
 
 static void halibut_phy_reset(void)
 {
-	gpio_set_value(0x64, 0);
+	gpio_set_value(RAPH100_USBPHY_RST, 0);
 	mdelay(1);
-	gpio_set_value(0x64, 1);
+	gpio_set_value(RAPH100_USBPHY_RST, 1);
 	mdelay(3);
 }
 
 static char *halibut_usb_functions[] = {
 	"ether",
 //	"diag",
-       "adb",
+//       "adb",
 };
 
 static struct msm_hsusb_product halibut_usb_products[] = {
@@ -262,44 +262,6 @@ static struct snd_endpoint snd_endpoints_list[] = {
 	SND(1, "SPEAKER"),
 	SND(2, "HEADSET"),
 	SND(3, "BT"),
-	SND(44, "BT_EC_OFF"),
-	SND(10, "HEADSET_AND_SPEAKER"),
-	SND(256, "CURRENT"),
-
-	/* Bluetooth accessories. */
-
-	SND(12, "HTC BH S100"),
-	SND(13, "HTC BH M100"),
-	SND(14, "Motorola H500"),
-	SND(15, "Nokia HS-36W"),
-	SND(16, "PLT 510v.D"),
-	SND(17, "M2500 by Plantronics"),
-	SND(18, "Nokia HDW-3"),
-	SND(19, "HBH-608"),
-	SND(20, "HBH-DS970"),
-	SND(21, "i.Tech BlueBAND"),
-	SND(22, "Nokia BH-800"),
-	SND(23, "Motorola H700"),
-	SND(24, "HTC BH M200"),
-	SND(25, "Jabra JX10"),
-	SND(26, "320Plantronics"),
-	SND(27, "640Plantronics"),
-	SND(28, "Jabra BT500"),
-	SND(29, "Motorola HT820"),
-	SND(30, "HBH-IV840"),
-	SND(31, "6XXPlantronics"),
-	SND(32, "3XXPlantronics"),
-	SND(33, "HBH-PV710"),
-	SND(34, "Motorola H670"),
-	SND(35, "HBM-300"),
-	SND(36, "Nokia BH-208"),
-	SND(37, "Samsung WEP410"),
-	SND(38, "Jabra BT8010"),
-	SND(39, "Motorola S9"),
-	SND(40, "Jabra BT620s"),
-	SND(41, "Nokia BH-902"),
-	SND(42, "HBH-DS220"),
-	SND(43, "HBH-DS980"),
 };
 #undef SND
 
@@ -383,7 +345,7 @@ void msm_serial_debug_init(unsigned int base, int irq,
 
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
-	.wakeup_irq = MSM_GPIO_TO_INT(21),
+	.wakeup_irq = MSM_GPIO_TO_INT(RAPH100_UART2DM_RX),
 	.inject_rx_on_wakeup = 1,
 	.rx_to_inject = 0x32,
 };
@@ -395,8 +357,8 @@ static void htcraphael_reset(void)
 //	struct msm_dex_command dex = { .cmd = PCOM_NOTIFY_ARM9_REBOOT };
 	msm_proc_comm_wince(&dex, 0);
 	msleep(0x15e);
-	gpio_configure(25, GPIOF_OWNER_ARM11);
-	gpio_direction_output(25, 0);
+	gpio_configure(RAPH100_ARM9_SOFTRST, GPIOF_OWNER_ARM11);
+	gpio_direction_output(RAPH100_ARM9_SOFTRST, 0);
 	printk(KERN_INFO "%s: Soft reset done.\n", __func__);
 }
 
@@ -446,9 +408,7 @@ static void __init halibut_init(void)
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
 #endif
 
-#ifndef CONFIG_MACH_SAPPHIRE
 	msm_init_pmic_vibrator();
-#endif
 
 	// Register devices
 	platform_add_devices(devices, ARRAY_SIZE(devices));
@@ -513,11 +473,11 @@ static void htcraphael_cdma500_fixup(struct machine_desc *desc, struct tag *tags
 static void htcraphael_device_specific_fixes(void)
 {
 	if (machine_is_htcraphael()) {
-		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
-		raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(27);
-		raphael_keypad_data.clamshell.gpio = 38;
-		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(38);
-		raphael_keypad_data.backlight_gpio = 86;
+		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
+		raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
+		raphael_keypad_data.clamshell.gpio = RAPH100_CLAMSHELL_IRQ;
+		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(RAPH100_CLAMSHELL_IRQ);
+		raphael_keypad_data.backlight_gpio = RAPH100_BKL_PWR;
 		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
 		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
 		msm_htc_hw_pdata.battery_smem_field_size = 2;
@@ -525,11 +485,11 @@ static void htcraphael_device_specific_fixes(void)
 		msm_battery_pdata.smem_field_size = 2;
 	}
 	if (machine_is_htcraphael_cdma()) {
-		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
-		raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(27);
-		raphael_keypad_data.clamshell.gpio = 39;
-		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(39);
-		raphael_keypad_data.backlight_gpio = 86;
+		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
+		raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
+		raphael_keypad_data.clamshell.gpio = RAPH800_CLAMSHELL_IRQ;
+		raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(RAPH800_CLAMSHELL_IRQ);
+		raphael_keypad_data.backlight_gpio = RAPH100_BKL_PWR;
 		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph800;
 		msm_htc_hw_pdata.battery_smem_offset = 0xfc140;
 		msm_htc_hw_pdata.battery_smem_field_size = 4;
@@ -538,11 +498,11 @@ static void htcraphael_device_specific_fixes(void)
 	}
 	if (machine_is_htcraphael_cdma500()) {
 		/* copied from raph800, fix the bt rfkill */
-                raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(27);
-                raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(27);
-                raphael_keypad_data.clamshell.gpio = 39;
-                raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(39);
-                raphael_keypad_data.backlight_gpio = 86;
+                raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
+                raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
+                raphael_keypad_data.clamshell.gpio = RAPH800_CLAMSHELL_IRQ;
+                raphael_keypad_data.clamshell.irq = MSM_GPIO_TO_INT(RAPH800_CLAMSHELL_IRQ);
+                raphael_keypad_data.backlight_gpio = RAPH100_BKL_PWR;
                 msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph800;
                 msm_htc_hw_pdata.battery_smem_offset = 0xfc140;
                 msm_htc_hw_pdata.battery_smem_field_size = 4;

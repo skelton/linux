@@ -37,8 +37,8 @@
 
 #include <linux/gpio_event.h>
 
-static unsigned int htcraphael_row_gpios[] = {	32, 33, 34, 35 };
-static unsigned int htcraphael_col_gpios[] = { 40, 41, 42 };
+static unsigned int htcraphael_row_gpios[] = {	RAPH100_KPD_ROW0, RAPH100_KPD_ROW1, RAPH100_KPD_ROW2, RAPH100_KPD_ROW3 };
+static unsigned int htcraphael_col_gpios[] = { RAPH100_KPD_COL0, RAPH100_KPD_COL1, RAPH100_KPD_COL2 };
 
 #define KEYMAP_INDEX(row, col) ((row)*ARRAY_SIZE(htcraphael_col_gpios) + (col))
 
@@ -57,7 +57,7 @@ static const unsigned short htcraphael_keymap[ARRAY_SIZE(htcraphael_col_gpios) *
 
 //	[KEYMAP_INDEX(3, 0)] = 0,
 	[KEYMAP_INDEX(3, 1)] = KEY_VOLUMEDOWN,
-	[KEYMAP_INDEX(3, 2)] = 232, // center / select / enter
+	[KEYMAP_INDEX(3, 2)] = KEY_REPLY, // ??? center / select / enter
 };
 
 static struct gpio_event_matrix_info htcraphael_matrix_info = {
@@ -73,7 +73,7 @@ static struct gpio_event_matrix_info htcraphael_matrix_info = {
 };
 
 static struct gpio_event_direct_entry htcraphael_keyboard_switch_map[] = {
-	{ 39, SW_LID	} /* FIXME! =38 on raph100 */
+	{ RAPH800_CLAMSHELL_IRQ, SW_LID	} /* FIXME! RAPH100_CLAMSHELL_IRQ on raph100 */
 };
 
 static struct gpio_event_input_info htcraphael_keyboard_switch_info = {

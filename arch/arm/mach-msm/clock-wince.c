@@ -56,6 +56,54 @@ struct msm_clock_params
 	char	*name;
 };
 
+static int max_clk_rate[NR_CLKS], min_clk_rate[NR_CLKS];
+
+#define PLLn_BASE(n)		(MSM_CLK_CTL_BASE + 0x300 + 28 * (n))
+#define TCX0			19200000 // Hz
+#define PLL_FREQ(l, m, n)	(TCX0 * (l) + TCX0 * (m) / (n))
+
+static unsigned int pll_get_rate(int n)
+{
+	unsigned int mode, L, M, N, freq;
+
+ if (n == -1) return TCX0;
+ if (n > 3)
+  return 0;
+ else
+ {
+	mode = readl(PLLn_BASE(n) + 0x0);
+	L = readl(PLLn_BASE(n) + 0x4);
+	M = readl(PLLn_BASE(n) + 0x8);
+	N = readl(PLLn_BASE(n) + 0xc);
+	freq = PLL_FREQ(L, M, N);
+	printk(KERN_INFO "PLL%d: MODE=%08x L=%08x M=%08x N=%08x freq=%u Hz (%u MHz)\n",
+		n, mode, L, M, N, freq, freq / 1000000); \
+ }
+
+ return freq;
+}
+
+static unsigned int idx2pll(uint32_t idx)
+{
+ int ret;
+
+ switch(idx)
+ {
+  case 0: /* TCX0 */
+   ret=-1;
+  break;
+  case 1: /* PLL1 */
+   ret=1;
+  break;
+  case 4: /* PLL0 */
+   ret=0;
+  break;
+  default:
+   ret=4; /* invalid */
+ }
+
+ return ret;
+}
 static struct msm_clock_params msm_clock_parameters[] = {
 	// Full ena/md/ns clock
 	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, .name="SDC1_CLK",},
@@ -105,18 +153,17 @@ struct mdns_clock_params msm_clock_freq_parameters[] = {
 	/* SD */
 	MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
 	/* UART2DM */
-//	MSM_CLOCK_REG( 7372800, 2, 0xc8, 0x64, 3, 2, 1, 1), /* 1.92MHz for 120000 bps */
+//	MSM_CLOCK_REG( , 2, 0xc8, 0x64, 3, 2, 1, 1), /* 1.92MHz for 120000 bps */
 
-#if 0 /* wince uses different baud divisors */
-	MSM_CLOCK_REG( 460800/4*16,    3, 0x64, 0x32, 3, 2, 4, 1), /*  115200/4*16 */
-	MSM_CLOCK_REG( 921600/4*16,    3, 0x32, 0x19, 3, 2, 4, 1), /*  921600/4*16 */
-	MSM_CLOCK_REG(3686400/4*16,    6, 0x19, 0x0c, 3, 2, 4, 1), /* 3686400/4*16 */
-	MSM_CLOCK_REG(4000000/4*16, 0x19, 0x60, 0x30, 3, 2, 4, 1), /* 4000000/4*16 */
+#if 0 /* wince uses these clock settings */
+	MSM_CLOCK_REG( 1843200,    3, 0x64, 0x32, 3, 2, 4, 1), /*  115200*16=1843200 */
+	MSM_CLOCK_REG( 3686400,    3, 0x32, 0x19, 3, 2, 4, 1), /*  230400*16=3686400 */
+	MSM_CLOCK_REG(14745600,    6, 0x19, 0x0c, 3, 2, 4, 1), /*  921600*16=14745600 */
+	MSM_CLOCK_REG(16000000, 0x19, 0x60, 0x30, 3, 2, 4, 1), /* 1000000*16=16000000 */
 #else /* disable the prescaler=4 to get 4X clock rate used by g1 driver */
-	MSM_CLOCK_REG( 460800*16,    3, 0x64, 0x32, 0, 2, 4, 1), /*  460800 */
-	MSM_CLOCK_REG( 921600*16,    3, 0x32, 0x19, 0, 2, 4, 1), /*  921600 */
-	MSM_CLOCK_REG(3686400*16,    6, 0x19, 0x0c, 0, 2, 4, 1), /* 3686400 */
-	MSM_CLOCK_REG(4000000*16, 0x19, 0x60, 0x30, 0, 2, 4, 1), /* 4000000 */
+	MSM_CLOCK_REG( 7372800,      3, 0x64, 0x32, 0, 2, 4, 1), /*  460800*16, will be divided by 4 for 115200 */
+	MSM_CLOCK_REG( 921600*16,    3, 0x32, 0x19, 3, 2, 4, 1), /*  921600 */
+	MSM_CLOCK_REG(3686400*16,    6, 0x19, 0x0c, 3, 2, 4, 1), /* 3686400 */
 #endif
 	/* SD */
 	MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
@@ -194,8 +241,10 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
 				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
 //				msleep(5);
-				D("%s: %u, freq=%lu\n", __func__, id, 
-				  msm_clock_freq_parameters[n].freq );
+				D("%s: %u, freq=%lu pll%d=%u\n", __func__, id, 
+				  msm_clock_freq_parameters[n].freq,
+				  msm_clock_freq_parameters[n].ns&7,
+				  pll_get_rate(idx2pll(msm_clock_freq_parameters[n].ns&7)) );
 				retval = 0;
 				found = 1;
 				break;
@@ -215,32 +264,6 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 //     return retval;
        return 0;
 }
-
-#if 0
-#define PLLn_BASE(n)		(MSM_CLK_CTL_BASE + 0x300 + 28 * (n))
-#define TCX0			19200000 // Hz
-#define PLL_FREQ(l, m, n)	(TCX0 * (l) + TCX0 * (m) / (n))
-
-static unsigned long pll_get_rate(uint32_t n)
-{
-	unsigned int mode, L, M, N, freq;
-
- if (n > 3)
-  return 0;
- else
- {
-        base=PLLn_BASE(n);
-	mode = readl(base);
-	L = readl(base + 0x4);
-	M = readl(base + 0x8);
-	N = readl(base + 0xc);
-	freq = PLL_FREQ(L, M, N); \
-	printk(KERN_INFO "PLL%d @ %p: MODE=%08x L=%08x M=%08x N=%08x freq=%u Hz (%u MHz)\n", \
-		n, base, mode, L, M, N, freq, freq / 1000000); \
- }
-  
-}
-#endif
 
 static unsigned long get_mdns_host_clock(uint32_t id)
 {
@@ -377,13 +400,21 @@ static int pc_clk_set_rate(uint32_t id, unsigned long rate)
 
 static int pc_clk_set_min_rate(uint32_t id, unsigned long rate)
 {
-	printk(KERN_WARNING " FIXME! clk_set_min_rate not implemented; %u:%lu\n", id, rate);
+	if (id < NR_CLKS)
+	 min_clk_rate[id]=rate;
+	else 
+	 printk(KERN_WARNING " FIXME! clk_set_min_rate not implemented; %u:%lu NR_CLKS=%d\n", id, rate, NR_CLKS);
+
 	return 0;
 }
 
 static int pc_clk_set_max_rate(uint32_t id, unsigned long rate)
 {
-	printk(KERN_WARNING " FIXME! clk_set_max_rate not implemented; %u:%lu\n", id, rate);
+	if (id < NR_CLKS)
+	 max_clk_rate[id]=rate;
+	else
+	 printk(KERN_WARNING " FIXME! clk_set_min_rate not implemented; %u:%lu NR_CLKS=%d\n", id, rate, NR_CLKS);
+
 	return 0;
 }
 
@@ -446,6 +477,8 @@ static int pc_clk_is_enabled(uint32_t id)
 
 static int pc_pll_request(unsigned id, unsigned on)
 {
+	printk(KERN_WARNING "%s not implemented for PLL=%u, =%lu\n", __func__, id);
+
 	return 0;
 }
 

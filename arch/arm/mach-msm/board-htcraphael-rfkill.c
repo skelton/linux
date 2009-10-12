@@ -41,16 +41,16 @@ static void config_gpio_table(struct msm_gpio_config *table, int len)
 	}
 }
 static struct msm_gpio_config bt_on_gpio_table_raph100[] = {
-        	DEX_GPIO_CFG(RAPH100_UART2_TX,  4, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0), /* RTS */
-                DEX_GPIO_CFG(RAPH100_UART2_RX,  4, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA, 0), /* CTS */
-		DEX_GPIO_CFG(RAPH100_UART2_CTS, 4, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA, 1), /* RX */ 
-		DEX_GPIO_CFG(RAPH100_UART2_RTS, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 1), /* TX */
+        	DEX_GPIO_CFG(RAPH100_UART2DM_RTS,  4, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0), /* RTS */
+                DEX_GPIO_CFG(RAPH100_UART2DM_CTS,  4, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA, 0), /* CTS */
+		DEX_GPIO_CFG(RAPH100_UART2DM_RX,   4, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA, 1), /* RX */ 
+		DEX_GPIO_CFG(RAPH100_UART2DM_TX,   2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 1), /* TX */
 };
 static struct msm_gpio_config bt_off_gpio_table_raph100[] = {
-        	DEX_GPIO_CFG(RAPH100_UART2_TX,  0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0), /* RTS */
-                DEX_GPIO_CFG(RAPH100_UART2_RX,  0, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA, 0), /* CTS */
-		DEX_GPIO_CFG(RAPH100_UART2_CTS, 0, GPIO_INPUT,  GPIO_PULL_UP, GPIO_2MA, 1), /* RX */ 
-		DEX_GPIO_CFG(RAPH100_UART2_RTS, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 1), /* TX */
+        	DEX_GPIO_CFG(RAPH100_UART2DM_RTS,  0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0), /* RTS */
+                DEX_GPIO_CFG(RAPH100_UART2DM_CTS,  0, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA, 0), /* CTS */
+		DEX_GPIO_CFG(RAPH100_UART2DM_RX,   0, GPIO_INPUT,  GPIO_PULL_UP, GPIO_2MA, 1), /* RX */ 
+		DEX_GPIO_CFG(RAPH100_UART2DM_TX,   0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 1), /* TX */
 };
 
 static int bluetooth_set_power(void *data, enum rfkill_state state)
@@ -62,8 +62,8 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 #if 1
 		config_gpio_table(bt_on_gpio_table_raph100,ARRAY_SIZE(bt_on_gpio_table_raph100));
 #endif
-		gpio_configure(RAPH100_WIFI_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
-		gpio_set_value(RAPH100_WIFI_PWR2, 1);
+		gpio_configure(RAPH100_WIFI_BT_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+		gpio_set_value(RAPH100_WIFI_BT_PWR2, 1);
 		mdelay(50);
 		gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 		gpio_set_value(RAPH100_BT_RST, 0);
@@ -77,7 +77,7 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 		config_gpio_table(bt_off_gpio_table_raph100,ARRAY_SIZE(bt_off_gpio_table_raph100));
 #endif
 		gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
-		gpio_set_value(RAPH100_WIFI_PWR2, 0);
+		gpio_set_value(RAPH100_WIFI_BT_PWR2, 0);
 		break;
 	default:
 		printk(KERN_ERR "bad bluetooth rfkill state %d\n", state);
