@@ -1,3 +1,4 @@
+
 /* arch/arm/mach-msm/smd_rpcrouter.c
  *
  * Copyright (C) 2007 Google, Inc.
@@ -366,6 +367,21 @@ static struct rr_remote_endpoint *rpcrouter_lookup_remote_endpoint(uint32_t cid)
 	return NULL;
 }
 
+static void new_server(uint32_t prog,uint32_t vers) {
+	
+	int rc;
+	union rr_control_msg msg;
+
+	msg.srv.cmd = RPCROUTER_CTRL_CMD_NEW_SERVER;
+	msg.srv.pid = 1;
+	msg.srv.cid = 0xfadefade;
+	msg.srv.prog = prog;
+	msg.srv.vers = vers;
+	rc = rpcrouter_send_control_msg(&msg);
+	RR("x NEW_SERVER %x\n", prog);
+
+}
+	
 static int process_control_msg(union rr_control_msg *msg, int len)
 {
 	union rr_control_msg ctl;
@@ -386,16 +402,24 @@ static int process_control_msg(union rr_control_msg *msg, int len)
 
 		RR("x HELLO\n");
 		memset(&ctl, 0, sizeof(ctl));
-		ctl.cmd = RPCROUTER_CTRL_CMD_HELLO;
-		rpcrouter_send_control_msg(&ctl);
+//		ctl.cmd = RPCROUTER_CTRL_CMD_HELLO;
+//		rpcrouter_send_control_msg(&ctl);
 
 		initialized = 1;
 
+		new_server(0x3000ffff,0); // don't know why these are done twice
+		new_server(0x3000ffff,0);
+		new_server(0x31000000,0);
+		new_server(0x31000000,0);
+		new_server(0x3000000b,0); // register this for adsp
+		new_server(0x3000fffe,1);
+		
 		
 		/* Send list of servers one at a time */
 		ctl.cmd = RPCROUTER_CTRL_CMD_NEW_SERVER;
-
+				
 		/* TODO: long time to hold a spinlock... */
+	
 		spin_lock_irqsave(&server_list_lock, flags);
 		list_for_each_entry(server, &server_list, list) {
 			ctl.srv.pid = server->pid;
@@ -590,6 +614,7 @@ static void do_read_data(struct work_struct *work)
 	struct msm_rpc_endpoint *ept;
 	uint32_t pm, mid;
 	unsigned long flags;
+	int prog;
 
 	if (rr_read(&hdr, sizeof(hdr)))
 		goto fail_io;
@@ -631,6 +656,7 @@ static void do_read_data(struct work_struct *work)
 	if (rr_read(frag->data, hdr.size))
 		goto fail_io;
 
+	
 	ept = rpcrouter_lookup_local_endpoint(hdr.dst_cid);
 	if (!ept) {
 		DIAG("no local ept for dst cid %08x\n", hdr.dst_cid);
@@ -641,20 +667,30 @@ static void do_read_data(struct work_struct *work)
 	/* See if there is already a partial packet that matches our mid
 	 * and if so, append this fragment to that packet.
 	 */
-	mid = PACMARK_MID(pm);    
-	list_for_each_entry(pkt, &ept->incomplete, list) {
-		if (pkt->mid == mid) {
-			pkt->last->next = frag;
-			pkt->last = frag;
-			pkt->length += frag->length;
-			if (PACMARK_LAST(pm)) {
-				list_del(&pkt->list);
-				goto packet_complete;
+	mid = PACMARK_MID(pm);
+//	list_for_each_entry(ept, &local_endpoints, list) {
+		list_for_each_entry(pkt, &ept->incomplete, list) {
+			if (pkt->mid == mid) {
+				pkt->last->next = frag;
+				pkt->last = frag;
+				pkt->length += frag->length;
+				if (PACMARK_LAST(pm)) {
+					list_del(&pkt->list);
+					goto packet_complete;
+				}
+				goto done;
 			}
-			goto done;
 		}
+//	}
+//	prog=((unsigned *)frag->data)[3];
+//	printk("Prog=%x\n",prog);
+/*	
+	list_for_each_entry(ept, &local_endpoints, list) {
+		printk("ep:%x\n",ept->dst_prog);
+		if(prog==ept->dst_prog)
+			break;
 	}
-
+*/
 	/* This mid is new -- create a packet for it, and put it on
 	 * the incomplete list if this fragment is not a last fragment,
 	 * otherwise put it on the read queue.
@@ -1172,17 +1208,30 @@ static int msm_rpcrouter_probe(struct platform_device *pdev)
 	printk(KERN_DEBUG "RPCCALL opened\n");
 
 	queue_work(rpcrouter_workqueue, &work_read_data);
-//	msleep(50);
+
 //	smsm_change_state(SMSM_RPCINIT,0);
 //	msleep(50);
 //	smsm_change_state(0,SMSM_RPCINIT);
-//	msg.cmd = RPCROUTER_CTRL_CMD_BYE;
+//	msleep(50);
+
+	msg.cmd = RPCROUTER_CTRL_CMD_BYE;
+	rpcrouter_send_control_msg(&msg);
+	msleep(50);
+	
+//	msg.cmd = RPCROUTER_CTRL_CMD_REMOVE_CLIENT;
 //	rpcrouter_send_control_msg(&msg);
 //	msleep(50);
+	
+//	msg.cmd = RPCROUTER_CTRL_CMD_EXIT;
+//	rpcrouter_send_control_msg(&msg);
+//	msleep(50);
+	
 	/* wince rpc init */
         msg.cmd = RPCROUTER_CTRL_CMD_HELLO;
-//	rpcrouter_send_control_msg(&msg);
-//	msleep(50);
+	rpcrouter_send_control_msg(&msg);
+	msleep(50);
+	
+	
         process_control_msg(&msg, sizeof(msg));
 	msleep(100);
              

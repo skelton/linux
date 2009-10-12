@@ -807,6 +807,10 @@ int smd_close(smd_channel_t *ch)
 	ch->notify = do_nothing_notify;
 	list_del(&ch->ch_list);
 	hc_set_state(ch->send, SMD_SS_CLOSED);
+	// this crashes the device if you don't read from it but really, that's what you want.
+	if (ch->open)
+		*ch->open = 0;
+
 	spin_unlock_irqrestore(&smd_lock, flags);
 
 	mutex_lock(&smd_creation_mutex);

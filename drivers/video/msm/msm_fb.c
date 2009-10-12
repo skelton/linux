@@ -63,7 +63,7 @@ do { \
 
 static void msmfb_predma_perform_callback(struct fb_info *fb, struct msmfb_update_area *area);
 
-static int msmfb_debug_mask;
+static int msmfb_debug_mask=1;
 module_param_named(msmfb_debug_mask, msmfb_debug_mask, int,
 		   S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -129,14 +129,10 @@ static void msmfb_handle_dma_interrupt(struct msmfb_callback *callback)
 	msmfb->frame_done = msmfb->frame_requested;
 	if (msmfb->sleeping == UPDATING &&
 	    msmfb->frame_done == msmfb->update_frame) {
-		msmfb->sleeping = FULL_UPDATE_DONE;
 		DLOG(SUSPEND_RESUME, "full update completed\n");
 		queue_work(msmfb->resume_workqueue, &msmfb->resume_work);
 	}
-	else {
-		/* Indicate this update has completed */
-		msmfb->sleeping = AWAKE;
-	}
+
 #if PRINT_FPS
 	now = ktime_get();
 	dt = ktime_to_ns(ktime_sub(now, last_sec));
@@ -166,11 +162,7 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
 	time_since_request = ktime_to_ns(ktime_sub(ktime_get(),
 			     msmfb->vsync_request_time));
-#if defined(CONFIG_MACH_HTCKOVSKY)
 	if (time_since_request > 50 * NSEC_PER_MSEC) {
-#else
-	if (time_since_request > 20 * NSEC_PER_MSEC) {
-#endif
 		uint32_t us;
 		us = do_div(time_since_request, NSEC_PER_MSEC) / NSEC_PER_USEC;
 		printk(KERN_WARNING "msmfb_start_dma %lld.%03u ms after vsync "
@@ -189,9 +181,7 @@ static int msmfb_start_dma(struct msmfb_info *msmfb)
 	y = msmfb->update_info.top;
 	w = msmfb->update_info.eright - x;
 	h = msmfb->update_info.ebottom - y;
-#if defined(CONFIG_MACH_HTCRAPHAEL) || defined(CONFIG_MACH_HTCRAPHAEL_CDMA) || defined(CONFIG_MACH_HTCDIAMOND) || defined(CONFIG_MACH_HTCDIAMOND_CDMA) || defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
-//	x = 0; y = 0; w = msmfb->xres; h = msmfb->yres;
-#endif
+
 	yoffset = msmfb->yoffset;
 	msmfb->update_info.left = msmfb->xres + 1;
 	msmfb->update_info.top = msmfb->yres + 1;
@@ -250,6 +240,7 @@ static enum hrtimer_restart msmfb_fake_vsync(struct hrtimer *timer)
 	struct msmfb_info *msmfb  = container_of(timer, struct msmfb_info,
 					       fake_vsync);
 	printk("fake vsync\n");
+	mdelay(20);
 	msmfb_start_dma(msmfb);
 	return HRTIMER_NORESTART;
 }
@@ -278,11 +269,11 @@ restart:
 	/* if we are sleeping, on a pan_display wait 10ms (to throttle back
 	 * drawing otherwise return */
 	if (msmfb->sleeping == SLEEPING) {
-		DLOG(SUSPEND_RESUME, "drawing while asleep\n");
+//		DLOG(SUSPEND_RESUME, "drawing while asleep\n");
 		spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
 		if (pan_display)
 			wait_event_interruptible_timeout(msmfb->frame_wq,
-				msmfb->sleeping != SLEEPING, HZ/10);
+				msmfb->sleeping != SLEEPING, HZ/100);
 		return;
 	}
 
@@ -336,15 +327,16 @@ restart:
 	/* if necessary, update the y offset, if this is the
 	 * first full update on resume, set the sleeping state */
 	if (pan_display) {
+//		printk("pd:%d %d %d %d %d %d\n",yoffset,left,top,eright,ebottom,sleeping);
 		msmfb->yoffset = yoffset;
-		if (left == 0 && top == 0 && eright == info->var.xres &&
-		    ebottom == info->var.yres) {
+//		if (left == 0 && top == 0 && eright == info->var.xres &&
+//		    ebottom == info->var.yres) {
 			if (sleeping == WAKING) {
 				msmfb->update_frame = msmfb->frame_requested;
 				DLOG(SUSPEND_RESUME, "full update starting\n");
 				msmfb->sleeping = UPDATING;
 			}
-		}
+//		}
 	}
 
 	/* set the update request */
@@ -371,7 +363,7 @@ restart:
 	} else {
 		if (!hrtimer_active(&msmfb->fake_vsync)) {
 			hrtimer_start(&msmfb->fake_vsync,
-				      ktime_set(0, NSEC_PER_SEC/20),
+				      ktime_set(0, NSEC_PER_SEC/30),
 				      HRTIMER_MODE_REL);
 		}
 	}
@@ -401,6 +393,7 @@ static void power_on_panel(struct work_struct *work)
 		}
 		wake_unlock(&msmfb->idle_lock);
 		spin_lock_irqsave(&msmfb->update_lock, irq_flags);
+		DLOG(SUSPEND_RESUME, "panel awake\n");
 		msmfb->sleeping = AWAKE;
 		wake_up(&msmfb->frame_wq);
 		spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
@@ -419,6 +412,7 @@ static void msmfb_earlier_suspend(struct early_suspend *h)
 	unsigned long irq_flags;
 
 	mutex_lock(&msmfb->panel_init_lock);
+	DLOG(SUSPEND_RESUME, "panel sleeping\n");
 	msmfb->sleeping = SLEEPING;
 	wake_up(&msmfb->frame_wq);
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
@@ -459,6 +453,7 @@ static void msmfb_resume(struct early_suspend *h)
 	}
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
 	msmfb->frame_requested = msmfb->frame_done = msmfb->update_frame = 0;
+	DLOG(SUSPEND_RESUME, "panel waking\n");
 	msmfb->sleeping = WAKING;
 	DLOG(SUSPEND_RESUME, "ready, waiting for full update\n");
 	spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
@@ -826,7 +821,7 @@ static int msmfb_probe(struct platform_device *pdev)
 	kernel_thread(msmfb_refresh_thread, NULL, CLONE_KERNEL);
 #endif
 
-	msmfb->sleeping = WAKING;
+	msmfb->sleeping = AWAKE;
 
 #ifdef CONFIG_FB_MSM_LOGO
 	if (!load_565rle_image(INIT_IMAGE_FILE)) {

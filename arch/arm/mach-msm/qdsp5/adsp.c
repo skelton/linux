@@ -52,8 +52,8 @@ static inline void allow_suspend(void)
 
 #define INT_ADSP INT_ADSP_A11
 
-static unsigned adsp_cid=0;
-module_param_named(cid, adsp_cid, int, S_IRUGO | S_IWUSR | S_IWGRP);
+static unsigned adsp_cid=0xfadefade; 	// we must register this cid early in smd init
+					// don't know why it won't work if you register later.
 
 static struct adsp_info adsp_info;
 static struct msm_rpc_endpoint *rpc_cb_server_client;
@@ -836,14 +836,10 @@ static int msm_adsp_probe(struct platform_device *pdev)
 		pr_err("adsp: could not create rpc server (%d)\n", rc);
 		goto fail_rpc_open;
 	}
-	// ugly hack
-	// this is the id used by wince for this rpc server
-	// we don't know hw to deregister it so have to take it over
-	// it works on my diamond but probably won't on other devices.
-	// to fix this we will have to either get this value automatically or
-	// figure out how to re-initialise the rpc subsystem. M.J.
+	// this cid has to be registered early in rpc init so us the value from then.
 	
 	rpc_cb_server_client->cid=adsp_cid;
+	
 	rc = msm_rpc_register_server(rpc_cb_server_client,
 				     RPC_ADSP_RTOS_MTOA_PROG,
 				     RPC_ADSP_RTOS_MTOA_VERS);
@@ -915,6 +911,8 @@ static int __init adsp_init(void)
 {
 	int i;
 	unsigned *rpcchan;
+	
+	/*
 	if(!adsp_cid) {
 		printk("Searching for adsp_cid\n");
 		rpcchan=smem_alloc(SMEM_SMD_BASE_ID+0x2,0x4028);
@@ -928,6 +926,7 @@ static int __init adsp_init(void)
 	} else {
 		printk("Using adsp_cid=%08x\n", adsp_cid);
 	}
+	*/
 
 	return platform_driver_register(&msm_adsp_driver);
 }
