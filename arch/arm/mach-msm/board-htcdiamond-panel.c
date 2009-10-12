@@ -21,6 +21,8 @@
 #include "proc_comm_wince.h"
 #include "devices.h"
 
+//static struct clk *gp_clk;
+
 #define MDDI_CLIENT_CORE_BASE  0x108000
 #define LCD_CONTROL_BLOCK_BASE 0x110000
 #define SPI_BLOCK_BASE         0x120000
@@ -29,8 +31,14 @@
 #define GPIO_BLOCK_BASE        0x150000
 #define SYSTEM_BLOCK1_BASE     0x160000
 #define SYSTEM_BLOCK2_BASE     0x170000
+
+
+#define	DPSUS       (MDDI_CLIENT_CORE_BASE|0x24)
+#define	SYSCLKENA   (MDDI_CLIENT_CORE_BASE|0x2C)
 #define	PWM0OFF	      (PWM_BLOCK_BASE|0x1C)
 
+#define V_VDDE2E_VDD2_GPIO 0
+#define MDDI_RST_N 82
 
 #define	MDDICAP0    (MDDI_CLIENT_CORE_BASE|0x00)
 #define	MDDICAP1    (MDDI_CLIENT_CORE_BASE|0x04)
@@ -128,287 +136,140 @@
 	{ SSITX,        (reg) & 0xff }, \
 	{ 0, 5 },
 
-#define SPI_WRITE16(reg, val) \
-       { SSICTL,       0x170 }, \
-       { SSITX,        0x00080000 | 0x10 }, \
-       { SSITX,        0x00010000 | (reg) & 0xffff) }, \
-       { SSICTL,       0x172 }, \
-       { SSICTL,       0x170 }, \
-       { SSITX,        0x00080000 | 0x12 }, \
-       { SSITX,        0x00010000 | (val) & 0xffff) }, \
-       { SSICTL,       0x172 },
+#define SPI_WRITE_S(reg,val) \
+	{0x120000,0x130},\
+	{0x120004,0x100},\
+	{0x120008,0x80000 | (reg)},\
+	{0x120008,(val)},\
+	{0x120000,0x132}
+
+// panel type, 0=unknown, 1=hitachi
+static int type=1;
+module_param(type, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 struct mddi_table {
 	uint32_t reg;
 	uint32_t value;
 };
 
-static struct mddi_table mddi_lcm_init_table[] = {
-{0x0010801c,0x4bec0066},{1,50},
-{0x00108020,0x00000113},
-{0x00108024,0x00000000},
-{0x00108028,0x00000001},{1,100},
-{0x0010802c,0x00000001},
-{0x00160004,0x0000a1ef},
-{0x00170000,0x00000000},{1,50},
-{0x00160000,0x00000000},
-{0x00150000,0x03cf0000},
-{0x00150004,0x000003cf},
-{0x00150028,0x00000000},{1,50},
-{0x00160008,0x00000001},
-{0x00140008,0x00000060},
-{0x00140000,0x00001388},{1,60},
-{0x0014001c,0x00000001},
-{0x00140028,0x00000060},
-{0x00140020,0x00001388},
-{0x0014001c,0x00000001},
-{0x00140028,0x00000060},
-{0x00140020,0x00001388},
-{0x0014003c,0x00000001},
-{0x00140008,0x000000e0},
-{0x00140028,0x000000e0},
-{0x00140068,0x00000003},
-{0x00108044,0x028001e0},
-{0x00108048,0x01e000f0},
-{0x0010804c,0x01e000f0},
-{0x00108050,0x01e000f0},
-{0x00108054,0x00dc00b0},
-{0x00160004,0x0000a1eb},
-{0x00110004,0x00000001},
-{0x0011000c,0x00000008},
-{0x00110030,0x00000001},
-{0x00110020,0x00000000},
-{0x00110034,0x000000f9},
-{0x00110038,0x00000002},
-{0x0011003c,0x00000007},
-{0x00110040,0x000000ef},
-{0x00110044,0x000002ff},
-{0x00110048,0x00000005},
-{0x0011004c,0x00000009},
-{0x00110050,0x0000027f},
-{0x00110008,0x00000001},
-{0x00150000,0x00040004},
+static struct mddi_table mddi_toshiba_common_init_table[] = {	
+	{0x0010801c,0x4bec0066},
+	{0x00108020,0x00000113},
+	{0x00108024,0x00000000},
+	{0x00108028,0x00000001},{1,300},
+	{0x0010802c,0x00000001},
+	{0x00160004,0x0000a1ef},
+	{0x00170000,0x00000000},
+	{0x00160000,0x00000000},
+	{0x00150000,0x03cf0000},
+	{0x00150004,0x000003cf},
+	{0x00150028,0x00000000},
+	{0x00160008,0x00000001},
+	{0x00140008,0x00000060},
+	{0x00140000,0x00001388},
+	{0x0014001c,0x00000001},
+	{0x00140028,0x00000060},
+	{0x00140020,0x00001388},
+	{0x0014003c,0x00000001},
+	{0x00140008,0x000000e0},
+	{0x00140028,0x000000e0},
+	{0x00140068,0x00000003},{1,1},
+
 };
 
-static struct mddi_table mddi_hitachi_panel_init_table[] = {
-#if 0
-	{ DPSET0,       0x09e90046 },
-	{ DPSET1,       0x00000118 },
-	{ DPSUS,        0x00000000 },
-	{ DPRUN,        0x00000001 },
-	{ 1,            14         }, /* msleep 14 */
-	{ SYSCKENA,     0x00000001 },
-	//{ CLKENB,       0x000000EF },
-	{ CLKENB,       0x0000A1EF },  /*    # SYS.CLKENB  # Enable clocks for each module (without DCLK , i2cCLK) */
-	//{ CLKENB,       0x000025CB }, /* Clock enable register */
-
-	{ GPIODATA,     0x02000200 },  /*   # GPI .GPIODATA  # GPIO2(RESET_LCD_N) set to 0 , GPIO3(eDRAM_Power) set to 0 */
-	{ GPIODIR,      0x000030D  },  /* 24D   # GPI .GPIODIR  # Select direction of GPIO port (0,2,3,6,9 output) */
-	{ GPIOSEL,      0/*0x00000173*/},  /*   # SYS.GPIOSEL  # GPIO port multiplexing control */
-	{ GPIOPC,       0x03C300C0 },  /*   # GPI .GPIOPC  # GPIO2,3 PD cut */
-	{ WKREQ,        0x00000000 },  /*   # SYS.WKREQ  # Wake-up request event is VSYNC alignment */
-
-	{ GPIOIBE,      0x000003FF },
-	{ GPIOIS,       0x00000000 },
-	{ GPIOIC,       0x000003FF },
-	{ GPIOIE,       0x00000000 },
-
-	{ GPIODATA,     0x00040004 },  /*   # GPI .GPIODATA  # eDRAM VD supply */
-	{ 1,            1          }, /* msleep 1 */
-	{ GPIODATA,     0x02040004 },  /*   # GPI .GPIODATA  # eDRAM VD supply */
-	{ DRAMPWR,      0x00000001 }, /* eDRAM power */
-#endif
-};
-
-static struct mddi_table mddi_toshiba_init_table[] = {
-#if 0
-	{ DPSET0,       0x09e90046 },
-	{ DPSET1,       0x00000118 },
-	{ DPSUS,        0x00000000 },
-	{ DPRUN,        0x00000001 },
-	{ 1,            14         }, /* msleep 14 */
-	{ SYSCKENA,     0x00000001 },
-	//{ CLKENB,       0x000000EF },
-	{ CLKENB,       0x0000A1EF },  /*    # SYS.CLKENB  # Enable clocks for each module (without DCLK , i2cCLK) */
-	//{ CLKENB,       0x000025CB }, /* Clock enable register */
-
-	{ GPIODATA,     0x02000200 },  /*   # GPI .GPIODATA  # GPIO2(RESET_LCD_N) set to 0 , GPIO3(eDRAM_Power) set to 0 */
-	{ GPIODIR,      0x000030D  },  /* 24D   # GPI .GPIODIR  # Select direction of GPIO port (0,2,3,6,9 output) */
-	{ GPIOSEL,      0/*0x00000173*/},  /*   # SYS.GPIOSEL  # GPIO port multiplexing control */
-	{ GPIOPC,       0x03C300C0 },  /*   # GPI .GPIOPC  # GPIO2,3 PD cut */
-	{ WKREQ,        0x00000000 },  /*   # SYS.WKREQ  # Wake-up request event is VSYNC alignment */
-
-	{ GPIOIBE,      0x000003FF },
-	{ GPIOIS,       0x00000000 },
-	{ GPIOIC,       0x000003FF },
-	{ GPIOIE,       0x00000000 },
-
-	{ GPIODATA,     0x00040004 },  /*   # GPI .GPIODATA  # eDRAM VD supply */
-	{ 1,            1          }, /* msleep 1 */
-	{ GPIODATA,     0x02040004 },  /*   # GPI .GPIODATA  # eDRAM VD supply */
-	{ DRAMPWR,      0x00000001 }, /* eDRAM power */
-#endif
-};
-
-static struct mddi_table mddi_toshiba_panel_init_table[] = {
-	{ SRST,         0x00000003 }, /* FIFO/LCDC not reset */
-	{ PORT_ENB,     0x00000001 }, /* Enable sync. Port */
-	{ START,        0x00000000 }, /* To stop operation */
-	//{ START,        0x00000001 }, /* To start operation */
-	{ PORT,         0x00000004 }, /* Polarity of VS/HS/DE. */
-	{ CMN,          0x00000000 },
-	{ GAMMA,        0x00000000 }, /* No Gamma correction */
-	{ INTFLG,       0x00000000 }, /* VSYNC interrupt flag clear/status */
-	{ INTMSK,       0x00000000 }, /* VSYNC interrupt mask is off. */
-	{ MPLFBUF,      0x00000000 }, /* Select frame buffer's base address. */
-	{ HDE_LEFT,     0x00000000 }, /* The value of HDE_LEFT. */
-	{ VDE_TOP,      0x00000000 }, /* The value of VDE_TPO. */
-	{ PXL,          0x00000001 }, /* 1. RGB666 */
-	                              /* 2. Data is valid from 1st frame of beginning. */
-	{ HDE_START,    0x00000006 }, /* HDE_START= 14 PCLK */
-	{ HDE_SIZE,     0x0000009F }, /* HDE_SIZE=320 PCLK */
-	{ HSW,          0x00000004 }, /* HSW= 10 PCLK */
-	{ VSW,          0x00000001 }, /* VSW=2 HCYCLE */
-	{ VDE_START,    0x00000003 }, /* VDE_START=4 HCYCLE */
-	{ VDE_SIZE,     0x000001DF }, /* VDE_SIZE=480 HCYCLE */
-	{ WAKEUP,       0x000001e2 }, /* Wakeup position in VSYNC mode. */
-	{ WSYN_DLY,     0x00000000 }, /* Wakeup position in VSIN mode. */
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ CLKENB,       0x000025CB }, /* Clock enable register */
-
-	{ SSICTL,       0x00000170 }, /* SSI control register */
-	{ SSITIME,      0x00000250 }, /* SSI timing control register */
-	{ SSICTL,       0x00000172 }, /* SSI control register */
-};
-
-static struct mddi_table mddi_epson_init_table[] = {
-	{ SRST,         0x00000003 }, /* FIFO/LCDC not reset */
-	{ PORT_ENB,     0x00000001 }, /* Enable sync. Port */
-	{ START,        0x00000000 }, /* To stop operation */
-#if 0
-	//{ START,        0x00000001 }, /* To start operation */
-	{ PORT,         0x00000004 }, /* Polarity of VS/HS/DE. */
-	{ CMN,          0x00000000 },
-	{ GAMMA,        0x00000000 }, /* No Gamma correction */
-	{ INTFLG,       0x00000000 }, /* VSYNC interrupt flag clear/status */
-	{ INTMSK,       0x00000000 }, /* VSYNC interrupt mask is off. */
-	{ MPLFBUF,      0x00000000 }, /* Select frame buffer's base address. */
-	{ HDE_LEFT,     0x00000000 }, /* The value of HDE_LEFT. */
-	{ VDE_TOP,      0x00000000 }, /* The value of VDE_TPO. */
-	{ PXL,          0x00000001 }, /* 1. RGB666 */
-	                              /* 2. Data is valid from 1st frame of beginning. */
-	{ HDE_START,    0x00000006 }, /* HDE_START= 14 PCLK */
-	{ HDE_SIZE,     0x0000009F }, /* HDE_SIZE=320 PCLK */
-	{ HSW,          0x00000004 }, /* HSW= 10 PCLK */
-	{ VSW,          0x00000001 }, /* VSW=2 HCYCLE */
-	{ VDE_START,    0x00000003 }, /* VDE_START=4 HCYCLE */
-	{ VDE_SIZE,     0x000001DF }, /* VDE_SIZE=480 HCYCLE */
-	{ WAKEUP,       0x000001e2 }, /* Wakeup position in VSYNC mode. */
-	{ WSYN_DLY,     0x00000000 }, /* Wakeup position in VSIN mode. */
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ CLKENB,       0x000025CB }, /* Clock enable register */
-#endif
-	{ SSICTL,       0x00000170 }, /* SSI control register */
-	{ SSITIME,      0x00000250 }, /* SSI timing control register */
-	{ SSICTL,       0x00000172 }, /* SSI control register */
-};
-
-static struct mddi_table mddi_epson_deinit_table[] = {
-	{ 1,            5        }, /* usleep 5 */
-};
-
-static struct mddi_table mddi_sharp_init_table[] = {
-	{ VCYCLE,       0x000001eb },
-	{ HCYCLE,       0x000000ae },
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ GPIODATA,     0x00040000 }, /* GPIO2 low */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ 1,            1          }, /* msleep 1 */
-	{ GPIODATA,     0x00040004 }, /* GPIO2 high */
-	{ 1,            10         }, /* msleep 10 */
-	SPI_WRITE(0x5f, 0x01)
-	SPI_WRITE1(0x11)
-	{ 1,            200        }, /* msleep 200 */
-	SPI_WRITE1(0x29)
-	SPI_WRITE1(0xde)
-	{ START,        0x00000001 }, /* To start operation */
-};
-
-static struct mddi_table mddi_sharp_deinit_table[] = {
-	{ 1,            200        }, /* msleep 200 */
-	SPI_WRITE(0x10, 0x1)
-	{ 1,            100        }, /* msleep 100 */
-	{ GPIODATA,     0x00040004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ GPIODATA,     0x00040000 }, /* GPIO2 low */
-	{ 1,            10         }, /* msleep 10 */
-};
-
-static struct mddi_table mddi_tpo_init_table[] = {
-	{ VCYCLE,       0x000001e5 },
-	{ HCYCLE,       0x000000ac },
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ 0,            20         }, /* udelay 20 */
-	{ GPIODATA,     0x00000004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ 0,            20         }, /* udelay 20 */
-
-	SPI_WRITE(0x08, 0x01)
-	{ 0,            500        }, /* udelay 500 */
-	SPI_WRITE(0x08, 0x00)
-	SPI_WRITE(0x02, 0x00)
-	SPI_WRITE(0x03, 0x04)
-	SPI_WRITE(0x04, 0x0e)
-	SPI_WRITE(0x09, 0x02)
-	SPI_WRITE(0x0b, 0x08)
-	SPI_WRITE(0x0c, 0x53)
-	SPI_WRITE(0x0d, 0x01)
-	SPI_WRITE(0x0e, 0xe0)
-	SPI_WRITE(0x0f, 0x01)
-	SPI_WRITE(0x10, 0x58)
-	SPI_WRITE(0x20, 0x1e)
-	SPI_WRITE(0x21, 0x0a)
-	SPI_WRITE(0x22, 0x0a)
-	SPI_WRITE(0x23, 0x1e)
-	SPI_WRITE(0x25, 0x32)
-	SPI_WRITE(0x26, 0x00)
-	SPI_WRITE(0x27, 0xac)
-	SPI_WRITE(0x29, 0x06)
-	SPI_WRITE(0x2a, 0xa4)
-	SPI_WRITE(0x2b, 0x45)
-	SPI_WRITE(0x2c, 0x45)
-	SPI_WRITE(0x2d, 0x15)
-	SPI_WRITE(0x2e, 0x5a)
-	SPI_WRITE(0x2f, 0xff)
-	SPI_WRITE(0x30, 0x6b)
-	SPI_WRITE(0x31, 0x0d)
-	SPI_WRITE(0x32, 0x48)
-	SPI_WRITE(0x33, 0x82)
-	SPI_WRITE(0x34, 0xbd)
-	SPI_WRITE(0x35, 0xe7)
-	SPI_WRITE(0x36, 0x18)
-	SPI_WRITE(0x37, 0x94)
-	SPI_WRITE(0x38, 0x01)
-	SPI_WRITE(0x39, 0x5d)
-	SPI_WRITE(0x3a, 0xae)
-	SPI_WRITE(0x3b, 0xff)
-	SPI_WRITE(0x07, 0x09)
-	{ 0,            10         }, /* udelay 10 */
-	{ START,        0x00000001 }, /* To start operation */
-};
-
-static struct mddi_table mddi_tpo_deinit_table[] = {
-	SPI_WRITE(0x07, 0x19)
-	{ START,        0x00000000 }, /* To stop operation */
-	{ GPIODATA,     0x00040004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ GPIODATA,     0x00040000 }, /* GPIO2 low */
-	{ 0,            5        }, /* usleep 5 */
+static struct mddi_table mddi_sharp_table[] = {
+	{0x110008,0},
+	{0x110030,0x101},
+	{0x11005c,0x1},
+	{0x150004,0x3cf},
+	{0x150000,0x40004},{1,2},
+	{1,0x32},
+        {0x120000,0x170},
+        {0x120004,0x100},
+        {0x120000,0x172},
+	SPI_WRITE_S(0x12,1),
+	{1,0x12c},
+	SPI_WRITE_S(0x13,3),
+	{1,0x30},
+	{0x110030,1},
+	{0x11005c,0x1},
+	{0x110008,1},
 };
 
 
-#define GPIOSEL_VWAKEINT (1U << 0)
-#define INTMASK_VWAKEOUT (1U << 0)
+static struct mddi_table mddi_toshiba_prim_start_table[] = {
+	{0x00108044,0x028001e0},
+	{0x00108048,0x01e000f0},
+	{0x0010804c,0x01e000f0},
+	{0x00108050,0x01e000f0},
+	{0x00108054,0x00dc00b0},
+	{0x00160004,0x0000a1eb},
+	{0x00110004,0x00000001},
+	{0x0011000c,0x00000008},
+	{0x00110030,0x00000001},
+	{0x00110020,0x00000000},
+	{0x00110034,0x000000f9},
+	{0x00110038,0x00000002},
+	{0x0011003c,0x00000007},
+	{0x00110040,0x000000ef},
+	{0x00110044,0x000002ff},
+	{0x00110048,0x00000005},
+	{0x0011004c,0x00000009},
+	{0x00110050,0x0000027f},
+	{0x00110008,0x00000001},
+};
+
+struct spi_table {
+	uint16_t reg;
+	uint16_t value;
+	uint16_t delay;
+};
+
+static struct spi_table hitachi_spi_table[] = {
+	{2,0},
+	{3,0},
+	{4,0},
+	{0x10,0x250},
+	{0x20,2},
+	{0x21,0x1a27},
+	{0x22,0x3e},
+	{0x23,0x7400},
+	{0x24,0x7400},
+	{0x25,0x6a06},
+	{0x26,0x7400},
+	{0x27,0x1906},
+	{0x28,0x1925},
+	{0x29,0x1944},
+	{0x2a,0x666},
+	{0x100,0x33},
+	{0x101,3},
+	{0x102,0x3700},
+	{0x300,0x6657},
+	{0x301,0x515},
+	{0x302,0xc113},
+	{0x303,0x273},
+	{0x304,0x6131},
+	{0x305,0xc416},
+	{0x501,0xffff},
+	{0x502,0xffff},
+	{0x503,0xffff},
+ 
+	{0x504,0xff},
+	{0x518,0},
+	{2,0x200,0xa},
+	{1,1,2},
+	{2,0x8210,0x14},
+	{2,0x8310,0x14},
+	{2,0x710,0x14},
+	{2,0x1730,0x14},
+	{1,0x12,0},
+	{1,0x32,0},
+	{0x23,0,0x14},
+	{1,0x33,0},
+	{0x23,0x7400,0},
+ 
+ 
+};
 
 static int client_state=1; // we are booting with the panel on.
 
@@ -429,6 +290,36 @@ static void htcdiamond_process_mddi_table(struct msm_mddi_client_data *client_da
 	}
 }
 
+static void htcdiamond_process_spi_table(struct msm_mddi_client_data *client_data,
+					  struct spi_table *table, size_t count)
+{
+	int i;
+	mdelay(0x32);
+	client_data->remote_write(client_data, 0x170, SSICTL);
+	client_data->remote_write(client_data, 0x100, SSITIME);
+	client_data->remote_write(client_data, 0x172, SSICTL);
+	for(i = 0; i < count; i++) {
+		
+		uint16_t reg = table[i].reg;
+		uint16_t value = table[i].value;
+		uint16_t delay = table[i].delay;
+		
+		client_data->remote_write(client_data, 0x170, SSICTL);
+		client_data->remote_write(client_data, 0x80010, SSITX);
+		client_data->remote_write(client_data, 0x10000 | reg, SSITX);
+		client_data->remote_write(client_data, 0x172, SSICTL);
+		client_data->remote_write(client_data, 0x170, SSICTL);
+		client_data->remote_write(client_data, 0x80012, SSITX);
+		client_data->remote_write(client_data, 0x10000 | value, SSITX);
+		client_data->remote_write(client_data, 0x172, SSICTL);
+
+		if(delay)
+			msleep(delay);
+	}
+}
+
+extern void  micropklt_lcd_ctrl(int);
+
 static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_data,
 				    int on)
 {
@@ -439,52 +330,119 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 	
 
 	if(on) {
+		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR1,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		micropklt_lcd_ctrl(1);
+		dex.cmd=PCOM_PMIC_REG_ON;
+		dex.has_data=1;
+		dex.data=0x800;
+		msm_proc_comm_wince(&dex,0);
+		mdelay(40);
+
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		gpio_set_value(0x3d,0);
+		udelay(10);
+		gpio_set_value(0x3d,1);
+		udelay(10);
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,0,GPIO_INPUT,GPIO_NO_PULL,GPIO_2MA,0));
+		for(i=0;i<10;i++) {
+			gpio_set_value(0x3c,0);
+			udelay(10);
+			gpio_set_value(0x3c,1);
+			udelay(10);
+		}
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3c,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		msm_gpio_set_function(DEX_GPIO_CFG(0x3d,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		msm_gpio_set_function(DEX_GPIO_CFG(0x1b,1,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
+
+		micropklt_lcd_ctrl(2);
+		dex.data=0x2000;
+		msm_proc_comm_wince(&dex,0);
+		mdelay(50);
+		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR2,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
+		mdelay(200);
 	} else {
+		gpio_set_value(RAPH100_LCD_PWR2, 0);
+		mdelay(1);
+		dex.cmd=PCOM_PMIC_REG_OFF;
+		dex.has_data=1;
+		dex.data=0x2000;
+		msm_proc_comm_wince(&dex,0);
+		mdelay(7);
+		msm_gpio_set_function(DEX_GPIO_CFG(0x1b,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
+		dex.data=0x800;
+		micropklt_lcd_ctrl(5);
+		msm_proc_comm_wince(&dex,0);
+		mdelay(3);
+		gpio_set_value(RAPH100_LCD_PWR1, 0);
+		mdelay(10);
 	}
 
 	
 }
-
-static int htcdiamond_mddi_epson_client_init(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
+static int htcdiamond_mddi_hitachi_panel_init(
+					     struct msm_mddi_bridge_platform_data *bridge_data,
+	  struct msm_mddi_client_data *client_data)
 {
-	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
+	client_data->remote_write(client_data, 0x40004, GPIODATA);
+	mdelay(2);
+	htcdiamond_process_spi_table(client_data, hitachi_spi_table,
+				      ARRAY_SIZE(hitachi_spi_table));
 	client_data->auto_hibernate(client_data, 1);
+
 	return 0;
 }
 
-
-static int htcdiamond_mddi_epson_client_uninit(
-	struct msm_mddi_bridge_platform_data *bridge_data,
-	struct msm_mddi_client_data *client_data)
+static int htcdiamond_mddi_sharp_panel_init(
+                                             struct msm_mddi_bridge_platform_data *bridge_data,
+          struct msm_mddi_client_data *client_data)
 {
-	return 0;
+
+        client_data->auto_hibernate(client_data, 0);
+        htcdiamond_process_mddi_table(client_data, mddi_sharp_table,
+                                      ARRAY_SIZE( mddi_sharp_table));
+        client_data->auto_hibernate(client_data, 1);
+
+        return 0;
 }
+
 
 
 static int htcdiamond_mddi_toshiba_client_init(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
-	int panel_id, gpio_val;
-	char *panels[]={"Hitachi","Sharp","Toppoly","Toppoly2"};
 
+	printk("htcdiamond_mddi_toshiba_client_init\n");
 	client_data->auto_hibernate(client_data, 0);
-	client_data->auto_hibernate(client_data, 1);
-
-	gpio_val = client_data->remote_read(client_data, GPIODATA);
-	panel_id=0;
-
-	if ( (gpio_val & 0x10) != 0 ) panel_id++;
-	if ( (gpio_val & 4) != 0 ) panel_id+=2;
-
-	printk("toshiba GPIODATA=0x%08x panel_id=%d at toshiba_mddi_enable\n", gpio_val, panel_id);
-
-	printk("found panel_id=%d at toshiba_mddi_enable, panel=%s\n", panel_id,panels[panel_id]);
 	
+	if(!client_state) {
+		htcdiamond_process_mddi_table(client_data, mddi_toshiba_common_init_table,
+			ARRAY_SIZE(mddi_toshiba_common_init_table));
+		mdelay(50);
+		htcdiamond_process_mddi_table(client_data, mddi_toshiba_prim_start_table,
+						ARRAY_SIZE(mddi_toshiba_prim_start_table));
+		switch(type) {
+			case 0:
+				printk("unknown panel\n");
+				break;
+			case 1:
+				printk("init hitachi panel on toshiba client\n");
+				htcdiamond_mddi_hitachi_panel_init(bridge_data,client_data);
+				break;
+			case 2:
+				printk("init sharp panel on toshiba client\n");
+				htcdiamond_mddi_sharp_panel_init(bridge_data,client_data);
+				break;
+			default:
+				printk("unknown panel_id: %d\n", type);
+		};
+	}
+	client_state=1;
+
+	client_data->auto_hibernate(client_data, 1);
 	return 0;
 }
 
@@ -492,6 +450,7 @@ static int htcdiamond_mddi_toshiba_client_uninit(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
+	client_state=0;
 	return 0;
 }
 
@@ -499,38 +458,8 @@ static int htcdiamond_mddi_panel_unblank(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
-
-	int panel_id, ret = 0;
-	
-	client_data->auto_hibernate(client_data, 0);
-	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	switch(panel_id) {
-	 case 0:
-		printk("init sharp panel\n");
-//		htcdiamond_process_mddi_table(client_data,
-//					 mddi_sharp_init_table,
-//					 ARRAY_SIZE(mddi_sharp_init_table));
-		break;
-	case 1:
-		printk("init tpo panel\n");
-//		htcdiamond_process_mddi_table(client_data,
-//					 mddi_tpo_init_table,
-//					 ARRAY_SIZE(mddi_tpo_init_table));
-		break;
-	case 3:
-		printk("init hitachi panel\n");
-//		htcdiamond_process_mddi_table(client_data,
-//					 mddi_epson_init_table,
-//					 ARRAY_SIZE(mddi_epson_init_table));
-		break;
-	default:
-		printk("unknown panel_id: %d\n", panel_id);
-		ret = -1;
-	};
-	//XXX: client_data->auto_hibernate(client_data, 1);
-//	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
-//	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
-	return ret;
+	// not used
+	return 0;
 
 }
 
@@ -538,38 +467,8 @@ static int htcdiamond_mddi_panel_blank(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
-	int panel_id, ret = 0;
-
-	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	client_data->auto_hibernate(client_data, 0);
-	switch(panel_id) {
-	case 0:
-		printk("deinit sharp panel\n");
-//		htcdiamond_process_mddi_table(client_data,
-//					 mddi_sharp_deinit_table,
-//					 ARRAY_SIZE(mddi_sharp_deinit_table));
-		break;
-	case 1:
-		printk("deinit tpo panel\n");
-//		htcdiamond_process_mddi_table(client_data,
-//					 mddi_tpo_deinit_table,
-//					 ARRAY_SIZE(mddi_tpo_deinit_table));
-		break;
-	case 3:
-		printk("deinit epson panel\n");
-//		htcdiamond_process_mddi_table(client_data,
-//					 mddi_epson_deinit_table,
-//					 ARRAY_SIZE(mddi_epson_deinit_table));
-		break;
-	default:
-		printk("unknown panel_id: %d\n", panel_id);
-		ret = -1;
-	};
-	client_data->auto_hibernate(client_data, 1);
-	
-//	client_data->remote_write(client_data, 0, SYSCLKENA);
-//	client_data->remote_write(client_data, 1, DPSUS);
-	return ret;
+	// not used
+	return 0;
 }
 
 static struct resource resources_msm_fb[] = {
