@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
+#include <linux/debugfs.h>
 
 #include <linux/microp-klt.h>
 
@@ -462,3 +463,130 @@ MODULE_VERSION("0.1");
 
 module_init(micropklt_init);
 module_exit(micropklt_exit);
+
+#if defined(CONFIG_DEBUG_FS)
+static int micropklt_dbg_leds_set(void *dat, u64 val)
+{
+	struct microp_klt *data;
+	struct i2c_client *client;
+	unsigned state;
+	char buffer[4] = { 0, 0, 0, 0 };
+	int r;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+		buffer[0] = MICROP_KLT_ID_LED_STATE;
+		buffer[1] = 0xff & val;
+		buffer[2] = 0xff & (val >> 8);
+	r = micropklt_write(client, buffer, 3);
+	mutex_unlock(&data->lock);
+	return r;
+}
+
+static int micropklt_dbg_leds_get(void *data, u64 *val) {
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_leds_fops,
+		micropklt_dbg_leds_get,
+		micropklt_dbg_leds_set, "%llu\n");
+
+static int micropklt_dbg_light_set(void *data, u64 val)
+{
+	return 0;
+}
+
+
+static int micropklt_dbg_light_get(void *dat, u64 *val) {
+	struct microp_klt *data;
+	struct i2c_client *client;
+	char buffer[4] = { 0, 0, 0, 0 };
+	int r;
+	unsigned long long d;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+
+	r = micropklt_read(client, MICROP_KLT_ID_LIGHT_SENSOR, &d, 4);
+	*val=(d&0xff00);
+
+	mutex_unlock(&data->lock);
+	return r;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_light_fops,
+		micropklt_dbg_light_get,
+		micropklt_dbg_light_set, "%llu\n");
+
+static int micropklt_dbg_lcd_brightness_get(void *dat, u64 *val) {
+	struct microp_klt *data;
+	struct i2c_client *client;
+	char buffer[4] = { 0, 0, 0, 0 };
+	int r;
+	unsigned long long d;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+
+	r = micropklt_read(client, 0x32, &d, 4);//brightness level ?
+	*val=(d&0xff00);
+
+	mutex_unlock(&data->lock);
+	return r;
+}
+
+static int micropklt_dbg_lcd_brightness_set(void *dat, u64 val)
+{
+	struct microp_klt *data;
+	struct i2c_client *client;
+	unsigned state;
+	char buffer[4] = { 0, 0, 0, 0 };
+	int r;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+		buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
+		buffer[1] = 0xff & val;
+		buffer[2] = 0xff & (val >> 8);
+	r = micropklt_write(client, buffer, 3);
+	mutex_unlock(&data->lock);
+	return 0;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_lcd_brightness_fops,
+		micropklt_dbg_lcd_brightness_get,
+		micropklt_dbg_lcd_brightness_set, "%llu\n");
+
+static int __init micropklt_dbg_init(void)
+{
+	struct dentry *dent;
+
+	dent = debugfs_create_dir("micropklt_dbg", 0);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+
+	debugfs_create_file("leds", 0644, dent, NULL,
+			&micropklt_dbg_leds_fops);
+	debugfs_create_file("light", 0644, dent, NULL,
+			&micropklt_dbg_light_fops);
+	debugfs_create_file("lcd_brightness", 0644, dent, NULL,
+			&micropklt_dbg_lcd_brightness_fops);
+
+	return 0;
+}
+
+device_initcall(micropklt_dbg_init);
+#endif /* CONFIG_DEBUG_FS */
