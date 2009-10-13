@@ -22,7 +22,7 @@
 
 #include "devices.h"
 
-#include "board-htcraphael.h"
+#include "board-htcblackstone.h"
 
 #include "proc_comm_wince.h"
 
@@ -61,22 +61,22 @@ static void config_gpio_table(struct msm_gpio_config *table, int len)
 
 /* ---- SDCARD ---- */
 
-static struct msm_gpio_config sdcard_on_gpio_table_raph800[] = {
-	DEX_GPIO_CFG( 88, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* CLK */
-	DEX_GPIO_CFG( 89, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* CMD */
-	DEX_GPIO_CFG( 90, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT3 */
-	DEX_GPIO_CFG( 91, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT2 */
-	DEX_GPIO_CFG( 92, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT1 */
-	DEX_GPIO_CFG( 93, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA, 0 ), /* DAT0 */
+static struct msm_gpio_config sdcard_on_gpio_table_raph100[] = {
+	DEX_GPIO_CFG( 62, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 63, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 64, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 65, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 66, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 67, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT0 */
 };
 
-static struct msm_gpio_config sdcard_off_gpio_table_raph800[] = {
-	DEX_GPIO_CFG( 88, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CLK */
-	DEX_GPIO_CFG( 89, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CMD */
-	DEX_GPIO_CFG( 90, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT3 */
-	DEX_GPIO_CFG( 91, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT2 */
-	DEX_GPIO_CFG( 92, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT1 */
-	DEX_GPIO_CFG( 93, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT0 */
+static struct msm_gpio_config sdcard_off_gpio_table_raph100[] = {
+	DEX_GPIO_CFG( 62, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 63, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 64, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 65, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 66, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 67, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT0 */
 };
 
 static uint opt_disable_sdcard;
@@ -207,7 +207,7 @@ static struct mmc_platform_data htcraphael_sdslot_data = {
 
 /* ---- WIFI ---- */
 
-static struct msm_gpio_config wifi_on_gpio_table_raph800[] = {
+static struct msm_gpio_config wifi_on_gpio_table_raph100[] = {
 	DEX_GPIO_CFG( 51, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* DAT3 */
 	DEX_GPIO_CFG( 52, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* DAT2 */
 	DEX_GPIO_CFG( 53, 1, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* DAT1 */
@@ -217,7 +217,7 @@ static struct msm_gpio_config wifi_on_gpio_table_raph800[] = {
 	DEX_GPIO_CFG( 29, 0, GPIO_INPUT , GPIO_PULL_UP, GPIO_2MA, 0 ), /* WLAN IRQ */
 };
 
-static struct msm_gpio_config wifi_off_gpio_table_raph800[] = {
+static struct msm_gpio_config wifi_off_gpio_table_raph100[] = {
 	DEX_GPIO_CFG( 51, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT3 */
 	DEX_GPIO_CFG( 52, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT2 */
 	DEX_GPIO_CFG( 53, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT1 */
@@ -226,18 +226,6 @@ static struct msm_gpio_config wifi_off_gpio_table_raph800[] = {
 	DEX_GPIO_CFG( 56, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CLK */
 	DEX_GPIO_CFG( 29, 0, GPIO_INPUT , GPIO_NO_PULL, GPIO_2MA, 0 ), /* WLAN IRQ */
 };
-
-#if 0
-//HERMAN:
-	DEX_GPIO_CFG( 51, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT3 */
-	DEX_GPIO_CFG( 52, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT2 */
-	DEX_GPIO_CFG( 53, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT1 */
-	DEX_GPIO_CFG( 54, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_14MA, 0 ), /* DAT0 */
-	DEX_GPIO_CFG( 55, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_10MA, 0 ), /* CMD */
-	DEX_GPIO_CFG( 56, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_10MA, 0 ), /* CLK */
-	DEX_GPIO_CFG( 29, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* WLAN IRQ */
-#endif
-
 
 static struct vreg *vreg_wifi_osc;	/* WIFI 32khz oscilator */
 static struct vreg *vreg_wifi_2;	/* WIFI foo? */
@@ -319,7 +307,12 @@ int trout_wifi_power(int on)
 		if (rc)
 			return rc;
 
+		mdelay(100);
 		htc_pwrsink_set(PWRSINK_WIFI, 70);
+		gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, 0 );
+		mdelay(50);
+		gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio2, 0 );
+		mdelay(200);
 	} else {
 		config_gpio_table(htcraphael_mmc_pdata.wifi_off_gpio_table,
 				  htcraphael_mmc_pdata.wifi_off_gpio_table_size);
@@ -329,7 +322,7 @@ int trout_wifi_power(int on)
 	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, on );
 	mdelay(50);
 	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio2, on );
-	mdelay(50);
+	mdelay(150);
 
 	if (!on) {
 		vreg_disable(vreg_wifi_osc);
@@ -348,7 +341,9 @@ int trout_wifi_reset(int on)
 	printk("%s: %d\n", __func__, on);
 //	gpio_set_value( TROUT_GPIO_WIFI_PA_RESETX, !on );
 	htcraphael_wifi_reset_state = on;
-	mdelay(50);
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, !on );
+	mdelay(100);
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, on );
 	return 0;
 }
 #ifndef CONFIG_WIFI_CONTROL_FUNC
@@ -362,38 +357,21 @@ static struct mmc_platform_data htcraphael_wifi_data = {
 	.embedded_sdio		= &htcraphael_wifi_emb_data,
 };
 
-static struct htcraphael_mmc_platform_data htcraphael_cdma_mmc_pdata = {
-	.sdcard_status_gpio = 38,
-	.sdcard_device_id = 3,
-	.wifi_power_gpio1 = 102,
-	.wifi_power_gpio2 = 103,
-	// gpio config tables
-	.sdcard_on_gpio_table = sdcard_on_gpio_table_raph800,
-	.sdcard_off_gpio_table = sdcard_off_gpio_table_raph800,
-	.wifi_on_gpio_table = wifi_on_gpio_table_raph800,
-	.wifi_off_gpio_table = wifi_off_gpio_table_raph800,
-	// gpio config table sizes
-	.sdcard_on_gpio_table_size = ARRAY_SIZE(sdcard_on_gpio_table_raph800),
-	.sdcard_off_gpio_table_size = ARRAY_SIZE(sdcard_off_gpio_table_raph800),
-	.wifi_on_gpio_table_size = ARRAY_SIZE(wifi_on_gpio_table_raph800),
-	.wifi_off_gpio_table_size = ARRAY_SIZE(wifi_off_gpio_table_raph800),
-};
-
 static struct htcraphael_mmc_platform_data htcraphael_gsm_mmc_pdata = {
-	.sdcard_status_gpio = 38, //ORUX  23,
+	.sdcard_status_gpio = 23,
 	.sdcard_device_id = 2,
 	.wifi_power_gpio1 = 102,
 	.wifi_power_gpio2 = 103,
-//XXX: redefine these as gsm tables, when they are identified and created
-	.sdcard_on_gpio_table = sdcard_on_gpio_table_raph800,
-	.sdcard_off_gpio_table = sdcard_off_gpio_table_raph800,
-	.wifi_on_gpio_table = wifi_on_gpio_table_raph800,
-	.wifi_off_gpio_table = wifi_off_gpio_table_raph800,
+	// gpio config tables
+	.sdcard_on_gpio_table = sdcard_on_gpio_table_raph100,
+	.sdcard_off_gpio_table = sdcard_off_gpio_table_raph100,
+	.wifi_on_gpio_table = wifi_on_gpio_table_raph100,
+	.wifi_off_gpio_table = wifi_off_gpio_table_raph100,
 	// table sizes
-	.sdcard_on_gpio_table_size = ARRAY_SIZE(sdcard_on_gpio_table_raph800),
-	.sdcard_off_gpio_table_size = ARRAY_SIZE(sdcard_off_gpio_table_raph800),
-	.wifi_on_gpio_table_size = ARRAY_SIZE(wifi_on_gpio_table_raph800),
-	.wifi_off_gpio_table_size = ARRAY_SIZE(wifi_off_gpio_table_raph800),
+	.sdcard_on_gpio_table_size = ARRAY_SIZE(sdcard_on_gpio_table_raph100),
+	.sdcard_off_gpio_table_size = ARRAY_SIZE(sdcard_off_gpio_table_raph100),
+	.wifi_on_gpio_table_size = ARRAY_SIZE(wifi_on_gpio_table_raph100),
+	.wifi_off_gpio_table_size = ARRAY_SIZE(wifi_off_gpio_table_raph100),
 };
 
 
@@ -403,11 +381,7 @@ int __init htcraphael_init_mmc(void)
 
 	sdslot_vreg_enabled = 0;
 
-#if 0
-		htcraphael_mmc_pdata = htcraphael_cdma_mmc_pdata;
-#else
-		htcraphael_mmc_pdata = htcraphael_gsm_mmc_pdata;
-#endif
+	htcraphael_mmc_pdata = htcraphael_gsm_mmc_pdata;
 
 	vreg_sdslot = vreg_get(0, "gp6");
 	if (IS_ERR(vreg_sdslot))
@@ -498,6 +472,30 @@ static int htcraphaelmmc_dbg_sd_cd_get(void *data, u64 *val)
 	return 0;
 }
 
+static int htcraphaelmmc_dbg_wifi1_gpio_set(void *data, u64 val)
+{
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio1, val );
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi1_gpio_get(void *data, u64 *val)
+{
+	*val=0;
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi2_gpio_set(void *data, u64 val)
+{
+	gpio_direction_output( htcraphael_mmc_pdata.wifi_power_gpio2, val );
+	return 0;
+}
+
+static int htcraphaelmmc_dbg_wifi2_gpio_get(void *data, u64 *val)
+{
+	*val=0;
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_reset_fops,
 			htcraphaelmmc_dbg_wifi_reset_get,
 			htcraphaelmmc_dbg_wifi_reset_set, "%llu\n");
@@ -509,6 +507,14 @@ DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_cd_fops,
 DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi_pwr_fops,
 			htcraphaelmmc_dbg_wifi_pwr_get,
 			htcraphaelmmc_dbg_wifi_pwr_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi1_gpio_fops,
+			htcraphaelmmc_dbg_wifi1_gpio_get,
+			htcraphaelmmc_dbg_wifi1_gpio_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_wifi2_gpio_fops,
+			htcraphaelmmc_dbg_wifi2_gpio_get,
+			htcraphaelmmc_dbg_wifi2_gpio_set, "%llu\n");
 
 DEFINE_SIMPLE_ATTRIBUTE(htcraphaelmmc_dbg_sd_pwr_fops,
 			htcraphaelmmc_dbg_sd_pwr_get,
@@ -526,6 +532,10 @@ static int __init htcraphaelmmc_dbg_init(void)
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 
+	debugfs_create_file("wifi_gpio1", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_wifi1_gpio_fops);
+	debugfs_create_file("wifi_gpio2", 0644, dent, NULL,
+			    &htcraphaelmmc_dbg_wifi2_gpio_fops);
 	debugfs_create_file("wifi_reset", 0644, dent, NULL,
 			    &htcraphaelmmc_dbg_wifi_reset_fops);
 	debugfs_create_file("wifi_cd", 0644, dent, NULL,

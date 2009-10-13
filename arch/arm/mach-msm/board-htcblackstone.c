@@ -312,8 +312,8 @@ static struct platform_device raphael_gps = {
 
 
 static struct platform_device *devices[] __initdata = {
-	&ram_console_device,
 	&msm_device_hsusb,
+	&ram_console_device,
 	&android_pmem_device,
 	&android_pmem_adsp_device,
 	&android_pmem_gpu0_device,
@@ -330,6 +330,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&gpio_keys,
 	&blac_snd,
+	&raphael_gps,
 };
 
 extern struct sys_timer msm_timer;
@@ -448,7 +449,7 @@ static void __init blac_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (89 * 1024 * 1024); // Why 89? See board-htcraphael.h
-#if 0
+#if 1
 	/* TODO: detect whether a 2nd memory bank is actually present, not all devices have it */
 	mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
