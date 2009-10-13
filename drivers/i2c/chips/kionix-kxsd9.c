@@ -261,10 +261,11 @@ static void kxsd9_work(struct work_struct *work)
 			hrtimer_start(&kxsd9->timer, restart_time,
 					HRTIMER_MODE_REL);
 		}
-#ifdef CONFIG_ANDROID_POWER
-		android_unlock_suspend(&kxsd9->suspend_lock);
-#endif
+
 	}
+#ifdef CONFIG_ANDROID_POWER
+	android_unlock_suspend(&kxsd9->suspend_lock);
+#endif
 	mutex_unlock(&kxsd9->lock);
 }
 

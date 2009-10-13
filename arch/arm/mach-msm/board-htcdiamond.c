@@ -158,12 +158,12 @@ static struct i2c_board_info i2c_devices[] = {
 		// Raphael NaviPad (cy8c20434)
 		I2C_BOARD_INFO("raph_navi_pad", 0x62),
 	},
-/* disable for now because it prevents sleep
+/* disable for now because it prevents sleep */
 	{
 		// Accelerometer
 		I2C_BOARD_INFO("kionix-kxsd9", 0x18),
 	},
- */
+ 
 };
 
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -434,7 +434,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_htc_battery,
 	&raphael_snd,
-	&raphael_gps,
+//	&raphael_gps, disable until it works
 	&msm_device_buttons,
 };
 
@@ -464,15 +464,18 @@ static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
 };
 #endif
 
+void msm_arch_idle(void);
 static void htcraphael_reset(void)
 {
 	struct msm_dex_command dex = { .cmd = PCOM_RESET_ARM9 };
 //	struct msm_dex_command dex = { .cmd = PCOM_NOTIFY_ARM9_REBOOT };
 	msm_proc_comm_wince(&dex, 0);
-	msleep(0x15e);
+	mdelay(0x15e);
 	gpio_configure(25, GPIOF_OWNER_ARM11);
 	gpio_direction_output(25, 0);
 	printk(KERN_INFO "%s: Soft reset done.\n", __func__);
+	while(1)
+		msm_arch_idle();
 }
 
 static void htcraphael_set_vibrate(uint32_t val)
