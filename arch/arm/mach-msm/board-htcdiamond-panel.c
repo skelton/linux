@@ -144,7 +144,7 @@
 	{0x120000,0x132}
 
 // panel type, 0=unknown, 1=hitachi
-static int type=1;
+static int type=0;
 module_param(type, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 struct mddi_table {
@@ -328,7 +328,8 @@ static void htcdiamond_mddi_power_client(struct msm_mddi_client_data *client_dat
 	
 	printk("htcdiamond_mddi_power_client(%d)\n", on);
 	
-
+	if(type==0) // don't power up/down if we don't know the panel type
+		return;
 	if(on) {
 		msm_gpio_set_function(DEX_GPIO_CFG(RAPH100_LCD_PWR1,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,1));
 		micropklt_lcd_ctrl(1);
@@ -418,7 +419,7 @@ static int htcdiamond_mddi_toshiba_client_init(
 	printk("htcdiamond_mddi_toshiba_client_init\n");
 	client_data->auto_hibernate(client_data, 0);
 	
-	if(!client_state) {
+	if(!client_state && type) {
 		htcdiamond_process_mddi_table(client_data, mddi_toshiba_common_init_table,
 			ARRAY_SIZE(mddi_toshiba_common_init_table));
 		mdelay(50);

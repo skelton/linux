@@ -141,9 +141,6 @@ msmrtc_suspend(struct platform_device *dev, pm_message_t state)
 			msmrtc_alarmtimer_expired(1);
 			return 0;
 		}
-		// wake up after at least an hour
-		if (diff>60*60)
-			diff=60*60;
 
 		dex.cmd = PCOM_READ_RTC;
 		msm_proc_comm_wince(&dex, &secs);
