@@ -298,12 +298,11 @@ static struct platform_device raphael_snd = {
 static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
-#define MSM_LOG_BASE 0x0e0000
-#define MSM_LOG_SIZE 0x020000
+
 static struct resource ram_console_resource[] = {
 	{
-		.start = MSM_LOG_BASE,
-		.end = MSM_LOG_BASE+MSM_LOG_SIZE-1,
+		.start = MSM_RAM_CONSOLE_BASE,
+		.end = MSM_RAM_CONSOLE_BASE+MSM_RAM_CONSOLE_SIZE-1,
 		.flags  = IORESOURCE_MEM,
 	}
 };
