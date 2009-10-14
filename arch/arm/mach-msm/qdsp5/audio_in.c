@@ -53,7 +53,7 @@
 #define AGC_PARAM_SIZE		(20)
 #define NS_PARAM_SIZE		(6)
 #define IIR_PARAM_SIZE		(48)
-#define DEBUG			(0)
+#define DEBUG			(1)
 
 #define AGC_ENABLE   0x0001
 #define NS_ENABLE    0x0002

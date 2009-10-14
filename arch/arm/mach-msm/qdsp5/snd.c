@@ -183,12 +183,6 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case SND_SET_VOLUME:
-#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
- 		if (vol.device != 0xd) {
- 			pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0xd\n", current->comm, vol.device);
- 			vol.device = 0xd;
- 		}
-#endif
 
 		if (copy_from_user(&vol, (void __user *) arg, sizeof(vol))) {
 			pr_err("snd_ioctl set volume: invalid pointer.\n");
@@ -196,6 +190,12 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+#if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
+ 		if (vol.device != 0xd) {
+ 			pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0xd\n", current->comm, vol.device);
+ 			vol.device = 0xd;
+ 		}
+#endif
 		vmsg.args.device = cpu_to_be32(vol.device);
 		vmsg.args.method = cpu_to_be32(vol.method);
 		if (vol.method != SND_METHOD_VOICE && vol.method != SND_METHOD_AUDIO) {

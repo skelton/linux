@@ -407,11 +407,11 @@ static int process_control_msg(union rr_control_msg *msg, int len)
 
 		initialized = 1;
 
-		new_server(0x3000ffff,0); // don't know why these are done twice
-		new_server(0x3000ffff,0);
-		new_server(0x31000000,0);
-		new_server(0x31000000,0);
-		new_server(0x3000000b,0); // register this for adsp
+//		new_server(0x3000ffff,0); // don't know why these are done twice
+//		new_server(0x3000ffff,0);
+//		new_server(0x31000000,0);
+//		new_server(0x31000000,0);
+//		new_server(0x3000000b,0); // register this for adsp
 		new_server(0x3000fffe,1);
 		
 		

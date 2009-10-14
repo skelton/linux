@@ -35,7 +35,7 @@
 
 #define MODULE_NAME "kionix-kxsd9"
 
-#define KXSD9_DEBUG  1
+#define KXSD9_DEBUG  0
 #define KXSD9_DUMP   0
 
 #define KXSD9_FREE_FALL 0x800

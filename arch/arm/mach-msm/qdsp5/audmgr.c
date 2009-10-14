@@ -63,6 +63,8 @@ static void process_audmgr_callback(struct audmgr *am,
 			break;
 		am->handle = be32_to_cpu(args->u.handle);
 		pr_info("audmgr: rpc READY handle=0x%08x\n", am->handle);
+//		am->state = STATE_ENABLED;
+//		wake_up(&am->wait);
 		break;
 	case RPC_AUDMGR_STATUS_CODEC_CONFIG: {
 		uint32_t volume;
@@ -266,7 +268,7 @@ int audmgr_enable(struct audmgr *am, struct audmgr_config *cfg)
 	rc = wait_event_timeout(am->wait, am->state != STATE_ENABLING, 15 * HZ);
 	if (rc == 0) {
 		pr_err("audmgr_enable: ARM9 did not reply to RPC am->state = %d\n", am->state);
-		BUG();
+//		BUG();
 	}
 	if (am->state == STATE_ENABLED)
 		return 0;

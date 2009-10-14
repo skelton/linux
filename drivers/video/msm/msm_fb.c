@@ -273,7 +273,7 @@ restart:
 		spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
 		if (pan_display)
 			wait_event_interruptible_timeout(msmfb->frame_wq,
-				msmfb->sleeping != SLEEPING, HZ/100);
+				msmfb->sleeping != SLEEPING, HZ/10);
 		return;
 	}
 
@@ -363,7 +363,7 @@ restart:
 	} else {
 		if (!hrtimer_active(&msmfb->fake_vsync)) {
 			hrtimer_start(&msmfb->fake_vsync,
-				      ktime_set(0, NSEC_PER_SEC/30),
+				      ktime_set(0, NSEC_PER_SEC/20),
 				      HRTIMER_MODE_REL);
 		}
 	}
