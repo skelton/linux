@@ -132,7 +132,7 @@ static int rpcrouter_send_control_msg(union rr_control_msg *msg)
 
 	RR("send control message cmd=%d srv.cmd=%d prog=%08x:%x id=%d:%08x\n", msg->cmd, msg->srv.cmd, msg->srv.prog, msg->srv.vers,  msg->srv.pid, msg->srv.cid);
 	
-	if (!(msg->cmd == RPCROUTER_CTRL_CMD_HELLO) && !initialized) {
+	if (!(msg->cmd == RPCROUTER_CTRL_CMD_HELLO || msg->cmd == RPCROUTER_CTRL_CMD_BYE) && !initialized) {
 		printk(KERN_ERR "rpcrouter_send_control_msg(): Warning, "
 		       "router not initialized\n");
 //		return -EINVAL;

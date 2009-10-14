@@ -477,7 +477,7 @@ static int pc_clk_is_enabled(uint32_t id)
 
 static int pc_pll_request(unsigned id, unsigned on)
 {
-	printk(KERN_WARNING "%s not implemented for PLL=%u, =%lu\n", __func__, id);
+	printk(KERN_WARNING "%s not implemented for PLL=%u\n", __func__, id);
 
 	return 0;
 }
