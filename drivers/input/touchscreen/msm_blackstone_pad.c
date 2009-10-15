@@ -52,7 +52,7 @@ static int pad_keymap[MSM_BLACKSTONE_PAD_NBUTTONS] =
 
 int msm_blackstone_pad_handle_ts_event(int x, int y, int touched)
 {
-	if (y==MSM_BLACKSTONE_PAD_LCD_HEIGHT-1) {
+	if (y==MSM_BLACKSTONE_PAD_LCD_HEIGHT-1 && x != 0) {
 		if (!touched) { //Only if its the first touch event, generate the key event
 			struct msm_dex_command vibra = { .cmd = 0, };
 			int button;
