@@ -408,26 +408,22 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		BATT("%p: %08x %08x %08x %08x %08x  v=%4d c=%3d\n", values_32,
 			values_32[0], values_32[1], values_32[2], values_32[3], values_32[4],
 			v, capacity);
-
-		if (gpio_get_value(htc_batt_info.resources->gpio_charger_enable) == 0) {
-			buffer->charging_enabled = 1;
-			if (gpio_get_value(htc_batt_info.resources->gpio_charger_current_select)) {
-				buffer->charging_source = CHARGER_AC;	// 900mA
-			} else {
-				buffer->charging_source = CHARGER_USB;	// 500mA
-			}
-		} else {
-			buffer->charging_enabled = 0;
-			buffer->charging_source = CHARGER_BATTERY;
-		}
 	} else {
 		BATT("%p: %04x %04x %04x %04x %04x  v=%4d c=%3d\n", values_16,
 			values_16[0], values_16[1], values_16[2], values_16[3], values_16[4],
 			v, capacity);
+	}
 
-		buffer->charging_enabled = (values_16[3] > 0x700);
-		buffer->charging_source =  (values_16[3] < 0x200) ?
-					CHARGER_BATTERY : CHARGER_USB;
+	if (gpio_get_value(htc_batt_info.resources->gpio_charger_enable) == 0) {
+		buffer->charging_enabled = 1;
+		if (gpio_get_value(htc_batt_info.resources->gpio_charger_current_select)) {
+			buffer->charging_source = CHARGER_AC;	// 900mA
+		} else {
+			buffer->charging_source = CHARGER_USB;	// 500mA
+		}
+	} else {
+		buffer->charging_enabled = 0;
+		buffer->charging_source = CHARGER_BATTERY;
 	}
 	buffer->full_bat = 100;
 

@@ -52,7 +52,7 @@
 #include "proc_comm_wince.h"
 #include "devices.h"
 #include "htc_hw.h"
-#include "board-htcraphael.h"
+#include "board-htckovsky.h"
 
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
@@ -207,10 +207,10 @@ static struct platform_device android_pmem_gpu1_device = {
 
 static smem_batt_t msm_battery_pdata = {
 	.gpio_battery_detect = RAPH100_BAT_IRQ,
-	.gpio_charger_enable = RAPH100_CHARGE_EN_N,
+	.gpio_charger_enable = KOVS100_CHARGE_EN_N,
 	.gpio_charger_current_select = RAPH100_USB_AC_PWR,
-	.smem_offset = 0xfc140,
-	.smem_field_size = 4,
+	.smem_offset = 0xfc110,
+	.smem_field_size = 2,
 };
 
 static struct platform_device raphael_rfkill = {

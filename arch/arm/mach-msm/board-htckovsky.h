@@ -1,0 +1,162 @@
+/* linux/arch/arm/mach-msm/board-htckovsky.h
+ */
+#ifndef __ARCH_ARM_MACH_MSM_BOARD_HTCKOVSKY_H
+#define __ARCH_ARM_MACH_MSM_BOARD_HTCKOVSKY_H
+
+#include <mach/board.h>
+
+#define MSM_SMI_BASE            0x00000000
+#define MSM_SMI_SIZE            0x900000 /* 9mb */
+
+#define MSM_EBI_BASE            0x10000000
+#define MSM_EBI_SIZE            0x8000000 /* 128mb */
+
+/* Define the SMI layout */
+#define MSM_SMI_READONLY_BASE	MSM_SMI_BASE
+#define MSM_SMI_READONLY_SIZE	0x100000 /* 1mb, wince SPL */
+
+#define MSM_PMEM_GPU0_BASE      MSM_SMI_READONLY_BASE + MSM_SMI_READONLY_SIZE
+#define MSM_PMEM_GPU0_SIZE      0x800000 /* 8mb */
+
+/* Define the EBI layout */
+#define MSM_LINUX_BASE          MSM_EBI_BASE
+#define MSM_LINUX_SIZE          0x5900000 /* 89mb */
+
+#define MSM_PMEM_MDP_BASE       MSM_LINUX_BASE + MSM_LINUX_SIZE
+#define MSM_PMEM_MDP_SIZE       0x800000 /* 8mb */
+
+#define MSM_PMEM_ADSP_BASE      MSM_PMEM_MDP_BASE + MSM_PMEM_MDP_SIZE
+#define MSM_PMEM_ADSP_SIZE      0x800000 /* 8mb */
+
+#define MSM_PMEM_GPU1_BASE      MSM_PMEM_ADSP_BASE + MSM_PMEM_ADSP_SIZE
+#define MSM_PMEM_GPU1_SIZE      0x800000 /* 8mb */
+
+#define MSM_FB_BASE		MSM_PMEM_GPU1_BASE + MSM_PMEM_GPU1_SIZE
+#define MSM_FB_SIZE		0x200000 /* 2mb */
+
+#define MSM_EBI_LOCKED_BASE	MSM_FB_BASE + MSM_FB_SIZE
+#define MSM_EBI_LOCKED_SIZE	0xD00000 /* 13mb */
+
+#define DECLARE_MSM_IOMAP
+#include <mach/msm_iomap.h>
+
+
+/* GPIO */
+
+#define RAPH100_H2W_PWR		0
+#define RAPH100_USB_AC_PWR	1
+
+#define RAPH100_CAM_DAT2	2
+#define RAPH100_CAM_DAT3	3
+#define RAPH100_CAM_DAT4	4
+#define RAPH100_CAM_DAT5	5
+#define RAPH100_CAM_DAT6	6
+#define RAPH100_CAM_DAT7	7
+#define RAPH100_CAM_DAT8	8
+#define RAPH100_CAM_DAT9	9
+#define RAPH100_CAM_DAT10	10
+#define RAPH100_CAM_DAT11	11
+#define RAPH100_CAM_PCLK	12
+#define RAPH100_CAM_HSYNC_IN	13
+#define RAPH100_CAM_VSYNC_N	14
+#define RAPH100_CAM_MCLK	15
+/*				16*/
+#define RAPH100_EXTMIC_IRQ	17
+#define RAPH100_CABLE_IN_IRQ	18
+#define RAPH100_UART2DM_RTS	19	/* BT */
+#define RAPH100_UART2DM_CTS	20	/* BT */
+#define RAPH100_UART2DM_RX	21	/* BT*/
+/*				22*/
+#define RAPH100_SD_DETECT	23
+/*				24*/
+#define RAPH100_ARM9_SOFTRST	25
+/*				26*/
+#define RAPH100_KPD_IRQ		27
+#define RAPH100_BAT_IRQ		28
+#define RAPH100_WIFI_IRQ	29
+#define RAPH100_CAM_PWR1	30
+/*	H2W			31*/
+#define RAPH100_KPD_ROW0	32
+#define RAPH100_KPD_ROW1	33
+#define RAPH100_KPD_ROW2	34
+#define RAPH100_KPD_ROW3	35
+#define RAPH100_RST_IRQ		36
+#define KOVS100_CHARGE_EN_N	37
+#define RAPH100_CLAMSHELL_IRQ	38
+#define RAPH800_CLAMSHELL_IRQ	39
+/*	unused			39*/
+#define RAPH100_KPD_COL0	40
+#define RAPH100_KPD_COL1	41
+#define RAPH100_KPD_COL2	42
+/*	region_id something	43*/
+#define RAPH100_CHARGE_EN_N	44
+#define RAPH100_UART1_TX	45	/* DBG */
+#define RAPH100_UART1_RX	46	/* DBG */
+/*				47*/
+/*				48*/
+/*				49*/
+/*				50*/
+#define RAPH100_WIFI_DAT3	51
+#define RAPH100_WIFI_DAT2	52
+#define RAPH100_WIFI_DAT1	53
+#define RAPH100_WIFI_DAT0	54
+#define RAPH100_WIFI_CMD	55
+#define RAPH100_WIFI_CLK	56
+#define RAPH100_TVOUT		57
+#define RAPH100_FLASHLIGHT	58
+/*				59*/
+#define RAPH100_I2C_SCL		60
+#define RAPH100_I2C_SDA		61
+#define RAPH100_SD_CLK		62
+#define RAPH100_SD_CMD		63
+#define RAPH100_SD_DAT3		64
+#define RAPH100_SD_DAT2		65
+#define RAPH100_SD_DAT1		66
+#define RAPH100_SD_DAT0		67
+#define RAPH100_PCM_DOUT	68
+#define RAPH100_PCM_DIN		69
+#define RAPH100_PCM_SYNC	70
+#define RAPH100_PCM_CLK		71
+
+#define RAPH100_LCD_PWR4	76
+#define RAPH100_USBCHARGE_EN	77
+
+#define RAPH100_LCD_PWR3	82
+#define RAPH100_PWR_BTN		83
+
+#define RAPH100_BKL_PWR		86
+
+#define RAPH100_HP_PWR		89
+#define RAPH100_USB_ID		90
+#define RAPH100_CAM_VCMPDP	91
+#define RAPH100_CAM1_RST	92
+#define RAPH100_CAM2_RST	93
+#define RAPH100_NAVI_IRQ	94
+
+#define RAPH100_LCD_VSYNC	97 /* FIXME! hardcoded */
+#define RAPH100_LCD_PWR1	98
+#define RAPH100_LCD_PWR2	99
+
+#define RAPH100_USBPHY_RST	100
+#define RAPH100_BT_RST		101
+#define RAPH100_WIFI_PWR1	102
+#define RAPH100_WIFI_BT_PWR2	103
+
+#define RAPH100_UART2DM_TX	108
+#define RAPH100_VGACAM_PWR	109
+
+#define RAPH100_ULPI_DATA0	111
+#define RAPH100_ULPI_DATA1	112
+#define RAPH100_ULPI_DATA2	113
+#define RAPH100_ULPI_DATA3	114
+#define RAPH100_ULPI_DATA4	115
+#define RAPH100_ULPI_DATA5	116
+#define RAPH100_ULPI_DATA6	117
+#define RAPH100_ULPI_DATA7	118
+#define RAPH100_ULPI_DIR	119
+#define RAPH100_ULPI_NEXT	120
+#define RAPH100_ULPI_STOP	121
+
+/* 111 - 121 USB OTG */
+
+#endif /* GUARD */
