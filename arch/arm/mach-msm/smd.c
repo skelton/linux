@@ -889,13 +889,17 @@ void *smem_find(unsigned id, unsigned size_in)
 	if (!ptr)
 		return 0;
 
+	/* TODO: hack alert!!! 6120/6125 have the 0x2000 fifo pointer at a different location */
+#if defined(MSM_AMSS_VERSION_6120) || defined(MSM_AMSS_VERSION_6125) 
+	printk("AMSS 6120/5 SMD channel hack alert.\n");
+#else
 	size_in = ALIGN(size_in, 8);
 	if (size_in != size) {
 		pr_err("smem_find(%d, %d): wrong size %d\n",
 		       id, size_in, size);
 		return 0;
 	}
-
+#endif
 	return ptr;
 }
 
