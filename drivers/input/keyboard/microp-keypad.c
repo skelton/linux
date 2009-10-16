@@ -190,10 +190,11 @@ static int microp_keymap_raph100[] = {
 
 // This is htckovsky keymap.  can be remapped by userland
 static int microp_keymap_htckovsky[] = {
+
 	KEY_RESERVED, // invalid
 	KEY_ENTER,
 	KEY_LEFT,
-	KEY_RESERVED, // NAVI_SILVER_LEFT
+	KEY_F1, // NAVI_SILVER_LEFT; Menu-Key for Android
 	KEY_RESERVED, // NAVI_GREEN
 	KEY_A,
 	KEY_F,
@@ -201,10 +202,10 @@ static int microp_keymap_htckovsky[] = {
 	KEY_D,
 	KEY_RESERVED,
 	KEY_RESERVED,
-	KEY_RESERVED, // NAVI_SILVER_RIGHT
+	KEY_POWER, // NAVI_SILVER_RIGHT; Power-Key for Android
 	KEY_DOWN,
 	KEY_RIGHT,
-	KEY_RESERVED, // NAVI_XPANEL
+	KEY_HOME, // NAVI_XPANEL; Home-Key for Android
 	KEY_K,
 	KEY_J,
 	KEY_H,
@@ -212,7 +213,7 @@ static int microp_keymap_htckovsky[] = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED, // NAVI_RED
-	KEY_RESERVED, // NAVI_OK
+	KEY_BACK, // NAVI_OK; Back-Key for Android
 	KEY_UP,
 	KEY_RESERVED,
 	KEY_L,
