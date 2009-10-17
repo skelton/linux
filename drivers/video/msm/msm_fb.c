@@ -245,9 +245,8 @@ static void msmfb_handle_vsync_interrupt(struct msmfb_callback *callback)
 static enum hrtimer_restart msmfb_fake_vsync(struct hrtimer *timer)
 {
 	struct msmfb_info *msmfb  = container_of(timer, struct msmfb_info,
-					       fake_vsync);
+				       fake_vsync);
 	printk("fake vsync\n");
-	mdelay(20);
 	msmfb_start_dma(msmfb);
 	return HRTIMER_NORESTART;
 }
@@ -336,14 +335,14 @@ restart:
 	if (pan_display) {
 //		printk("pd:%d %d %d %d %d %d\n",yoffset,left,top,eright,ebottom,sleeping);
 		msmfb->yoffset = yoffset;
-//		if (left == 0 && top == 0 && eright == info->var.xres &&
-//		    ebottom == info->var.yres) {
+		if (left == 0 && top == 0 && eright == info->var.xres &&
+		    ebottom == info->var.yres) {
 			if (sleeping == WAKING) {
 				msmfb->update_frame = msmfb->frame_requested;
 				DLOG(SUSPEND_RESUME, "full update starting\n");
 				msmfb->sleeping = UPDATING;
 			}
-//		}
+		}
 	}
 
 	/* set the update request */
@@ -370,7 +369,7 @@ restart:
 	} else {
 		if (!hrtimer_active(&msmfb->fake_vsync)) {
 			hrtimer_start(&msmfb->fake_vsync,
-				      ktime_set(0, NSEC_PER_SEC/20),
+				      ktime_set(0, NSEC_PER_SEC/5),
 				      HRTIMER_MODE_REL);
 		}
 	}

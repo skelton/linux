@@ -69,7 +69,7 @@ typedef enum {
 
 struct battery_info_reply {
 	u32 batt_id;		/* Battery ID from ADC */
-	u32 batt_volt;		/* Battery voltage from ADC */
+	u32 batt_vol;		/* Battery voltage from ADC */
 	u32 batt_temp;		/* Battery Temperature (C) from formula and ADC */
 	u32 batt_current;	/* Battery current from ADC */
 	u32 level;		/* formula */
@@ -366,7 +366,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		battery_table = battery_table_4;
 		buffer->batt_id = values_32[0];
 		buffer->batt_temp = values_32[1];
-		buffer->batt_volt = values_32[2];
+		buffer->batt_vol = values_32[2];
 		buffer->batt_current = values_32[3];
 	} else if (htc_batt_info.resources->smem_field_size == 2) {
 		values_16 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
@@ -374,7 +374,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		battery_table = battery_table_2;
 		buffer->batt_id = values_16[4];
 		buffer->batt_temp = values_16[1] / -6 + 750;
-		buffer->batt_volt = values_16[2];
+		buffer->batt_vol = values_16[2];
 		buffer->batt_current = values_16[3];
 	} else {
 		printk(KERN_WARNING MODULE_NAME ": unsupported smem_field_size\n");
@@ -391,7 +391,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	 printk("dex_batt: 0x%x = 0x%x\n",i,dex_test);
 	}
 	 printk("dex_batt: 0x%x = 0x%x 0x%x 0x%x 0x%x\n",PCOM_GET_BATTERY_DATA, 
-	  buffer->batt_id,  buffer->batt_temp, buffer->batt_volt, buffer->batt_current);
+	  buffer->batt_id,  buffer->batt_temp, buffer->batt_vol, buffer->batt_current);
 #endif
 
 	v = (v < 0) ? 0 : (v > 0xfff) ? 0xfff : v;
@@ -402,6 +402,9 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 			break;
 		}
 	}
+	// since this is not very accurate, stop the phone from thinking it has 0 capacity.
+	if(capacity<5)
+		capacity=5;
 	buffer->level = capacity;
 	
 	if (htc_batt_info.resources->smem_field_size == 4) {
@@ -525,7 +528,7 @@ static int htc_battery_get_property(struct power_supply *psy,
 
 static struct device_attribute htc_battery_attrs[] = {
 	HTC_BATTERY_ATTR(batt_id),
-	HTC_BATTERY_ATTR(batt_volt),
+	HTC_BATTERY_ATTR(batt_vol),
 	HTC_BATTERY_ATTR(batt_temp),
 	HTC_BATTERY_ATTR(batt_current),
 	HTC_BATTERY_ATTR(charging_source),
@@ -590,7 +593,7 @@ dont_need_update:
 		break;
 	case BATT_VOL:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
-			       htc_batt_info.rep.batt_volt);
+			       htc_batt_info.rep.batt_vol);
 		break;
 	case BATT_TEMP:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
