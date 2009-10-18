@@ -128,6 +128,9 @@
 #define	GPIOPC      (GPIO_BLOCK_BASE|0x28)
 #define	GPIOID      (GPIO_BLOCK_BASE|0x30)
 
+#define GPIOSEL_VWAKEINT (1U << 0)
+#define INTMASK_VWAKEOUT (1U << 0)
+
 #define SPI_WRITE(reg, val) \
 	{ SSITX,        0x00010000 | (((reg) & 0xff) << 8) | ((val) & 0xff) }, \
 	{ 0, 5 },
@@ -156,7 +159,7 @@ static struct mddi_table mddi_toshiba_common_init_table[] = {
 	{0x0010801c,0x4bec0066},
 	{0x00108020,0x00000113},
 	{0x00108024,0x00000000},
-	{0x00108028,0x00000001},{1,300},
+	{0x00108028,0x00000001},{1,14},//300},
 	{0x0010802c,0x00000001},
 	{0x00160004,0x0000a1ef},
 	{0x00170000,0x00000000},
@@ -416,15 +419,18 @@ static int htcdiamond_mddi_toshiba_client_init(
 	struct msm_mddi_client_data *client_data)
 {
 
+	if(client_state)
+		return;
 	printk("htcdiamond_mddi_toshiba_client_init\n");
 	client_data->auto_hibernate(client_data, 0);
 	
-	if(!client_state && type) {
+	if(type) {
 		htcdiamond_process_mddi_table(client_data, mddi_toshiba_common_init_table,
 			ARRAY_SIZE(mddi_toshiba_common_init_table));
-		mdelay(50);
-		htcdiamond_process_mddi_table(client_data, mddi_toshiba_prim_start_table,
-						ARRAY_SIZE(mddi_toshiba_prim_start_table));
+//		mdelay(50);
+//		htcdiamond_process_mddi_table(client_data, mddi_toshiba_prim_start_table,
+//						ARRAY_SIZE(mddi_toshiba_prim_start_table));
+/*
 		switch(type) {
 			case 0:
 				printk("unknown panel\n");
@@ -440,8 +446,10 @@ static int htcdiamond_mddi_toshiba_client_init(
 			default:
 				printk("unknown panel_id: %d\n", type);
 		};
+*/
 	}
 	client_state=1;
+
 
 	client_data->auto_hibernate(client_data, 1);
 	return 0;
@@ -459,7 +467,29 @@ static int htcdiamond_mddi_panel_unblank(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
-	// not used
+	client_data->auto_hibernate(client_data, 0);
+	if(type)
+		htcdiamond_process_mddi_table(client_data, mddi_toshiba_prim_start_table,
+					ARRAY_SIZE(mddi_toshiba_prim_start_table));
+	switch(type) {
+		case 0:
+			printk("unknown panel\n");
+			break;
+		case 1:
+			printk("init hitachi panel on toshiba client\n");
+			htcdiamond_mddi_hitachi_panel_init(bridge_data,client_data);
+			break;
+		case 2:
+			printk("init sharp panel on toshiba client\n");
+			htcdiamond_mddi_sharp_panel_init(bridge_data,client_data);
+			break;
+		default:
+			printk("unknown panel_id: %d\n", type);
+	};
+	client_data->auto_hibernate(client_data, 1);
+//        client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
+//      client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
+
 	return 0;
 
 }

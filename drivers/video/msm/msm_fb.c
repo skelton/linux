@@ -279,7 +279,7 @@ restart:
 		spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
 		if (pan_display)
 			wait_event_interruptible_timeout(msmfb->frame_wq,
-				msmfb->sleeping != SLEEPING, HZ/10);
+				msmfb->sleeping != SLEEPING, HZ/100);
 		return;
 	}
 
@@ -369,7 +369,7 @@ restart:
 	} else {
 		if (!hrtimer_active(&msmfb->fake_vsync)) {
 			hrtimer_start(&msmfb->fake_vsync,
-				      ktime_set(0, NSEC_PER_SEC/5),
+				      ktime_set(0, NSEC_PER_SEC/20),
 				      HRTIMER_MODE_REL);
 		}
 	}
@@ -485,8 +485,8 @@ int msmfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct msm_panel_data *panel = msmfb->panel;
 
 	/* "UPDT" */
-	if ((panel->caps & MSMFB_CAP_PARTIAL_UPDATES) &&
-	    (var->reserved[0] == 0x54445055)) {
+	if (msmfb->sleeping!=WAKING && ((panel->caps & MSMFB_CAP_PARTIAL_UPDATES) &&
+	    (var->reserved[0] == 0x54445055))) {
 #if 0
 		printk(KERN_INFO "pan frame %d-%d, rect %d %d %d %d\n",
 		       msmfb->frame_requested, msmfb->frame_done,
