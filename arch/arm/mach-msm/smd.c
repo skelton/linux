@@ -151,6 +151,9 @@ struct smd_alloc_elm {
 	char name[20];
 	uint32_t cid;
 	uint32_t ctype;
+#if defined(MSM_AMSS_VERSION_6120) || defined(MSM_AMSS_VERSION_6125)
+	uint32_t unknown;
+#endif
 	uint32_t ref_count;
 };
 
