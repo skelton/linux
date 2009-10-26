@@ -487,8 +487,8 @@ void msm_gpio_enter_sleep(int from_idle)
 	int i,j;
 	struct tramp_gpio_smem *smem_gpio;
 
-	for(i=0x6f;i<0x7a;i++)
-		msm_gpio_set_function(DEX_GPIO_CFG(i,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
+//	for(i=0x6f;i<0x7a;i++)
+//		msm_gpio_set_function(DEX_GPIO_CFG(i,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
 //	for(i=0x20;i<0x24;i++)
 //		msm_gpio_set_function(DEX_GPIO_CFG(i,0,GPIO_OUTPUT,GPIO_NO_PULL,GPIO_2MA,0));
 

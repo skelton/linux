@@ -430,6 +430,12 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	}
 	buffer->full_bat = 100;
 
+	if(!machine_is_htckovsky() && htc_batt_info.resources->smem_field_size==2) { 
+		// these were taken out in a kovsky commit, so assume it doesn't need them.
+		buffer->charging_enabled = (values_16[3] > 0x700);
+		buffer->charging_source =  (values_16[3] < 0x200) ? CHARGER_BATTERY : CHARGER_USB;
+	}
+
 	mutex_unlock(&htc_batt_info.lock);
 
 	return 0;
