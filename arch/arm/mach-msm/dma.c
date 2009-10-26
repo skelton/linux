@@ -142,6 +142,8 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr)
 	return 0;
 }
 
+EXPORT_SYMBOL(msm_dmov_exec_cmd);
+
 
 static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 {
