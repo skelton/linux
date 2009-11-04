@@ -43,8 +43,11 @@ static LIST_HEAD(clocks);
 struct mdns_clock_params
 {
 	unsigned long freq;
+	uint32_t calc_freq;
 	uint32_t md;
 	uint32_t ns;
+	uint32_t pll_freq;
+	uint32_t clk_id;
 };
 
 struct msm_clock_params
@@ -138,7 +141,7 @@ static struct msm_clock_params msm_clock_parameters[] = {
 };
 
 // This formula is used to generate md and ns reg values
-#define MSM_CLOCK_REG(frequency,M,N,D,PRE,a5,SRC,MNE) { \
+#define MSM_CLOCK_REG(frequency,M,N,D,PRE,a5,SRC,MNE,pll_frequency) { \
 	.freq = (frequency), \
 	.md = ((0xffff & (M)) << 16) | (0xffff & ~((D) << 1)), \
 	.ns = ((0xffff & ~((N) - (M))) << 16) \
@@ -146,30 +149,26 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	    | ((0x7 & (a5)) << 5) \
 	    | ((0x3 & (PRE)) << 3) \
 	    | (0x7 & (SRC)), \
+	.pll_freq = (pll_frequency), \
+	.calc_freq = (pll_frequency*M/((PRE+1)*N)), \
 }
 
-
 struct mdns_clock_params msm_clock_freq_parameters[] = {
-	/* SD */
-	MSM_CLOCK_REG(  144000, 3, 0x64, 0x32, 3, 3, 0, 1), /* 144kHz */
-	/* UART2DM */
-//	MSM_CLOCK_REG( , 2, 0xc8, 0x64, 3, 2, 1, 1), /* 1.92MHz for 120000 bps */
 
-#if 0 /* wince uses these clock settings */
-	MSM_CLOCK_REG( 1843200,    3, 0x64, 0x32, 3, 2, 4, 1), /*  115200*16=1843200 */
-	MSM_CLOCK_REG( 3686400,    3, 0x32, 0x19, 3, 2, 4, 1), /*  230400*16=3686400 */
-	MSM_CLOCK_REG(14745600,    6, 0x19, 0x0c, 3, 2, 4, 1), /*  921600*16=14745600 */
-	MSM_CLOCK_REG(16000000, 0x19, 0x60, 0x30, 3, 2, 4, 1), /* 1000000*16=16000000 */
-#else /* disable the prescaler=4 to get 4X clock rate used by g1 driver */
-	MSM_CLOCK_REG( 7372800,      3, 0x64, 0x32, 0, 2, 4, 1), /*  460800*16, will be divided by 4 for 115200 */
-	MSM_CLOCK_REG( 921600*16,    3, 0x32, 0x19, 3, 2, 4, 1), /*  921600 */
-	MSM_CLOCK_REG(3686400*16,    6, 0x19, 0x0c, 3, 2, 4, 1), /* 3686400 */
+	MSM_CLOCK_REG(  144000,   3, 0x64, 0x32, 3, 3, 0, 1, 19200000), /* SD, 144kHz */
+#if 0 /* wince uses this clock setting for UART2DM */
+	MSM_CLOCK_REG( 1843200,     3, 0x64, 0x32, 3, 2, 4, 1, 245760000), /*  115200*16=1843200 */
+//	MSM_CLOCK_REG(            , 2, 0xc8, 0x64, 3, 2, 1, 1, 768888888), /* 1.92MHz for 120000 bps */
+#else
+	MSM_CLOCK_REG( 7372800,   3, 0x64, 0x32, 0, 2, 4, 1, 245760000), /*  460800*16, will be divided by 4 for 115200 */
 #endif
-	/* SD */
-	MSM_CLOCK_REG(12000000, 1, 0x20, 0x10, 1, 3, 1, 1), /* 12MHz */
-	MSM_CLOCK_REG(19200000, 1, 0x0a, 0x05, 3, 3, 1, 1), /* 19.2MHz */
-	MSM_CLOCK_REG(24000000, 1, 0x10, 0x08, 1, 3, 1, 1), /* 24MHz */
-	MSM_CLOCK_REG(32000000, 1, 0x0c, 0x06, 1, 3, 1, 1), /* 32MHz */
+	MSM_CLOCK_REG(12000000,   1, 0x20, 0x10, 1, 3, 1, 1, 768000000), /* SD, 12MHz */
+	MSM_CLOCK_REG(14745600,   3, 0x32, 0x19, 0, 2, 4, 1, 245760000), /* BT, 921600 (*16)*/
+	MSM_CLOCK_REG(19200000,   1, 0x0a, 0x05, 3, 3, 1, 1, 768000000), /* SD, 19.2MHz */
+	MSM_CLOCK_REG(24000000,   1, 0x10, 0x08, 1, 3, 1, 1, 768000000), /* SD, 24MHz */
+	MSM_CLOCK_REG(32000000,   1, 0x0c, 0x06, 1, 3, 1, 1, 768000000), /* SD, 32MHz */
+	MSM_CLOCK_REG(58982400,   6, 0x19, 0x0c, 0, 2, 4, 1, 245760000), /* BT, 3686400 (*16) */
+	MSM_CLOCK_REG(64000000,0x19, 0x60, 0x30, 0, 2, 4, 1, 245760000), /* BT, 4000000 (*16) */
 };
 
 static inline struct msm_clock_params msm_clk_get_params(uint32_t id)
@@ -241,10 +240,12 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
 				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
 //				msleep(5);
-				D("%s: %u, freq=%lu pll%d=%u\n", __func__, id, 
+				D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id, 
 				  msm_clock_freq_parameters[n].freq,
+				  msm_clock_freq_parameters[n].calc_freq,
 				  msm_clock_freq_parameters[n].ns&7,
-				  pll_get_rate(idx2pll(msm_clock_freq_parameters[n].ns&7)) );
+				  pll_get_rate(idx2pll(msm_clock_freq_parameters[n].ns&7)),
+				  msm_clock_freq_parameters[n].pll_freq );
 				retval = 0;
 				found = 1;
 				break;
