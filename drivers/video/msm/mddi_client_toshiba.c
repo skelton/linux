@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <mach/msm_fb.h>
 
+#define GPIO_VSYNC 97
 static DECLARE_WAIT_QUEUE_HEAD(toshiba_vsync_wait);
 
 struct panel_info {
@@ -31,6 +32,7 @@ struct panel_info {
 	struct msmfb_callback *toshiba_callback;
 	int toshiba_got_int;
 };
+static int setup_vsync(struct panel_info *panel, int init);
 
 
 static void toshiba_request_vsync(struct msm_panel_data *panel_data,
@@ -83,6 +85,7 @@ static int toshiba_suspend(struct msm_panel_data *panel_data)
 		client_data->private_client_data;
 	int ret;
 
+
 	ret = bridge_data->uninit(bridge_data, client_data);
 	if (ret) {
 		printk(KERN_INFO "mddi toshiba client: non zero return from "
@@ -90,6 +93,8 @@ static int toshiba_suspend(struct msm_panel_data *panel_data)
 		return ret;
 	}
 	client_data->suspend(client_data);
+
+	setup_vsync(panel, 0);
 	return 0;
 }
 
@@ -102,6 +107,8 @@ static int toshiba_resume(struct msm_panel_data *panel_data)
 	struct msm_mddi_bridge_platform_data *bridge_data =
 		client_data->private_client_data;
 	int ret;
+
+	setup_vsync(panel, 1);
 
 	client_data->resume(client_data);
 	ret = bridge_data->init(bridge_data, client_data);
@@ -149,7 +156,7 @@ static int setup_vsync(struct panel_info *panel,
 		       int init)
 {
 	int ret;
-	int gpio = 97;
+	int gpio = GPIO_VSYNC;
 	unsigned int irq;
 
 	if (!init) {
