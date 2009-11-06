@@ -152,6 +152,9 @@ static struct power_supply htc_power_supplies[] = {
 	},
 };
 
+static int fake_charger=0;
+module_param_named(fake, fake_charger, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 
 /* -------------------------------------------------------------------------- */
 
@@ -297,6 +300,8 @@ int htc_cable_status_update(int status)
 		rc = -EINVAL;
 	}
 	source = htc_batt_info.rep.charging_source;
+	if(fake_charger)
+		htc_batt_info.rep.charging_source=CHARGER_USB;
 	mutex_unlock(&htc_batt_info.lock);
 
 	msm_hsusb_set_vbus_state(source == CHARGER_USB);
@@ -437,6 +442,8 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	}
 
 	mutex_unlock(&htc_batt_info.lock);
+
+	htc_cable_status_update(buffer->charging_source);
 
 	return 0;
 }
