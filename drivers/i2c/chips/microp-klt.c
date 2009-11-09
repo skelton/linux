@@ -150,10 +150,8 @@ EXPORT_SYMBOL(micropklt_set_kbd_state);
 
 void micropklt_lcd_ctrl(int v)
 {
-	struct microp_klt *data=micropklt_t;;
+	struct microp_klt *data;
 	struct i2c_client *client;
-	if (!data) return -EAGAIN;
-	client = data->client;
 
 	// for power up
 	char c1[]={0x20,0x48};
@@ -168,10 +166,8 @@ void micropklt_lcd_ctrl(int v)
 	char c9[]={0x20,0x08};
 
 	
-        int r;
-
         data = micropklt_t;
-        if (!data) return -EAGAIN;
+        if (!data) return;
         client = data->client;
 
 	switch(v) {
@@ -402,6 +398,7 @@ static int micropklt_read(struct i2c_client *client, unsigned id, char *buf, int
 	return 0;
 }
 
+static u16 sleep_state=0,old_state;
 #if CONFIG_PM
 static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
@@ -409,7 +406,11 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 //	char cmd[]={0x20,0x08};
 //	send_command(cmd);
 //	micropklt_lcd_ctrl(4);
-//	micropklt_set_led_states(0x10,0x10);
+	if(micropklt_t)
+		old_state=micropklt_t->led_states;
+	else
+		old_state=0;
+	micropklt_set_led_states(0xffff, sleep_state);
 	return 0;
 }
 
@@ -419,7 +420,7 @@ static int micropklt_resume(struct i2c_client *client)
 //	char cmd[]={0x20,0x48};
 //	send_command(cmd);
 //	micropklt_lcd_ctrl(1);
-//	micropklt_set_led_states(0x10,0x00);
+	micropklt_set_led_states(0xffff,old_state);
 	return 0;
 }
 #else
@@ -570,6 +571,22 @@ DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_lcd_brightness_fops,
 		micropklt_dbg_lcd_brightness_get,
 		micropklt_dbg_lcd_brightness_set, "%llu\n");
 
+static int micropklt_dbg_sleep_get(void *dat, u64 *val) {
+	*val=sleep_state;
+	return 0;
+}
+
+static int micropklt_dbg_sleep_set(void *dat, u64 val)
+{
+	sleep_state=val;
+	return 0;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_sleep_fops,
+		micropklt_dbg_sleep_get,
+		micropklt_dbg_sleep_set, "%llu\n");
+
 static int __init micropklt_dbg_init(void)
 {
 	struct dentry *dent;
@@ -584,6 +601,8 @@ static int __init micropklt_dbg_init(void)
 			&micropklt_dbg_light_fops);
 	debugfs_create_file("lcd_brightness", 0644, dent, NULL,
 			&micropklt_dbg_lcd_brightness_fops);
+	debugfs_create_file("sleep_leds", 0644, dent, NULL,
+			&micropklt_dbg_sleep_fops);
 
 	return 0;
 }
