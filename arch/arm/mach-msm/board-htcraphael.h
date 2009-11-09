@@ -157,6 +157,4 @@
 #define RAPH100_ULPI_NEXT	120
 #define RAPH100_ULPI_STOP	121
 
-/* 111 - 121 USB OTG */
-
 #endif /* GUARD */

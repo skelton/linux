@@ -35,11 +35,9 @@
 #define MSM_FB_SIZE		0x200000 /* 2mb */
 
 #define MSM_EBI_LOCKED_BASE	MSM_FB_BASE + MSM_FB_SIZE
-#define MSM_EBI_LOCKED_SIZE	0xD00000 /* 13mb */
+#define MSM_EBI_LOCKED_SIZE	0x1000000 /* 16mb */
 
 #define DECLARE_MSM_IOMAP
 #include <mach/msm_iomap.h>
 
 #endif /* GUARD */
-
-

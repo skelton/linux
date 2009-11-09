@@ -56,6 +56,7 @@ module_param_named(debug_mask, msm_smd_debug_mask,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 void *smem_find(unsigned id, unsigned size);
+static void *_smem_find(unsigned id, unsigned *size);
 static void smd_diag(void);
 
 static unsigned last_heap_free = 0xffffffff;
@@ -169,17 +170,15 @@ struct smd_half_channel {
 	unsigned char fUNUSED;
 	unsigned tail;
 	unsigned head;
-	unsigned char data[SMD_BUF_SIZE];
 };
 
-struct smd_shared {
-	struct smd_half_channel ch0;
-	struct smd_half_channel ch1;
-};
-
-struct smd_channel {
+struct smd_channel 
+{
 	volatile struct smd_half_channel *send;
 	volatile struct smd_half_channel *recv;
+	unsigned char *send_buf;
+	unsigned char *recv_buf;
+	unsigned buf_size;
 	struct list_head ch_list;
 
 	unsigned current_packet;
@@ -271,14 +270,14 @@ static char *chstate(unsigned n)
 /* how many bytes are available for reading */
 static int smd_stream_read_avail(struct smd_channel *ch)
 {
-	return (ch->recv->head - ch->recv->tail) & (SMD_BUF_SIZE - 1);
+	return (ch->recv->head - ch->recv->tail) & (ch->buf_size - 1);
 }
 
 /* how many bytes we are free to write */
 static int smd_stream_write_avail(struct smd_channel *ch)
 {
-	return (SMD_BUF_SIZE - 1) -
-		((ch->send->head - ch->send->tail) & (SMD_BUF_SIZE - 1));
+	return (ch->buf_size - 1) -
+		((ch->send->head - ch->send->tail) & (ch->buf_size - 1));
 }
 
 static int smd_packet_read_avail(struct smd_channel *ch)
@@ -310,20 +309,20 @@ static unsigned ch_read_buffer(struct smd_channel *ch, void **ptr)
 {
 	unsigned head = ch->recv->head;
 	unsigned tail = ch->recv->tail;
-	*ptr = (void *) (ch->recv->data + tail);
+	*ptr = (void *) (ch->recv_buf + tail);
 
 	if (tail <= head)
 		return head - tail;
 	else
-		return SMD_BUF_SIZE - tail;
+		return ch->buf_size - tail;
 }
 
 /* advance the fifo read pointer after data from ch_read_buffer is consumed */
 static void ch_read_done(struct smd_channel *ch, unsigned count)
 {
 	BUG_ON(count > smd_stream_read_avail(ch));
-	ch->recv->tail = (ch->recv->tail + count) & (SMD_BUF_SIZE - 1);
-	ch->recv->fTAIL = 1;
+	ch->recv->tail = (ch->recv->tail + count) & (ch->buf_size - 1);
+	ch->send->fTAIL = 1;
 }
 
 /* basic read interface to ch_read_{buffer,done} used
@@ -384,15 +383,15 @@ static unsigned ch_write_buffer(struct smd_channel *ch, void **ptr)
 {
 	unsigned head = ch->send->head;
 	unsigned tail = ch->send->tail;
-	*ptr = (void *) (ch->send->data + head);
+	*ptr = (void *) (ch->send_buf + head);
 
 	if (head < tail) {
 		return tail - head - 1;
 	} else {
 		if (tail == 0)
-			return SMD_BUF_SIZE - head - 1;
+			return ch->buf_size - head - 1;
 		else
-			return SMD_BUF_SIZE - head;
+			return ch->buf_size - head;
 	}
 }
 
@@ -402,23 +401,23 @@ static unsigned ch_write_buffer(struct smd_channel *ch, void **ptr)
 static void ch_write_done(struct smd_channel *ch, unsigned count)
 {
 	BUG_ON(count > smd_stream_write_avail(ch));
-	ch->send->head = (ch->send->head + count) & (SMD_BUF_SIZE - 1);
+	ch->send->head = (ch->send->head + count) & (ch->buf_size - 1);
 	ch->send->fHEAD = 1;
 }
 
-static void hc_set_state(volatile struct smd_half_channel *hc, unsigned n)
+static void ch_set_state(struct smd_channel *ch, unsigned n)
 {
 	if (n == SMD_SS_OPENED) {
-		hc->fDSR = 1;
-		hc->fCTS = 1;
-		hc->fCD = 1;
+		ch->send->fDSR = 1;
+		ch->send->fCTS = 1;
+		ch->send->fCD = 1;
 	} else {
-		hc->fDSR = 0;
-		hc->fCTS = 0;
-		hc->fCD = 0;
+		ch->send->fDSR = 0;
+		ch->send->fCTS = 0;
+		ch->send->fCD = 0;
 	}
-	hc->state = n;
-	hc->fSTATE = 1;
+	ch->send->state = n;
+	ch->send->fSTATE = 1;
 	notify_other_smd();
 }
 
@@ -444,12 +443,18 @@ static void smd_state_change(struct smd_channel *ch,
 		ch->recv->tail = 0;
 	case SMD_SS_OPENED:
 		if (ch->send->state != SMD_SS_OPENED)
-			hc_set_state(ch->send, SMD_SS_OPENED);
+			ch_set_state(ch, SMD_SS_OPENED);
 		ch->notify(ch->priv, SMD_EVENT_OPEN);
 		break;
 	case SMD_SS_FLUSHING:
 	case SMD_SS_RESET:
 		/* we should force them to close? */
+	case SMD_SS_CLOSED:
+		if (ch->send->state == SMD_SS_OPENED) {
+			ch_set_state(ch, SMD_SS_CLOSING);
+			ch->notify(ch->priv, SMD_EVENT_CLOSE);
+		}
+		break;
 	default:
 		ch->notify(ch->priv, SMD_EVENT_CLOSE);
 	}
@@ -675,26 +680,89 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 	return r;
 }
 
-static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
+static struct smd_channel *_smd_alloc_channel_v1(uint32_t cid)
 {
 	struct smd_channel *ch;
-	struct smd_shared *shared;
+	void *shared;
 
-	shared = smem_alloc(ID_SMD_CHANNELS + cid, sizeof(*shared));
+	shared = smem_alloc(ID_SMD_CHANNELS + cid,
+			    2 * (sizeof(struct smd_half_channel) +
+				 SMD_BUF_SIZE));
 	if (!shared) {
-		pr_err("smd_alloc_channel() cid %d does not exist\n", cid);
-		return;
+		pr_err("smd_alloc_channel: cid %d does not exist\n", cid);
+		return NULL;
 	}
 
 	ch = kzalloc(sizeof(struct smd_channel), GFP_KERNEL);
+	if (ch) {
+		ch->send = shared;
+		ch->send_buf = shared + sizeof(struct smd_half_channel);
+		ch->recv = (struct smd_half_channel *)
+			(ch->send_buf + SMD_BUF_SIZE);
+		ch->recv_buf = (unsigned char *)ch->recv +
+			sizeof(struct smd_half_channel);
+		ch->buf_size = SMD_BUF_SIZE;
+		ch->n = cid;
+	} else
+		pr_err("smd_alloc_channel: out of memory\n");
+
+	return ch;
+}
+
+#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
+static struct smd_channel *_smd_alloc_channel_v2(uint32_t cid)
+{
+	struct smd_channel *ch;
+	void *shared, *shared_fifo;
+	unsigned size;
+
+	shared = smem_alloc(ID_SMD_CHANNELS + cid,
+			    2 * sizeof(struct smd_half_channel));
+	if (!shared) {
+		pr_err("smd_alloc_channel: cid %d does not exist\n", cid);
+		return NULL;
+	}
+
+	shared_fifo = _smem_find(SMEM_SMD_FIFO_BASE_ID + cid, &size);
+	if (!shared_fifo) {
+		pr_err("smd_alloc_channel: cid %d fifo do not exist\n", cid);
+		return NULL;
+	}
+	printk(KERN_INFO "smd_alloc_channel: cid %d fifo found; size = %d\n",
+	       cid, (size / 2));
+
+	ch = kzalloc(sizeof(struct smd_channel), GFP_KERNEL);
+	if (ch) {
+		ch->send = shared;
+		ch->recv = shared + sizeof(struct smd_half_channel);
+		ch->send_buf = shared_fifo;
+		ch->recv_buf = shared_fifo + (size / 2);
+		ch->buf_size = size / 2;
+		ch->n = cid;
+	} else
+		pr_err("smd_alloc_channel() out of memory\n");
+
+	return ch;
+}
+#endif
+
+static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
+{
+	struct smd_channel *ch;
+
+#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125) 
+	ch = _smd_alloc_channel_v2(cid);
+#else
+	ch = _smd_alloc_channel_v1(cid);
+#endif
+
 	if (ch == 0) {
 		pr_err("smd_alloc_channel() out of memory\n");
 		return;
 	}
 
-	ch->send = &shared->ch0;
-	ch->recv = &shared->ch1;
-	ch->n = cid;
+	memcpy(ch->name, name, 20);
+	ch->name[19] = 0;
 
 	if (smd_is_packet(cid)) {
 		ch->read = smd_packet_read;
@@ -716,8 +784,8 @@ static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	ch->pdev.name = ch->name;
 	ch->pdev.id = -1;
 
-	pr_info("smd_alloc_channel() '%s' cid=%d, shared=%p\n",
-		ch->name, ch->n, shared);
+	pr_info("smd_alloc_channel() '%s' cid=%d\n",
+		ch->name, ch->n);
 
 	mutex_lock(&smd_creation_mutex);
 	list_add(&ch->ch_list, &smd_ch_closed_list);
@@ -785,9 +853,9 @@ int smd_open(const char *name, smd_channel_t **_ch,
 	 */
 	if (ch->recv->state == SMD_SS_CLOSING) {
 		ch->send->head = 0;
-		hc_set_state(ch->send, SMD_SS_OPENING);
+		ch_set_state(ch, SMD_SS_OPENING);
 	} else {
-		hc_set_state(ch->send, SMD_SS_OPENED);
+		ch_set_state(ch, SMD_SS_OPENED);
 		if (ch->open)
 			*ch->open = 1;
 	}
@@ -809,7 +877,7 @@ int smd_close(smd_channel_t *ch)
 	spin_lock_irqsave(&smd_lock, flags);
 	ch->notify = do_nothing_notify;
 	list_del(&ch->ch_list);
-	hc_set_state(ch->send, SMD_SS_CLOSED);
+	ch_set_state(ch, SMD_SS_CLOSED);
 	// this crashes the device if you don't read from it but really, that's what you want.
 	if (ch->open)
 		*ch->open = 0;
@@ -892,17 +960,12 @@ void *smem_find(unsigned id, unsigned size_in)
 	if (!ptr)
 		return 0;
 
-	/* TODO: hack alert!!! 6120/6125 have the 0x2000 fifo pointer at a different location */
-#if defined(MSM_AMSS_VERSION_6120) || defined(MSM_AMSS_VERSION_6125) 
-	printk("AMSS 6120/5 SMD channel hack alert.\n");
-#else
 	size_in = ALIGN(size_in, 8);
 	if (size_in != size) {
 		pr_err("smem_find(%d, %d): wrong size %d\n",
 		       id, size_in, size);
 		return 0;
 	}
-#endif
 	return ptr;
 }
 
@@ -1262,17 +1325,39 @@ static int debug_read_mem(char *buf, int max)
 	return i;
 }
 
-static int debug_read_ch(char *buf, int max)
+static int debug_read_ch_v1(char *buf, int max)
 {
-	struct smd_shared *shared;
+	void *shared;
 	int n, i = 0;
 
 	for (n = 0; n < SMD_CHANNELS; n++) {
 		shared = smem_find(ID_SMD_CHANNELS + n,
-				   sizeof(struct smd_shared));
+				   2 * (sizeof(struct smd_half_channel) +
+					SMD_BUF_SIZE));
+
 		if (shared == 0)
 			continue;
-		i += dump_ch(buf + i, max - i, n, &shared->ch0, &shared->ch1);
+		i += dump_ch(buf + i, max - i, n, shared,
+			     (shared + sizeof(struct smd_half_channel) +
+			      SMD_BUF_SIZE));
+	}
+
+	return i;
+}
+
+static int debug_read_ch_v2(char *buf, int max)
+{
+	void *shared;
+	int n, i = 0;
+
+	for (n = 0; n < SMD_CHANNELS; n++) {
+		shared = smem_find(ID_SMD_CHANNELS + n,
+				   2 * sizeof(struct smd_half_channel));
+
+		if (shared == 0)
+			continue;
+		i += dump_ch(buf + i, max - i, n, shared,
+			     (shared + sizeof(struct smd_half_channel)));
 	}
 
 	return i;
@@ -1369,7 +1454,11 @@ static void smd_debugfs_init(void)
 	if (IS_ERR(dent))
 		return;
 
-	debug_create("ch", 0444, dent, debug_read_ch);
+#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
+	debug_create("ch", 0444, dent, debug_read_ch_v2);
+#else
+	debug_create("ch", 0444, dent, debug_read_ch_v1);
+#endif
 	debug_create("stat", 0444, dent, debug_read_stat);
 	debug_create("mem", 0444, dent, debug_read_mem);
 	debug_create("version", 0444, dent, debug_read_version);

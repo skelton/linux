@@ -590,7 +590,7 @@ struct msm_mddi_platform_data mddi_pdata = {
 	.clk_rate = 122880000,
 	.power_client = htcraphael_mddi_power_client,
 	.fb_resource = resources_msm_fb,
-	.num_clients = 2,
+	.num_clients = 4,
 	.client_platform_data = {
 		{
 			.product_id = (0xd263 << 16 | 0),
@@ -602,6 +602,20 @@ struct msm_mddi_platform_data mddi_pdata = {
 		{
 			.product_id = (0x4ca3 << 16 | 0),
 			.name = "S1D13774",
+			.id = 0,
+			.client_data = &epson_client_data,
+			.clk_rate = 0,
+		},
+		{
+			.product_id = (0xb9f6 << 16 | 0x5580),
+			.name = "S1D13774", /* TODO */
+			.id = 0,
+			.client_data = &epson_client_data,
+			.clk_rate = 0,
+		},
+		{
+			.product_id = (0xb9f6 << 16 | 0x5582),
+			.name = "S1D13774", /* TODO */
 			.id = 0,
 			.client_data = &epson_client_data,
 			.clk_rate = 0,
