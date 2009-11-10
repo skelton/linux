@@ -46,6 +46,9 @@
 #include <mach/gpio.h>
 #include <mach/io.h>
 #include <linux/delay.h>
+#ifdef CONFIG_HTC_HEADSET
+#include <mach/htc_headset.h>
+#endif
 
 #include <linux/microp-keypad.h>
 
@@ -299,6 +302,48 @@ static struct platform_device ram_console_device = {
         .resource       = ram_console_resource,
 };
 
+#ifdef CONFIG_HTC_HEADSET
+
+static void h2w_config_cpld(int route);
+static void h2w_init_cpld(void);
+static struct h2w_platform_data raphael_h2w_data = {
+	.cable_in1              = 18,//TROUT_GPIO_CABLE_IN1,
+	.cable_in2              = 45,//TROUT_GPIO_CABLE_IN2,
+	.h2w_clk                = 46,//TROUT_GPIO_H2W_CLK_GPI,
+	.h2w_data               = 31,//TROUT_GPIO_H2W_DAT_GPI,
+	.debug_uart             = H2W_UART3,
+	.config_cpld            = h2w_config_cpld,
+	.init_cpld              = h2w_init_cpld,
+	.headset_mic_35mm       = 17,
+};
+
+static void h2w_config_cpld(int route)
+{
+	switch (route) {
+		case H2W_UART3:
+			gpio_set_value(0, 1);
+			break;
+		case H2W_GPIO:
+			gpio_set_value(0, 0);
+			break;
+	}
+}
+
+static void h2w_init_cpld(void)
+{
+	h2w_config_cpld(H2W_UART3);
+	gpio_set_value(raphael_h2w_data.h2w_clk, 0);
+	gpio_set_value(raphael_h2w_data.h2w_data, 0);
+}
+
+static struct platform_device raphael_h2w = {
+	.name           = "h2w",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &raphael_h2w_data,
+	},
+};
+#endif
 
 static struct platform_device *devices[] __initdata = {
        &ram_console_device,
@@ -323,6 +368,9 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&raphael_snd,
 	&raphael_gps,
+#ifdef CONFIG_HTC_HEADSET
+	&raphael_h2w,
+#endif
 };
 
 extern struct sys_timer msm_timer;
