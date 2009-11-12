@@ -157,6 +157,9 @@ static struct i2c_board_info i2c_devices[] = {
 	{		
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 	},
+	{		
+		I2C_BOARD_INFO("kionix-ksd9", 0x19),
+	},
 };
 
 static struct android_pmem_platform_data android_pmem_pdata = {

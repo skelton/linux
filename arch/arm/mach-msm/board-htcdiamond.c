@@ -161,7 +161,6 @@ static struct i2c_board_info i2c_devices[] = {
 		// Raphael NaviPad (cy8c20434)
 		I2C_BOARD_INFO("raph_navi_pad", 0x62),
 	},
-/* disable for now because it prevents sleep */
 	{
 		// Accelerometer
 		I2C_BOARD_INFO("kionix-kxsd9", 0x18),

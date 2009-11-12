@@ -390,6 +390,8 @@ static int kxsd9_probe(struct i2c_client *client, const struct i2c_device_id *id
 	idev = input_allocate_device();
 	if (idev) {
 		idev->name = MODULE_NAME;
+		idev->phys=kzalloc(12, GFP_KERNEL);
+		snprintf(idev->phys, 11, "i2c/0-%04x", client->addr);
 		set_bit(EV_ABS, idev->evbit);
 		input_set_abs_params(idev, ABS_X, -2048, 2047, 0, 0);
 		input_set_abs_params(idev, ABS_Y, -2048, 2047, 0, 0);
