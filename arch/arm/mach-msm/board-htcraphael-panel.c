@@ -623,7 +623,7 @@ static struct resource resources_msm_fb[] = {
 	},
 };
 
-struct msm_mddi_bridge_platform_data toshiba_client_data = {
+static struct msm_mddi_bridge_platform_data toshiba_client_data = {
 	.init = htcraphael_mddi_toshiba_client_init,
 	.uninit = htcraphael_mddi_toshiba_client_uninit,
 	.blank = htcraphael_mddi_panel_blank,

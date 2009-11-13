@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <mach/msm_fb.h>
+#include <asm/mach-types.h>
 
 #include <linux/delay.h>
 
@@ -233,12 +234,14 @@ printk("mddi_epson_probe\n");
 
 #if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
        /* mddi_remote_write(mddi, 0, WAKEUP); */
-       client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
-       client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
+	if(machine_is_htcblackstone() || machine_is_htckovsky()) {
+	       client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
+	       client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
 
-	client_data->remote_write(client_data,0x8000,0x400);//rgb565 input
-	client_data->remote_write(client_data,0x8000,0x680);//main memory rgb565
-	client_data->remote_write(client_data,0x4000,0x600);//reset
+		client_data->remote_write(client_data,0x8000,0x400);//rgb565 input
+		client_data->remote_write(client_data,0x8000,0x680);//main memory rgb565
+		client_data->remote_write(client_data,0x4000,0x600);//reset
+	}
 #endif	//ORUX
 
 	ret = setup_vsync(panel, 1);

@@ -562,7 +562,7 @@ static struct resource resources_msm_fb[] = {
 	},
 };
 
-struct msm_mddi_bridge_platform_data toshiba_client_data = {
+static struct msm_mddi_bridge_platform_data toshiba_client_data = {
 	.init = htcraphael_mddi_toshiba_client_init,
 	.uninit = htcraphael_mddi_toshiba_client_uninit,
 	.blank = htcraphael_mddi_panel_blank,
@@ -574,7 +574,7 @@ struct msm_mddi_bridge_platform_data toshiba_client_data = {
 	},
 };
 
-struct msm_mddi_bridge_platform_data epson_client_data = {
+static struct msm_mddi_bridge_platform_data epson_client_data = {
 	.init = htcraphael_mddi_epson_client_init,
 	.uninit = htcraphael_mddi_epson_client_uninit,
 	.blank = htcraphael_mddi_panel_blank,
@@ -586,7 +586,7 @@ struct msm_mddi_bridge_platform_data epson_client_data = {
 	},
 };
 
-struct msm_mddi_platform_data mddi_pdata = {
+static struct msm_mddi_platform_data mddi_pdata = {
 	.clk_rate = 122880000,
 	.power_client = htcraphael_mddi_power_client,
 	.fb_resource = resources_msm_fb,
@@ -609,13 +609,13 @@ struct msm_mddi_platform_data mddi_pdata = {
 	},
 };
 
-int __init htcraphael_init_panel(void)
+int __init htcblackstone_init_panel(void)
 {
 	int rc;
 	
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
 
-	if (!machine_is_htcblackstone() && !machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcdiamond() && !machine_is_htcdiamond_cdma() && !machine_is_htckovsky()) {
+	if (!machine_is_htcblackstone()) {
 		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
 		return 0;
 	}
@@ -645,4 +645,4 @@ int __init htcraphael_init_panel(void)
 	return platform_device_register(&msm_device_mddi0);
 }
 
-device_initcall(htcraphael_init_panel);
+device_initcall(htcblackstone_init_panel);

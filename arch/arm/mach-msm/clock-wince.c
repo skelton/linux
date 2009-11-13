@@ -130,15 +130,19 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
 	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
-#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
+/*#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
 	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa19, .name="PMDH_CLK"},
-#else
+#else*/
 	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa0c, .name="PMDH_CLK"},
-#endif
+//#endif
 
 	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, .name="I2C_CLK"},
 //	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
 };
+
+void fix_mddi_clk_black() {
+	msm_clock_parameters[12].ns_only=0xa19;
+}
 
 // This formula is used to generate md and ns reg values
 #define MSM_CLOCK_REG(frequency,M,N,D,PRE,a5,SRC,MNE,pll_frequency) { \

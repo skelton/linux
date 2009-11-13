@@ -371,6 +371,7 @@ static void __init halibut_init(void)
 {
 	int i;
 
+	fix_mddi_clk_black();
 	msm_acpu_clock_init(&halibut_clock_data);
 	msm_proc_comm_wince_init();
 

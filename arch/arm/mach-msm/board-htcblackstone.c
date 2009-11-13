@@ -69,6 +69,7 @@ extern void msm_init_pmic_vibrator(void);
 static struct gpio_keys_button blackstone_button_table[] = {
         {KEY_VOLUMEUP,         39,      1, "Volume Up"},
         {KEY_VOLUMEDOWN,       40,      1, "Volume Down"},
+        {KEY_POWER,       83,      1, "Power button"},
 };
 
 static struct gpio_keys_platform_data gpio_keys_data = {
@@ -158,7 +159,7 @@ static struct i2c_board_info i2c_devices[] = {
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 	},
 	{		
-		I2C_BOARD_INFO("kionix-ksd9", 0x19),
+		I2C_BOARD_INFO("kionix-kxsd9", 0x19),
 	},
 };
 
