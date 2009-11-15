@@ -51,6 +51,7 @@
 #endif
 
 #include <linux/microp-keypad.h>
+#include <linux/gpio_keys.h>
 
 #include "proc_comm_wince.h"
 #include "devices.h"
@@ -66,6 +67,23 @@ static void htcraphael_device_specific_fixes(void);
 
 extern int htcraphael_init_mmc(void);
 extern void msm_init_pmic_vibrator(void);
+
+static struct gpio_keys_button blackstone_button_table[] = {
+        {KEY_HOME,       83,      1, "Power button"},
+};
+
+static struct gpio_keys_platform_data gpio_keys_data = {
+        .buttons  = blackstone_button_table,
+        .nbuttons = ARRAY_SIZE(blackstone_button_table),
+};
+
+static struct platform_device gpio_keys = {
+        .name = "gpio-keys",
+        .dev  = {
+                .platform_data = &gpio_keys_data,
+        },
+        .id   = -1,
+};
 
 static struct resource raphael_keypad_resources[] = {
 	{ 
@@ -368,6 +386,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&raphael_snd,
 	&raphael_gps,
+	&gpio_keys,
 #ifdef CONFIG_HTC_HEADSET
 	&raphael_h2w,
 #endif
