@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.27
-# Sat Nov 14 20:47:20 2009
+# Wed Nov 18 19:21:53 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -514,7 +514,7 @@ CONFIG_MAC80211_RC_DEFAULT="pid"
 # CONFIG_MAC80211_DEBUG_MENU is not set
 # CONFIG_IEEE80211 is not set
 CONFIG_RFKILL=y
-CONFIG_RFKILL_PM=y
+# CONFIG_RFKILL_PM is not set
 # CONFIG_RFKILL_INPUT is not set
 CONFIG_RFKILL_LEDS=y
 # CONFIG_NET_9P is not set
