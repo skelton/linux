@@ -21,18 +21,19 @@
 #define MSM_PMEM_GPU0_BASE      MSM_SMI_READONLY_BASE + MSM_SMI_READONLY_SIZE
 #define MSM_PMEM_GPU0_SIZE      0x700000 /* 7mb */
 
-/* Define the EBI layout */
-#define MSM_LINUX_BASE          MSM_EBI_BASE
-#define MSM_LINUX_SIZE          0x6b00000 /* 107mb */
-
 #define MSM_PMEM_MDP_BASE       MSM_SMI2_BASE
-#define MSM_PMEM_MDP_SIZE       0x800000 /* 8mb */
+#define MSM_PMEM_MDP_SIZE       0x1000000 /* 16mb */
 
 #define MSM_PMEM_ADSP_BASE      MSM_PMEM_MDP_BASE + MSM_PMEM_MDP_SIZE
 #define MSM_PMEM_ADSP_SIZE      0x800000 /* 8mb */
 
 #define MSM_FB_BASE		MSM_PMEM_ADSP_BASE + MSM_PMEM_ADSP_SIZE
 #define MSM_FB_SIZE		0x200000 /* 2mb */
+
+/* Define the EBI layout */
+#define MSM_LINUX_BASE          MSM_EBI_BASE
+#define MSM_LINUX_SIZE          0x6b00000 /* 107mb */
+
 
 #define MSM_RAM_CONSOLE_BASE	0x00800000
 #define MSM_RAM_CONSOLE_SIZE	0x00100000 // 1M at 0x00800000
