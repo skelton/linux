@@ -418,12 +418,23 @@ static int htcdiamond_mddi_toshiba_client_init(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
+	int panel_id, gpio_val;
 
 	if(client_state)
 		return;
 	printk("htcdiamond_mddi_toshiba_client_init\n");
 	client_data->auto_hibernate(client_data, 0);
+
+	gpio_val = client_data->remote_read(client_data, GPIODATA);
+	panel_id=0;
+
+	if ( (gpio_val & 0x10) != 0 ) panel_id++;
+	if ( (gpio_val & 4) != 0 ) panel_id+=2;
 	
+	printk("toshiba GPIODATA=0x%08x panel_id=%d at toshiba_mddi_enable\n", gpio_val, panel_id);
+	if(panel_id==3 && type==0)
+		type=2;
+
 	if(type) {
 		htcdiamond_process_mddi_table(client_data, mddi_toshiba_common_init_table,
 			ARRAY_SIZE(mddi_toshiba_common_init_table));
