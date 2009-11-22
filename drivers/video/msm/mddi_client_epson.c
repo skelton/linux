@@ -230,7 +230,8 @@ printk("mddi_epson_probe\n");
 		return -ENOMEM;
 	platform_set_drvdata(pdev, panel);
 
-#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY) || defined(CONFIG_MACH_HTCTOPAZ) || defined(CONFIG_MACH_HTCRHODIUM)
+
+#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
        /* mddi_remote_write(mddi, 0, WAKEUP); */
        client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
        client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);

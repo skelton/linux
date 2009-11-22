@@ -851,6 +851,8 @@ static int __init mddi_probe(struct platform_device *pdev)
 			/* XXX: possibly set clock */
 			break;
 		}
+		else
+		 printk("mddi client=%i does not match mddi.mfr_name= 0x%4.4x mddi.prod_code= 0x%4.4x\n",i, mddi->caps.Mfr_Name,  mddi->caps.Product_Code);
 	}
 
 	if (i >= pdata->num_clients)

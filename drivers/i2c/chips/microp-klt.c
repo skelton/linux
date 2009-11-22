@@ -263,6 +263,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		switch (buf[1])	{
 		case 0x01:
 		case 0x05:
+		case 0x88: /* rhod210 */
+		case 0x0e: /* topa100 */
 			supported = 1;
 			break;
 		}

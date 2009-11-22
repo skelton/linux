@@ -391,6 +391,7 @@ config MSM_CPU_FREQ_ONDEMAND_MIN
 endif # MSM_CPU_FREQ_ONDEMAND
 
 config MSM_HW3D
+	depends on ANDROID_PMEM
 	tristate "MSM Hardware 3D Register Driver"
 	default y
 	help
