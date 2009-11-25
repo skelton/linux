@@ -53,6 +53,9 @@
 	};
  */
 
+static int inversion=0;
+module_param_named(inversion, inversion, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 struct raphnavi_info {
 	int *cols;	// columns (inputs) in gpio matrix
 	int ncols;
@@ -268,11 +271,21 @@ static void raphnavi_pad(struct raphnavi *navi, char *data)
 				navi->ltouch = 3;
 				leds |= (1 << MICROP_KLT_LED_HOME) | (1 << MICROP_KLT_LED_SEND);
 			} else if (navi->pad.left_y < 0x22) {
-				navi->ltouch = 1;
-				leds |= (1 << MICROP_KLT_LED_HOME);
+				if(inversion) {
+					navi->ltouch = 2;
+					leds |= (1 << MICROP_KLT_LED_SEND);
+				} else {
+					navi->ltouch = 1;
+					leds |= (1 << MICROP_KLT_LED_HOME);
+				}
 			} else {
-				navi->ltouch = 2;
-				leds |= (1 << MICROP_KLT_LED_SEND);
+				if(inversion) {
+					navi->ltouch = 1;
+					leds |= (1 << MICROP_KLT_LED_HOME);
+				} else {
+					navi->ltouch = 2;
+					leds |= (1 << MICROP_KLT_LED_SEND);
+				}
 			}
 		} else {
 			navi->ltouch = 3;
@@ -287,11 +300,21 @@ static void raphnavi_pad(struct raphnavi *navi, char *data)
 				navi->rtouch = 6;
 				leds |= (1 << MICROP_KLT_LED_BACK) | (1 << MICROP_KLT_LED_END);
 			} else if (navi->pad.right_y < 0x22) {
-				navi->rtouch = 4;
-				leds |= (1 << MICROP_KLT_LED_BACK);
+				if(inversion) {
+					navi->rtouch = 5;
+					leds |= (1 << MICROP_KLT_LED_END);
+				} else {
+					navi->rtouch = 4;
+					leds |= (1 << MICROP_KLT_LED_BACK);
+				}
 			} else {
-				navi->rtouch = 5;
-				leds |= (1 << MICROP_KLT_LED_END);
+				if(inversion) {
+					navi->rtouch = 4;
+					leds |= (1 << MICROP_KLT_LED_BACK);
+				} else {
+					navi->rtouch = 5;
+					leds |= (1 << MICROP_KLT_LED_END);
+				}
 			}
 		} else {
 			navi->rtouch = 6;
