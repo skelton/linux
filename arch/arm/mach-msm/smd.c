@@ -709,7 +709,7 @@ static struct smd_channel *_smd_alloc_channel_v1(uint32_t cid)
 	return ch;
 }
 
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
+#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125) 
 static struct smd_channel *_smd_alloc_channel_v2(uint32_t cid)
 {
 	struct smd_channel *ch;
@@ -729,15 +729,15 @@ static struct smd_channel *_smd_alloc_channel_v2(uint32_t cid)
 		return NULL;
 	}
 	printk(KERN_INFO "smd_alloc_channel: cid %d fifo found; size = %d\n",
-	       cid, (size));
+	       cid, size);
 
 	ch = kzalloc(sizeof(struct smd_channel), GFP_KERNEL);
 	if (ch) {
 		ch->send = shared;
 		ch->recv = shared + sizeof(struct smd_half_channel);
 		ch->send_buf = shared_fifo;
-		ch->recv_buf = shared_fifo + (size /);
-		ch->buf_size = size;
+		ch->recv_buf = shared_fifo + (size / 2);
+		ch->buf_size = size / 2;
 		ch->n = cid;
 	} else
 		pr_err("smd_alloc_channel() out of memory\n");
