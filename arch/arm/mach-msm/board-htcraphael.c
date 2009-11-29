@@ -58,8 +58,6 @@
 #include "htc_hw.h"
 #include "board-htcraphael.h"
 
-static int halibut_ffa;
-module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static int adb=0;
 module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -385,7 +383,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_htc_battery,
 	&raphael_snd,
-	&raphael_gps,
+	//&raphael_gps,
 	&gpio_keys,
 #ifdef CONFIG_HTC_HEADSET
 	&raphael_h2w,
@@ -528,6 +526,10 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 }
 
 static void htcraphael_cdma_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
+	mi->nr_banks = 1;
+	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
+	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
+	mi->bank[0].size = (89 * 1024 * 1024);
 };
 
 static void htcraphael_cdma500_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
@@ -537,9 +539,16 @@ static void htcraphael_cdma500_fixup(struct machine_desc *desc, struct tag *tags
 	mi->bank[0].size = (89 * 1024 * 1024);
 };
 
+static void treopro_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
+	mi->nr_banks = 1;
+	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
+	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
+	mi->bank[0].size = (89 * 1024 * 1024);
+};
+
 static void htcraphael_device_specific_fixes(void)
 {
-	if (machine_is_htcraphael()) {
+	if (machine_is_htcraphael() || machine_is_treopro()) {
 		raphael_keypad_resources[0].start = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
 		raphael_keypad_resources[0].end = MSM_GPIO_TO_INT(RAPH100_KPD_IRQ);
 		raphael_keypad_data.clamshell.gpio = RAPH100_CLAMSHELL_IRQ;
@@ -576,6 +585,18 @@ static void htcraphael_device_specific_fixes(void)
                 msm_battery_pdata.smem_offset = 0xfc140;
                 msm_battery_pdata.smem_field_size = 4;
 	}
+
+	if(machine_is_treopro()) {
+		android_pmem_pdata.start=89*1024*1024;
+		android_pmem_pdata.size=8*1024*1024;
+
+		android_pmem_adsp_pdata.start=android_pmem_pdata.start+android_pmem_pdata.size;
+		android_pmem_adsp_pdata.size=MSM_PMEM_ADSP_SIZE;
+
+		android_pmem_gpu1_pdata.start=android_pmem_adsp_pdata.start+android_pmem_adsp_pdata.size;
+		android_pmem_gpu1_pdata.start=MSM_PMEM_GPU1_SIZE;
+		
+	}
 }
 
 MACHINE_START(HTCRAPHAEL, "HTC Raphael GSM phone (aka HTC Touch Pro)")
@@ -604,4 +625,14 @@ MACHINE_START(HTCRAPHAEL_CDMA500, "HTC Raphael CDMA phone (Touch Pro) raph500")
 	.init_machine	= halibut_init,
 	.timer		= &msm_timer,
 MACHINE_END
+
+MACHINE_START(TREOPRO, "Sprint Treo Pro(HTC Raphael alike)")
+	.fixup		= treopro_fixup,
+	.boot_params	= 0x10000100,
+	.map_io		= halibut_map_io,
+	.init_irq	= halibut_init_irq,
+	.init_machine	= halibut_init,
+	.timer		= &msm_timer,
+MACHINE_END
+
 

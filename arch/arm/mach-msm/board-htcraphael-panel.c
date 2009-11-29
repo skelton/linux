@@ -702,6 +702,12 @@ int __init htcraphael_init_panel(void)
 	rc = platform_device_register(&msm_device_mdp);
 	if (rc)
 		return rc;
+	if(machine_is_treopro()) {
+		((struct msm_mddi_bridge_platform_data*)(mddi_pdata.client_platform_data[0].client_data))->fb_data.xres=320;
+		((struct msm_mddi_bridge_platform_data*)(mddi_pdata.client_platform_data[0].client_data))->fb_data.yres=319;
+		((struct msm_mddi_bridge_platform_data*)(mddi_pdata.client_platform_data[1].client_data))->fb_data.xres=320;
+		((struct msm_mddi_bridge_platform_data*)(mddi_pdata.client_platform_data[1].client_data))->fb_data.yres=319;
+	}
 	msm_device_mddi0.dev.platform_data = &mddi_pdata;
 	return platform_device_register(&msm_device_mddi0);
 }
