@@ -382,15 +382,6 @@ void arch_idle(void)
 	if (msm_pm_reset_vector == NULL)
 		return;
 	
-	// idle pm not working yet so do this instead
-//	saved_rate = acpuclk_wait_for_irq();
-	writel(1, A11S_CLK_SLEEP_EN);
-	writel(0, A11S_PWRDOWN);
-	msm_arch_idle();
-	writel(0, A11S_CLK_SLEEP_EN);
-//	acpuclk_set_rate(saved_rate, 1);
-	return;
-	
 	
 	sleep_time = msm_timer_enter_idle();
 #ifdef CONFIG_MSM_IDLE_STATS
