@@ -18,6 +18,7 @@
 #include <linux/microp-klt.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
+#include <linux/debugfs.h>
 #ifdef CONFIG_ANDROID_POWER
 #include <linux/android_power.h>
 #endif
@@ -66,8 +67,8 @@ struct raphnavi_info {
 };
 
 
-//#define RAPHNAVI_DEBUG
-//#define RAPHNAVI_LID_SWITCH /* drivers/input/keyboard/microp-keypad.c handles this now. */
+// #define RAPHNAVI_DEBUG
+// #define RAPHNAVI_LID_SWITCH /* drivers/input/keyboard/microp-keypad.c handles this now. */
 
 #define RAPHNAVI_WHEEL REL_Y
 static int raphnavi_cols[] = { 40, 41, 42 };
@@ -174,7 +175,10 @@ struct raphnavi {
 	unsigned int changed_now : 1;
 	unsigned int changed_prev : 1;
 	unsigned int have_btns_down : 2;
+	int proximity;
 };
+
+static struct raphnavi *in_navi;
 
 static ktime_t raphnavi_gpio_poll_time = {.tv.nsec =  40 * NSEC_PER_MSEC };
 
@@ -356,6 +360,7 @@ static void raphnavi_pad(struct raphnavi *navi, char *data)
 				leds |= (1 << MICROP_KLT_LED_ACTION);
 		}
 	}
+	navi->proximity=data[7];
 	micropklt_set_led_states(RAPHNAVI_KLT_LED_MASK, leds);
 }
 
@@ -519,6 +524,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		printk(KERN_ERR MODULE_NAME ": Not enough memory\n");
 		return -ENOMEM;
 	}
+	in_navi=navi;
 	mutex_init(&navi->lock);
 	INIT_DELAYED_WORK(&navi->work, raphnavi_work);
 	navi->info = &navi_info;
@@ -570,7 +576,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		irq = gpio_to_irq(navi->info->cols[i]);
 		if (request_irq(irq, raphnavi_irq_handler, IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
 			goto fail_gpio_irq;
-//		set_irq_wake(irq, 1);
+		set_irq_wake(irq, 1);
 		disable_irq(irq);
 	}
 
@@ -732,6 +738,41 @@ static void __exit raphnavi_exit(void)
 	printk(KERN_INFO "raphnavi_tp: Unregistered Raphael NaviPad driver\n");
 	i2c_del_driver(&raphnavi_driver);
 }
+
+#if defined(CONFIG_DEBUG_FS)
+static int navi_prox_set(void *data, u64 val)
+{
+	return -ENODEV;
+}
+
+static int navi_prox_get(void *data, u64 *val)
+{
+	*val=0;
+	if(in_navi)
+		*val=in_navi->proximity;
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(navi_prox_fops,
+			navi_prox_get,
+			navi_prox_set, "%llu\n");
+
+static int __init htcraphaelmmc_dbg_init(void)
+{
+	struct dentry *dent;
+
+	dent = debugfs_create_dir("htc_navi", 0);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+
+	debugfs_create_file("proximity", 0444, dent, NULL,
+			    &navi_prox_fops);
+
+	return 0;
+}
+
+device_initcall(htcraphaelmmc_dbg_init);
+
+#endif
 
 MODULE_AUTHOR("Job Bolle");
 MODULE_DESCRIPTION("Raphael NaviPad driver");
