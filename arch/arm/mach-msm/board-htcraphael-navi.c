@@ -54,8 +54,17 @@
 	};
  */
 
+enum {
+	WAKE_ON_HARD=1,
+	WAKE_ON_VOL=2,
+	WAKE_ON_TOUCH=4
+};
+
 static int inversion=0;
 module_param_named(inversion, inversion, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
+static int wake=0;
+module_param_named(wake, wake, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 struct raphnavi_info {
 	int *cols;	// columns (inputs) in gpio matrix
@@ -94,18 +103,36 @@ static int raphnavi_keymap[] =
 	KEY_END,
 	KEY_RIGHT,
 
-/*7*/	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_LEFT, // impossible: = 1..3
-/*10*/	KEY_RIGHT, // impossible: = 4..6
-	KEY_RESERVED,
-	KEY_DOWN,
-	KEY_RESERVED,
-	KEY_VOLUMEUP,
-/*15*/	KEY_UP,
-	KEY_RESERVED,
-	KEY_VOLUMEDOWN,
-	232, // center, select
+/*7*/	// 1 row
+		//1 col
+		KEY_RESERVED,
+		//2col
+		KEY_RESERVED,
+		//3col
+		KEY_LEFT, // impossible: = 1..3
+
+	//2 row
+		//1 col
+/*10*/		KEY_RIGHT, // impossible: = 4..6
+		//2 col
+		KEY_RESERVED,
+		//3 col
+		KEY_DOWN,
+
+	//3 row
+		//1 col
+		KEY_RESERVED,
+		//2 col
+		KEY_VOLUMEUP,
+		//3 col
+/*15*/		KEY_UP,
+	//4 row
+		//1 col
+		KEY_RESERVED,
+		//2 col
+		KEY_VOLUMEDOWN,
+		//3 col
+		232, // center, select
 };
 
 /*
@@ -541,6 +568,10 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 			"raphnavi_tp", navi) != 0)
 		goto fail_tp_irq;
 //	set_irq_wake(navi->tp_irq, 1);
+	if(wake&WAKE_ON_TOUCH)
+		set_irq_wake(navi->tp_irq, 1);
+	else
+		set_irq_wake(navi->tp_irq, 0);
 	disable_irq(navi->tp_irq);
 
 #ifdef RAPHNAVI_LID_SWITCH
@@ -576,8 +607,18 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		irq = gpio_to_irq(navi->info->cols[i]);
 		if (request_irq(irq, raphnavi_irq_handler, IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
 			goto fail_gpio_irq;
-		set_irq_wake(irq, 1);
+		if(wake&WAKE_ON_HARD)
+			set_irq_wake(irq, 1);
+		else
+			set_irq_wake(irq, 0);
 		disable_irq(irq);
+	}
+	{
+		irq=gpio_to_irq(navi->info->cols[1]);
+		if(wake&WAKE_ON_VOL)
+			set_irq_wake(irq, 1);
+		else
+			set_irq_wake(irq, 0);
 	}
 
 	idev = input_allocate_device();
@@ -752,9 +793,26 @@ static int navi_prox_get(void *data, u64 *val)
 		*val=in_navi->proximity;
 	return 0;
 }
+
 DEFINE_SIMPLE_ATTRIBUTE(navi_prox_fops,
 			navi_prox_get,
 			navi_prox_set, "%llu\n");
+
+static int navi_wake_set(void *data, u64 val)
+{
+	wake=val;
+	return 0;
+}
+
+static int navi_wake_get(void *data, u64 *val)
+{
+	*val=wake;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(navi_wake_fops,
+			navi_wake_get,
+			navi_wake_set, "%llu\n");
 
 static int __init htcraphaelmmc_dbg_init(void)
 {
@@ -766,6 +824,9 @@ static int __init htcraphaelmmc_dbg_init(void)
 
 	debugfs_create_file("proximity", 0444, dent, NULL,
 			    &navi_prox_fops);
+
+	debugfs_create_file("wake", 0666, dent, NULL,
+			    &navi_wake_fops);
 
 	return 0;
 }
