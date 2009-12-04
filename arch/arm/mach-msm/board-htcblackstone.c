@@ -66,25 +66,6 @@ static void blackstone_device_specific_fixes(void);
 extern int htcraphael_init_mmc(void);
 extern void msm_init_pmic_vibrator(void);
 
-static struct gpio_keys_button blackstone_button_table[] = {
-        {KEY_VOLUMEUP,         39,      1, "Volume Up"},
-        {KEY_VOLUMEDOWN,       40,      1, "Volume Down"},
-        {KEY_HOME,       83,      1, "Power button"},
-};
-
-static struct gpio_keys_platform_data gpio_keys_data = {
-        .buttons  = blackstone_button_table,
-        .nbuttons = ARRAY_SIZE(blackstone_button_table),
-};
-
-static struct platform_device gpio_keys = {
-        .name = "gpio-keys",
-        .dev  = {
-                .platform_data = &gpio_keys_data,
-        },
-        .id   = -1,
-};
-
 static int halibut_phy_init_seq_raph100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
 	0x1D, 0x0D,
@@ -332,7 +313,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_uart_dm2,
 #endif
 	&msm_device_htc_battery,
-	&gpio_keys,
 	&blac_snd,
 	&raphael_gps,
 };

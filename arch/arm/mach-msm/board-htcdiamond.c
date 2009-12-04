@@ -316,38 +316,6 @@ static struct platform_device ram_console_device = {
 	.resource       = ram_console_resource,
 };
 
-struct gpio_event_direct_entry button_keymap[] = {
-	{.gpio=RAPH100_PWR_BTN,.code=KEY_HOME},
-};
-
-static struct gpio_event_input_info button_event_info = {
-	.info.func      = gpio_event_input_func,
-	.keymap         = button_keymap,
-	.keymap_size    = ARRAY_SIZE(button_keymap),
-	.debounce_time.tv.nsec = 1 * NSEC_PER_MSEC,
-	.poll_time.tv.nsec = 20 * NSEC_PER_MSEC,
-	.flags          = 0,
-	.type=EV_KEY,
-};
-
-static struct gpio_event_info *button_info[] = {
-	&button_event_info.info
-};
-
-static struct gpio_event_platform_data button_data = {
-	.name           = "buttons",
-	.info           = button_info,
-	.info_count     = ARRAY_SIZE(button_info)
-};
-
-static struct platform_device msm_device_buttons = {
-	.name           = GPIO_EVENT_DEV_NAME,
-	.id             = -1,
-	.num_resources  = 0,
-	.dev            = {
-		.platform_data  = &button_data,
-        }
-};
 static struct pwr_sink diamond_pwrsink_table[] = {
         {
                 .id     = PWRSINK_AUDIO,
@@ -480,7 +448,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&raphael_snd,
 //	&raphael_gps, disable until it works
-	&msm_device_buttons,
 #ifdef CONFIG_HTC_HEADSET
 	&diamond_h2w,
 #endif
