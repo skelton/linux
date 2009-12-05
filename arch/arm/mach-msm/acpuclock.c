@@ -163,6 +163,10 @@ static int pc_pll_request(unsigned id, unsigned on)
 /*----------------------------------------------------------------------------
  * ARM11 'owned' clock control
  *---------------------------------------------------------------------------*/
+module_param_call(pwrc_khz, param_set_int, param_get_int,
+		&drv_state.power_collapse_khz, S_IWUSR | S_IRUGO);
+module_param_call(wfi_khz, param_set_int, param_get_int,
+		&drv_state.wait_for_irq_khz, S_IWUSR | S_IRUGO);
 
 unsigned long acpuclk_power_collapse(void) {
 	int ret = acpuclk_get_rate();
@@ -320,6 +324,14 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 				goto out;
 			}
 		}
+	} else {
+		/* Power collapse should also increase VDD. */
+		if (tgt_s->vdd > cur_s->vdd) {
+			if ((rc = acpuclk_set_vdd_level(tgt_s->vdd)) < 0) {
+				printk(KERN_ERR "Unable to switch ACPU vdd\n");
+				goto out;
+			}
+		}
 	}
 
 	/* Set wait states for CPU inbetween frequency changes */
@@ -357,7 +369,8 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 		printk(KERN_DEBUG "%s: STEP khz = %u, pll = %d\n",
 			__FUNCTION__, cur_s->a11clk_khz, cur_s->pll);
 #endif
-		if (!for_power_collapse&& cur_s->pll != ACPU_PLL_TCXO
+		/* Power collapse should also request pll.(19.2->528) */
+		if (cur_s->pll != ACPU_PLL_TCXO
 		    && !(plls_enabled & (1 << cur_s->pll))) {
 			rc = pc_pll_request(cur_s->pll, 1);
 			if (rc < 0) {
@@ -391,6 +404,7 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 		}
 
 	/* Change the AXI bus frequency if we can. */
+	/* Don't change it at power collapse, it will cause stability issue. */
 	if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
 		rc = clk_set_rate(ebi1_clk, tgt_s->axiclk_khz * 1000);
 		if (rc < 0)
@@ -466,6 +480,17 @@ unsigned long acpuclk_get_rate(void)
 uint32_t acpuclk_get_switch_time(void)
 {
 	return drv_state.acpu_switch_time_us;
+}
+
+unsigned long acpuclk_get_ebi1(unsigned long acpu_rate)
+{
+	int i;
+
+	for (i = 0; acpu_freq_tbl[i].a11clk_khz; i++) {
+		if (acpu_freq_tbl[i].a11clk_khz == (acpu_rate / 1000))
+			break;
+	}
+	return acpu_freq_tbl[i].axiclk_khz * 1000;
 }
 
 /*----------------------------------------------------------------------------
