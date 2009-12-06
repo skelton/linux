@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/android_pmem.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -144,62 +143,6 @@ static struct i2c_board_info i2c_devices[] = {
 	},
 };
 
-static struct android_pmem_platform_data android_pmem_pdata = {
-	.name = "pmem",
-	.start = MSM_PMEM_MDP_BASE,
-	.size = MSM_PMEM_MDP_SIZE,
-	.no_allocator = 1,
-	.cached = 1,
-};
-
-static struct android_pmem_platform_data android_pmem_adsp_pdata = {
-	.name = "pmem_adsp",
-	.start = MSM_PMEM_ADSP_BASE,
-	.size = MSM_PMEM_ADSP_SIZE,
-	.no_allocator = 0,
-	.cached = 0,
-};
-
-static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
-        .name = "pmem_gpu0",
-        .start = MSM_PMEM_GPU0_BASE,
-        .size = MSM_PMEM_GPU0_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
-};
-
-static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
-        .name = "pmem_gpu1",
-        .start = MSM_PMEM_GPU1_BASE,
-        .size = MSM_PMEM_GPU1_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
-};
-
-static struct platform_device android_pmem_device = {
-	.name = "android_pmem",
-	.id = 0,
-	.dev = { .platform_data = &android_pmem_pdata },
-};
-
-static struct platform_device android_pmem_adsp_device = {
-	.name = "android_pmem",
-	.id = 1,
-	.dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
-static struct platform_device android_pmem_gpu0_device = {
-	.name = "android_pmem",
-	.id = 2,
-	.dev = { .platform_data = &android_pmem_gpu0_pdata },
-};
-
-static struct platform_device android_pmem_gpu1_device = {
-	.name = "android_pmem",
-	.id = 3,
-	.dev = { .platform_data = &android_pmem_gpu1_pdata },
-};
-
 static smem_batt_t msm_battery_pdata = {
         .gpio_battery_detect = BLAC100_BAT_IRQ,
         .gpio_charger_enable = BLAC100_CHARGE_EN_N,
@@ -299,10 +242,6 @@ static struct platform_device raphael_gps = {
 static struct platform_device *devices[] __initdata = {
 	&msm_device_hsusb,
 	&ram_console_device,
-	&android_pmem_device,
-	&android_pmem_adsp_device,
-	&android_pmem_gpu0_device,
-	&android_pmem_gpu1_device,
 	&raphael_rfkill,
 	&msm_device_smd,
 	&msm_device_nand,

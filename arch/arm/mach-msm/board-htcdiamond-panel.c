@@ -432,7 +432,7 @@ static int htcdiamond_mddi_toshiba_client_init(
 	if ( (gpio_val & 4) != 0 ) panel_id+=2;
 	
 	printk("toshiba GPIODATA=0x%08x panel_id=%d at toshiba_mddi_enable\n", gpio_val, panel_id);
-	if(panel_id==3 && type==0)
+	if(panel_id==1 && type==0)
 		type=2;
 
 	if(type) {
@@ -513,13 +513,7 @@ static int htcdiamond_mddi_panel_blank(
 	return 0;
 }
 
-static struct resource resources_msm_fb[] = {
-	{
-		.start = MSM_FB_BASE,
-		.end = MSM_FB_BASE + MSM_FB_SIZE,
-		.flags = IORESOURCE_MEM,
-	},
-};
+extern struct resource resources_msm_fb[];
 
 static struct msm_mddi_bridge_platform_data toshiba_client_data = {
 	.init = htcdiamond_mddi_toshiba_client_init,
@@ -538,7 +532,7 @@ static struct msm_mddi_platform_data mddi_pdata = {
 	.clk_rate = 122880000,
 	.power_client = htcdiamond_mddi_power_client,
 	.fb_resource = resources_msm_fb,
-	.num_clients = 2,
+	.num_clients = 1,
 	.client_platform_data = {
 		{
 			.product_id = (0xd263 << 16 | 0),

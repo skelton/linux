@@ -31,12 +31,12 @@ obj-$(CONFIG_MSM_HW3D) += hw3d.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_MSM_CPU_FREQ) += cpufreq.o
 
-obj-$(CONFIG_MACH_HTCRAPHAEL) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o nmea.o board-htcraphael-gps.o msm_vibrator.o msm-gpio-keys.o
-obj-$(CONFIG_MACH_HTCRAPHAEL_CDMA) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o msm_vibrator.o  msm-gpio-keys.o
-obj-$(CONFIG_MACH_HTCDIAMOND) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o msm_vibrator.o board-htcdiamond-panel.o msm-gpio-keys.o
-obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o msm_vibrator.o msm-gpio-keys.o
+obj-$(CONFIG_MACH_HTCRAPHAEL) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o nmea.o board-htcraphael-gps.o msm_vibrator.o msm-gpio-keys.o pmem.o
+obj-$(CONFIG_MACH_HTCRAPHAEL_CDMA) += board-htcraphael.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o msm_vibrator.o  msm-gpio-keys.o pmem.o
+obj-$(CONFIG_MACH_HTCDIAMOND) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o msm_vibrator.o board-htcdiamond-panel.o msm-gpio-keys.o pmem.o
+obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-navi.o board-htcraphael-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o msm_vibrator.o msm-gpio-keys.o pmem.o
 
-obj-$(CONFIG_MACH_HTCBLACKSTONE) += board-htcblackstone.o board-htcblackstone-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o 
+obj-$(CONFIG_MACH_HTCBLACKSTONE) += board-htcblackstone.o board-htcblackstone-panel.o htc_wifi_nvs.o board-htcraphael-mmc.o  pmem.o
 obj-$(CONFIG_MACH_HTCBLACKSTONE) += msm_vibrator.o htc_acoustic.o msm-gpio-keys.o
 
 obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htcblackstone-panel.o htc_wifi_nvs.o board-htckovsky-mmc.o
