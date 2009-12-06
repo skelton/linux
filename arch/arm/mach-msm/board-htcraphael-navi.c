@@ -19,6 +19,7 @@
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
 #include <linux/debugfs.h>
+#include <linux/earlysuspend.h>
 #ifdef CONFIG_ANDROID_POWER
 #include <linux/android_power.h>
 #endif
@@ -65,6 +66,8 @@ module_param_named(inversion, inversion, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static int wake=0;
 module_param_named(wake, wake, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
+static struct early_suspend early_suspend;
 
 struct raphnavi_info {
 	int *cols;	// columns (inputs) in gpio matrix
@@ -530,6 +533,20 @@ static enum hrtimer_restart raphnavi_kp_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static void navi_suspend(struct early_suspend *h) {
+	int col;
+	for(col = 0; col < in_navi->info->ncols; col++)
+		disable_irq(gpio_to_irq(in_navi->info->cols[col]));
+	disable_irq(in_navi->tp_irq);
+}
+
+static void navi_resume(struct early_suspend *h) {
+	int col;
+	for(col = 0; col < in_navi->info->ncols; col++)
+		enable_irq(gpio_to_irq(in_navi->info->cols[col]));
+	enable_irq(in_navi->tp_irq);
+}
+
 static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct raphnavi *navi;
@@ -661,6 +678,13 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 #endif
 	navi->current_row = navi->info->nrows;
 	navi->changed_now = 1;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	early_suspend.suspend=navi_suspend;
+	early_suspend.resume=navi_resume;
+	early_suspend.level=42;//What this value should be ... ?
+	register_early_suspend(&early_suspend);
+
+#endif
 
 	schedule_work(&navi->work.work);
 
