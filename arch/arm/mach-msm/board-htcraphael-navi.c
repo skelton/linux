@@ -535,9 +535,13 @@ static enum hrtimer_restart raphnavi_kp_timer(struct hrtimer *timer)
 
 static void navi_suspend(struct early_suspend *h) {
 	int col;
-	for(col = 0; col < in_navi->info->ncols; col++)
-		disable_irq(gpio_to_irq(in_navi->info->cols[col]));
-	disable_irq(in_navi->tp_irq);
+	if(!(wake&WAKE_ON_HARD))
+		for(col = 0; col < in_navi->info->ncols; col++)
+			disable_irq(gpio_to_irq(in_navi->info->cols[col]));
+	if(wake&WAKE_ON_VOL)
+		enable_irq(gpio_to_irq(in_navi->info->cols[1]));
+	if(!wake&WAKE_ON_TOUCH)
+		disable_irq(in_navi->tp_irq);
 }
 
 static void navi_resume(struct early_suspend *h) {
