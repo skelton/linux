@@ -824,7 +824,26 @@ DEFINE_SIMPLE_ATTRIBUTE(navi_prox_fops,
 
 static int navi_wake_set(void *data, u64 val)
 {
+	int irq;
+	int i;
 	wake=val;
+	if(wake&WAKE_ON_TOUCH)
+		set_irq_wake(in_navi->tp_irq, 1);
+	else
+		set_irq_wake(in_navi->tp_irq, 0);
+
+	for(i = 0; i < in_navi->info->ncols; i++) {
+		irq = gpio_to_irq(in_navi->info->cols[i]);
+		if(wake&WAKE_ON_HARD)
+			set_irq_wake(irq, 1);
+		else
+			set_irq_wake(irq, 0);
+	}
+	irq=gpio_to_irq(in_navi->info->cols[1]);
+	if(wake&WAKE_ON_VOL)
+		set_irq_wake(irq, 1);
+	else
+		set_irq_wake(irq, 0);
 	return 0;
 }
 
