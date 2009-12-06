@@ -26,6 +26,7 @@
 #include <linux/tty_flip.h>
 
 #include <mach/msm_smd.h>
+#include <asm/mach-types.h>
 
 #define MAX_SMD_TTYS 32
 
@@ -83,7 +84,9 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
 	struct smd_tty_info *info;
 	const char *name;
 
-	if(n==1) n=7; // map 7 to 1 for android compatability.
+	if(machine_is_htcdiamond() || machine_is_htcraphael() || machine_is_htcblackstone()) {
+		if(n==1) n=7; // map 7 to 1 for android compatability, on GSM
+	}
 
 	if (n == 0) {
 		name = "SMD_DS";
