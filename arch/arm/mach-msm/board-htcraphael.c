@@ -227,23 +227,6 @@ static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
 
-#define MSM_LOG_BASE 0x0e0000
-#define MSM_LOG_SIZE 0x020000
-static struct resource ram_console_resource[] = {
-        {
-                .start = MSM_LOG_BASE,
-                .end = MSM_LOG_BASE+MSM_LOG_SIZE-1,
-                .flags  = IORESOURCE_MEM,
-        }
-};
-
-static struct platform_device ram_console_device = {
-        .name = "ram_console",
-        .id = -1,
-        .num_resources  = ARRAY_SIZE(ram_console_resource),
-        .resource       = ram_console_resource,
-};
-
 #ifdef CONFIG_HTC_HEADSET
 
 static void h2w_config_cpld(int route);
@@ -288,7 +271,6 @@ static struct platform_device raphael_h2w = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-       &ram_console_device,
 	&msm_device_hsusb,
 	&raphael_keypad_device,
 	&raphael_rfkill,

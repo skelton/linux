@@ -156,24 +156,6 @@ static struct platform_device raphael_rfkill = {
 	.id = -1,
 };
 
-#define MSM_LOG_BASE 0x0e0000
-#define MSM_LOG_SIZE 0x020000
-
-static struct resource ram_console_resource[] = {
-        {
-                .start = MSM_LOG_BASE,
-                .end = MSM_LOG_BASE+MSM_LOG_SIZE-1,
-                .flags  = IORESOURCE_MEM,
-        }
-};
- 
-static struct platform_device ram_console_device = {
-        .name = "ram_console",
-        .id = -1,
-        .num_resources  = ARRAY_SIZE(ram_console_resource),
-        .resource       = ram_console_resource,
-};
-
 #define SND(num, desc) { .name = desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
 	SND(0, "HANDSET"),
@@ -241,7 +223,6 @@ static struct platform_device raphael_gps = {
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_hsusb,
-	&ram_console_device,
 	&raphael_rfkill,
 	&msm_device_smd,
 	&msm_device_nand,

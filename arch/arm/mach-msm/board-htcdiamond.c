@@ -244,21 +244,6 @@ static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
 
-static struct resource ram_console_resource[] = {
-	{
-		.start = MSM_RAM_CONSOLE_BASE,
-		.end = MSM_RAM_CONSOLE_BASE+MSM_RAM_CONSOLE_SIZE-1,
-		.flags  = IORESOURCE_MEM,
-	}
-};
-		  
-static struct platform_device ram_console_device = {
-	.name = "ram_console",
-	.id = -1,
-	.num_resources  = ARRAY_SIZE(ram_console_resource),
-	.resource       = ram_console_resource,
-};
-
 static struct pwr_sink diamond_pwrsink_table[] = {
         {
                 .id     = PWRSINK_AUDIO,
@@ -370,7 +355,6 @@ static struct platform_device diamond_h2w = {
 
 static struct platform_device *devices[] __initdata = {
 	&diamond_pwr_sink,
-	&ram_console_device,
 	&msm_device_hsusb,
 	&raphael_rfkill,
 	&msm_device_smd,
