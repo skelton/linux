@@ -67,6 +67,9 @@ static int msmfb_debug_mask=1;
 module_param_named(msmfb_debug_mask, msmfb_debug_mask, int,
 		   S_IRUGO | S_IWUSR | S_IWGRP);
 
+static int msmfb_fix_x=0;
+module_param_named(fix_x, msmfb_fix_x, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 struct mdp_device *mdp;
 
 struct msmfb_info {
@@ -663,6 +666,8 @@ static void setup_fb_info(struct msmfb_info *msmfb)
 	fb_info->var.height = msmfb->panel->fb_data->height;
 	fb_info->var.xres_virtual = msmfb->xres;
 	fb_info->var.yres_virtual = msmfb->yres * 2;
+	if(msmfb_fix_x)
+		fb_info->var.yres_virtual=msmfb->yres;
 	fb_info->var.bits_per_pixel = BITS_PER_PIXEL;
 	fb_info->var.accel_flags = 0;
 
@@ -724,7 +729,6 @@ static int setup_fbmem(struct msmfb_info *msmfb, struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_FB_MSM_REFRESH
 static int msmfb_refresh_thread(void *v)
 {
 	struct fb_info *fb;
@@ -743,7 +747,6 @@ static int msmfb_refresh_thread(void *v)
 	
 	return 0;
 }
-#endif
 
 static int msmfb_probe(struct platform_device *pdev)
 {
@@ -822,10 +825,9 @@ static int msmfb_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_register_framebuffer;
 
-#ifdef CONFIG_FB_MSM_REFRESH
 	/* Start the refresh thread */
-	kernel_thread(msmfb_refresh_thread, NULL, CLONE_KERNEL);
-#endif
+	if(msmfb_fix_x)
+		kernel_thread(msmfb_refresh_thread, NULL, CLONE_KERNEL);
 
 	msmfb->sleeping = AWAKE;
 
