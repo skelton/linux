@@ -185,9 +185,6 @@ static void __init msm_pmem_init() {
 		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 		pmem_setting.pmem_gpu1_size=0x800000;
 
-		//Put ramconsole somewhere ...
-		pmem_setting.ram_console_start=0x0e0000;
-		pmem_setting.ram_console_size=0x020000;
 
 	} else if(machine_is_htcraphael() || machine_is_htcblackstone() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) {
 		//SMI 32 + EBI 2*128
@@ -201,9 +198,6 @@ static void __init msm_pmem_init() {
 		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 		pmem_setting.pmem_gpu1_size=0x800000;
 
-		//Put ramconsole somewhere ...
-		pmem_setting.ram_console_start=0x0e0000;
-		pmem_setting.ram_console_size=0x020000;
 	} else if(machine_is_treopro()) {
 		//SMI 32 + EBI 128
 		//So much things for so few memory
@@ -218,10 +212,10 @@ static void __init msm_pmem_init() {
 		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 		pmem_setting.pmem_gpu1_size=0x800000;
 
-		//Put ramconsole somewhere ...
-		pmem_setting.ram_console_start=0x0e0000;
-		pmem_setting.ram_console_size=0x020000;
 	}
+	//Put ramconsole somewhere ...
+	pmem_setting.ram_console_start=0x00800000;
+	pmem_setting.ram_console_size=0x00100000;
 	resources_msm_fb[0].start=pmem_setting.fb_start;
 	resources_msm_fb[0].end=pmem_setting.fb_start+pmem_setting.fb_size;
 	resources_msm_fb[0].flags=IORESOURCE_MEM;
