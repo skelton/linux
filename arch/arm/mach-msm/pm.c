@@ -157,31 +157,8 @@ msm_pm_wait_state(uint32_t wait_state_all_set, uint32_t wait_state_all_clear,
 	       wait_state_any_set, wait_state_any_clear, state);
 	return -ETIMEDOUT;
 }
-
-static void set_ebiclk_min_rate(unsigned tgt_rate)
-{
-#define EBI1_CLK	3   /* External bus interface 1 clock */
-	int rc = 0;
-	unsigned ebi1clk_id = EBI1_CLK;
-/* TODO */
-	pr_info("** stub : set EBI1 min rate %d\n",tgt_rate);
-/*
-	rc = msm_proc_comm(PCOM_CLKCTL_RPC_MIN_RATE, &ebi1clk_id, &tgt_rate);
-	if (rc < 0)
-		pr_err("set EBI1 min rate %d failed (%d)\n", tgt_rate, rc);
-*/
-}
-
-static inline void ebiclk_release(void)
-{
-	set_ebiclk_min_rate(0);
-}
-
-static inline void ebiclk_restore(unsigned tgt_rate)
-{
-	set_ebiclk_min_rate(tgt_rate);
-}
-
+void smsm_limit_sleep(int);
+void sync_timer(void);
 static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 {
 	uint32_t saved_vector[2];
@@ -201,10 +178,11 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 	uint32_t exit_wait_clear = 0;
 	uint32_t exit_wait_set = 0;
 	unsigned long pm_saved_acpu_clk_rate = 0;
-	unsigned long pm_saved_ebi1_clk_rate = 0;
 	int ret;
 	int rv = -EINTR;
 
+//	local_irq_disable();
+	
 	if (msm_pm_debug_mask & MSM_PM_DEBUG_SUSPEND)
 		printk(KERN_INFO "msm_sleep(): mode %d delay %u idle %d\n",
 		       sleep_mode, sleep_delay, from_idle);
@@ -256,12 +234,15 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		goto enter_failed;
 
 	if (enter_state) {
-		writel(0x1f, A11S_CLK_SLEEP_EN);
+		writel(1,MSM_SHARED_RAM_BASE+0xfc100);
+		writel(readl(MSM_SHARED_RAM_BASE+0xfc108)+1,MSM_SHARED_RAM_BASE+0xfc108);
+
+		writel(0x7f, A11S_CLK_SLEEP_EN);
 		writel(1, A11S_PWRDOWN);
-
-		writel(0, A11S_STANDBY_CTL);
-		writel(0, A11RAMBACKBIAS);
-
+		writel(15, A11S_STANDBY_CTL);
+//		writel(0, A11RAMBACKBIAS);
+//		writel(0,MSM_GPIOCFG1_BASE+0x220); // disable  keysense IRQ
+		udelay(50);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_STATE)
 			printk(KERN_INFO "msm_sleep(): enter "
 			       "A11S_CLK_SLEEP_EN %x, A11S_PWRDOWN %x, "
@@ -276,28 +257,43 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 			       "\n", pm_saved_acpu_clk_rate);
 		if (pm_saved_acpu_clk_rate == 0)
 			goto ramp_down_failed;
-		if (!from_idle)
-			ebiclk_release();
 	}
+
 	if (sleep_mode < MSM_PM_SLEEP_MODE_APPS_SLEEP) {
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_SMSM_STATE)
 			smsm_print_sleep_info();
+		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
+		udelay(10);
 		saved_vector[0] = msm_pm_reset_vector[0];
 		saved_vector[1] = msm_pm_reset_vector[1];
 		msm_pm_reset_vector[0] = 0xE51FF004; /* ldr pc, 4 */
 		msm_pm_reset_vector[1] = virt_to_phys(msm_pm_collapse_exit);
+		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_RESET_VECTOR)
 			printk(KERN_INFO "msm_sleep(): vector %x %x -> "
 			       "%x %x\n", saved_vector[0], saved_vector[1],
 			       msm_pm_reset_vector[0], msm_pm_reset_vector[1]);
+
+/*		if(firstsleep) {
+			firstsleep=0;
+			udelay(50);
+		} else udelay(5);
+*/
+		udelay(5);
 		collapsed = msm_pm_collapse();
-		msm_pm_reset_vector[0] = saved_vector[0];
-		msm_pm_reset_vector[1] = saved_vector[1];
 		if (collapsed) {
 			cpu_init();
 			local_fiq_enable();
 			rv = 0;
 		}
+//		local_irq_enable();
+		writel(0,MSM_SHARED_RAM_BASE+0xfc100);
+		writel(0,MSM_SHARED_RAM_BASE+0xfc128);
+		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
+		msm_pm_reset_vector[0] = saved_vector[0];
+		msm_pm_reset_vector[1] = saved_vector[1];
+		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
+//		printk("Exit Power Collapse %d\n",collapsed);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE)
 			printk(KERN_INFO "msm_pm_collapse(): returned %d\n",
 			       collapsed);
@@ -315,11 +311,8 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		if (acpuclk_set_rate(pm_saved_acpu_clk_rate, 1) < 0)
 			printk(KERN_ERR "msm_sleep(): clk_set_rate %ld "
 			       "failed\n", pm_saved_acpu_clk_rate);
-		if (!from_idle) {
-			pm_saved_ebi1_clk_rate = acpuclk_get_ebi1(pm_saved_acpu_clk_rate);
-			ebiclk_restore(pm_saved_ebi1_clk_rate);
-		}
 	}
+
 	if (msm_pm_debug_mask & MSM_PM_DEBUG_STATE)
 		printk(KERN_INFO "msm_sleep(): exit A11S_CLK_SLEEP_EN %x, "
 		       "A11S_PWRDOWN %x, smsm_get_state %x\n",
@@ -373,6 +366,8 @@ void arch_idle(void)
 	int spin;
 	int64_t sleep_time;
 	int low_power = 0;
+	unsigned long saved_rate;
+
 #ifdef CONFIG_MSM_IDLE_STATS
 	int64_t t1;
 	static int64_t t2;
@@ -603,6 +598,10 @@ static int __init msm_pm_init(void)
 	msm_pm_max_sleep_time = 0;
 
 	register_reboot_notifier(&msm_reboot_notifier);
+	
+//	msm_fiq_set_handler(0,0);
+
+	writel(0,MSM_AXIGS_BASE+0x800);
 	msm_pm_reset_vector = ioremap(0, PAGE_SIZE);
 	if (msm_pm_reset_vector == NULL) {
 		printk(KERN_ERR "msm_pm_init: failed to map reset vector\n");
