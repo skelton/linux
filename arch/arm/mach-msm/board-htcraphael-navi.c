@@ -64,7 +64,7 @@ enum {
 static int inversion=0;
 module_param_named(inversion, inversion, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-static int wake=0;
+static int wake=3;
 module_param_named(wake, wake, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static struct early_suspend early_suspend;

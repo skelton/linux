@@ -32,19 +32,22 @@
 #endif
 
 static struct gpio_keys_button blackstone_button_table[] = {
-	{KEY_VOLUMEUP,		39,	1, "Volume Up"},
-	{KEY_VOLUMEDOWN,	40,	1, "Volume Down"},
-	{PWRK,		       	83,	1, "Power button"},
+	/*KEY 			GPIO	ACTIVE_LOW DESCRIPTION		type		wakeup	debounce*/
+	{KEY_VOLUMEUP,		39,		1, "Volume Up",		EV_KEY,		0, 	0},
+	{KEY_VOLUMEDOWN,	40,		1, "Volume Down",	EV_KEY,		0,	0},
+	{PWRK,		       	83,		1, "Power button",	EV_KEY,		1,	0},
 };
 
 static struct gpio_keys_button raph_button_table[] = {
-	{PWRK,			83,	1, "Power button"},
+	/*KEY 			GPIO	ACTIVE_LOW DESCRIPTION		type		wakeup	debounce*/
+	{PWRK,			83,		1, "Power button",	EV_KEY,		1,	0},
 };
 
 static struct gpio_keys_button topaz_button_table[] = {
-	{PWRK,		83,      0, "Power button"},
-	{KEY_UP,	39,      0, "Up button"},
-	{KEY_DOWN,	40,      0, "Down button"},
+	/*KEY 			GPIO	ACTIVE_LOW DESCRIPTION		type		wakeup	debounce*/
+	{PWRK,			83,		0, "Power button",	EV_KEY,		1,	0},
+	{KEY_UP,		39,		0, "Up button",		EV_KEY,		0,	0},
+	{KEY_DOWN,		40,		0, "Down button",	EV_KEY,		0,	0},
 };
 
 static struct gpio_keys_platform_data gpio_keys_data;
