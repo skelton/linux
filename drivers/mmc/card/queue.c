@@ -75,6 +75,7 @@ static int mmc_queue_thread(void *d)
 #ifdef CONFIG_MMC_BLOCK_PARANOID_RESUME
 		if (mq->check_status) {
 			struct mmc_command cmd;
+			int count = 0;
 
 			do {
 				int err;
@@ -88,10 +89,18 @@ static int mmc_queue_thread(void *d)
 				mmc_release_host(mq->card->host);
 
 				if (err) {
-					printk(KERN_ERR "%s: failed to get status (%d)\n",
-					       __func__, err);
+					count++;
+					if (count == 1) {
+					   printk(KERN_ERR "%s: failed to get status (%d)\n",
+					   __func__, err);
+					}
 					msleep(5);
-					continue;
+					if (count <= 200) {
+					   continue;
+					} else {
+					   printk(KERN_ERR "%s: failed to get status (%d) > 200 times\n",  __func__, err);
+					   break;
+					}
 				}
 				printk(KERN_DEBUG "%s: status 0x%.8x\n", __func__, cmd.resp[0]);
 			} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
