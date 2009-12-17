@@ -532,7 +532,6 @@ config ARCH_OMAP
 config ARCH_MSM
 	bool "Qualcomm MSM"
 	select GENERIC_GPIO
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Qualcomm MSM7K based systems.  This runs on the ARM11
