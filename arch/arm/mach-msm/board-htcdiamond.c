@@ -68,7 +68,7 @@ module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void htcdiamond_device_specific_fixes(void);
 
-extern int htcraphael_init_mmc(void);
+extern int init_mmc(void);
 extern void msm_init_pmic_vibrator(void);
 
 static int usb_phy_init_seq_diam100[] = {
@@ -421,7 +421,7 @@ static void __init halibut_init(void)
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 
 	// Initialize SD controllers
-	htcraphael_init_mmc();
+	init_mmc();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB
