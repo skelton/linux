@@ -443,6 +443,8 @@ static struct usb_function usb_func_ums = {
 	
 	.ifc_ept_count = 2,
 	.ifc_ept_type = { EPT_BULK_OUT, EPT_BULK_IN },
+	.cdc_desc = NULL,
+	.ifc_num = 1,
 };
 
 static int __init ums_init(void)

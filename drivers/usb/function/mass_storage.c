@@ -45,7 +45,9 @@
 //#define DEBUG
 //#define VERBOSE_DEBUG
 //#define DUMP_MSGS
-
+//#define DEBUG_SCSI_CMD
+/* use mass_storage command(SC_RESERVE) to enable/disable adb daemon */
+#define ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD
 
 #include <linux/blkdev.h>
 #include <linux/completion.h>
@@ -70,6 +72,10 @@
 #include <linux/usb_usual.h>
 #include <linux/platform_device.h>
 #include <linux/wakelock.h>
+#ifdef ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD
+#include <linux/reboot.h>
+#include <linux/syscalls.h>
+#endif /* ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD */
 
 #include "usb_function.h"
 
@@ -120,6 +126,13 @@
 #define INFO(d, fmt, args...) \
 	dev_info(&(d)->pdev->dev , fmt , ## args)
 
+#ifdef DEBUG_SCSI_CMD
+#define SCSI_CMD_DBG(fmt,args...) \
+	printk(KERN_DEBUG "SCSI_CMD: " fmt , ## args)
+#else
+#define SCSI_CMD_DBG(fmt,args...) \
+	do { } while (0)
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -600,11 +613,13 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_endpoint *ep,
 
 		/* Note: currently the net2280 driver fails zero-length
 		 * submissions if DMA is enabled. */
+		/*
 		if (rc != -ESHUTDOWN && !(rc == -EOPNOTSUPP &&
 						req->length == 0))
 			MS_WARN(fsg, "error in submission: %s --> %d\n",
 				(ep == fsg->bulk_in ? "bulk-in" : "bulk-out"),
 				rc);
+		*/
 	}
 }
 
@@ -1315,9 +1330,11 @@ static int do_prevent_allow(struct fsg_dev *fsg)
 		return -EINVAL;
 	}
 
-	if (curlun->prevent_medium_removal && !prevent)
+	if (curlun->prevent_medium_removal && !prevent)	{
 		fsync_sub(curlun);
+	}
 	curlun->prevent_medium_removal = prevent;
+
 	return 0;
 }
 
@@ -1348,6 +1365,40 @@ static int do_mode_select(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	return -EINVAL;
 }
 
+#ifdef ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD
+static int do_reserve(struct fsg_dev *fsg, struct fsg_buffhd *bh)
+{
+	int	call_us_ret = -1;
+	char *envp[] = {
+		"HOME=/",
+		"PATH=/sbin:/system/sbin:/system/bin:/system/xbin",
+		NULL,
+	};
+	char *exec_path[2] = {"/system/bin/stop", "/system/bin/start" };
+	char *argv_stop[] = { exec_path[0], "adbd", NULL, };
+	char *argv_start[] = { exec_path[1], "adbd", NULL, };
+
+	if(fsg->cmnd[1]==('h'&0x1f) && fsg->cmnd[2]=='t' && fsg->cmnd[3]=='c')
+		{
+		/* No special options */
+		switch(fsg->cmnd[5])	{
+			case 0x01:	//enable adbd
+				call_us_ret = call_usermodehelper(exec_path[1], argv_start, envp, UMH_WAIT_PROC);
+			break;
+			case 0x02:	//disable adbd
+				call_us_ret = call_usermodehelper(exec_path[0], argv_stop, envp, UMH_WAIT_PROC);
+			break;
+			default:
+				printk(KERN_DEBUG "Unknown hTC specific command...(0x%2.2X)\n", fsg->cmnd[5]);
+			break;
+		}
+	}
+	printk(KERN_NOTICE "%s adb daemon from mass_storage %s(%d)\n",
+		(fsg->cmnd[5] == 0x01)?"Enable":(fsg->cmnd[5] == 0x02)?"Disable":"Unknown",
+		(call_us_ret == 0)?"DONE":"FAIL", call_us_ret);
+	return 0;
+}
+#endif /* ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD */
 
 /*-------------------------------------------------------------------------*/
 #if 0
@@ -1448,7 +1499,7 @@ static int finish_reply(struct fsg_dev *fsg)
 					&bh->inreq_busy, &bh->state);
 			fsg->next_buffhd_to_fill = bh->next;
 		} else {
-			int length = bh->inreq->length;
+			//int length = bh->inreq->length;
 			start_transfer(fsg, fsg->bulk_in, bh->inreq,
 					&bh->inreq_busy, &bh->state);
 			fsg->next_buffhd_to_fill = bh->next;
@@ -1606,6 +1657,11 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 		 * with cbw->Length == 12 (it should be 6). */
 		if (fsg->cmnd[0] == SC_REQUEST_SENSE && fsg->cmnd_size == 12)
 			cmnd_size = fsg->cmnd_size;
+#ifdef ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD
+		else if(fsg->cmnd[0] == SC_RESERVE)	{
+			cmnd_size = fsg->cmnd_size;
+		}
+#endif /* ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD */
 		else {
 			fsg->phase_error = 1;
 			return -EINVAL;
@@ -1696,6 +1752,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	switch (fsg->cmnd[0]) {
 
 	case SC_INQUIRY:
+		SCSI_CMD_DBG("SC_INQUIRY\n");
 		fsg->data_size_from_cmnd = fsg->cmnd[4];
 		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
 				(1<<4), 0,
@@ -1704,6 +1761,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_MODE_SELECT_6:
+		SCSI_CMD_DBG("SC_MODE_SELECT_6\n");
 		fsg->data_size_from_cmnd = fsg->cmnd[4];
 		if ((reply = check_command(fsg, 6, DATA_DIR_FROM_HOST,
 				(1<<1) | (1<<4), 0,
@@ -1712,6 +1770,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_MODE_SELECT_10:
+		SCSI_CMD_DBG("SC_MODE_SELECT_10\n");
 		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
 				(1<<1) | (3<<7), 0,
@@ -1720,6 +1779,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_MODE_SENSE_6:
+		SCSI_CMD_DBG("SC_MODE_SENSE_6\n");
 		fsg->data_size_from_cmnd = fsg->cmnd[4];
 		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
 				(1<<1) | (1<<2) | (1<<4), 0,
@@ -1728,6 +1788,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_MODE_SENSE_10:
+		SCSI_CMD_DBG("SC_MODE_SENSE_10\n");
 		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(1<<1) | (1<<2) | (3<<7), 0,
@@ -1736,6 +1797,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_PREVENT_ALLOW_MEDIUM_REMOVAL:
+		SCSI_CMD_DBG("SC_PREVENT_ALLOW_MEDIUM_REMOVAL\n");
 		fsg->data_size_from_cmnd = 0;
 		if ((reply = check_command(fsg, 6, DATA_DIR_NONE,
 				(1<<4), 0,
@@ -1744,6 +1806,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_6:
+		SCSI_CMD_DBG("SC_READ_6\n");
 		i = fsg->cmnd[4];
 		fsg->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
 		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
@@ -1753,6 +1816,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_10:
+		SCSI_CMD_DBG("SC_READ_10\n");
 		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]) << 9;
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
@@ -1761,6 +1825,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_12:
+		SCSI_CMD_DBG("SC_READ_12\n");
 		fsg->data_size_from_cmnd = get_be32(&fsg->cmnd[6]) << 9;
 		if ((reply = check_command(fsg, 12, DATA_DIR_TO_HOST,
 				(1<<1) | (0xf<<2) | (0xf<<6), 1,
@@ -1769,6 +1834,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_CAPACITY:
+		SCSI_CMD_DBG("SC_READ_CAPACITY\n");
 		fsg->data_size_from_cmnd = 8;
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(0xf<<2) | (1<<8), 1,
@@ -1777,6 +1843,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_FORMAT_CAPACITIES:
+		SCSI_CMD_DBG("SC_READ_FORMAT_CAPACITIES\n");
 		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(3<<7), 1,
@@ -1785,6 +1852,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_REQUEST_SENSE:
+		SCSI_CMD_DBG("SC_REQUEST_SENSE\n");
 		fsg->data_size_from_cmnd = fsg->cmnd[4];
 		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
 				(1<<4), 0,
@@ -1793,6 +1861,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_START_STOP_UNIT:
+		SCSI_CMD_DBG("SC_START_STOP_UNIT\n");
 		fsg->data_size_from_cmnd = 0;
 		if ((reply = check_command(fsg, 6, DATA_DIR_NONE,
 				(1<<1) | (1<<4), 0,
@@ -1801,6 +1870,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_SYNCHRONIZE_CACHE:
+		SCSI_CMD_DBG("SC_SYNCHRONIZE_CACHE\n");
 		fsg->data_size_from_cmnd = 0;
 		if ((reply = check_command(fsg, 10, DATA_DIR_NONE,
 				(0xf<<2) | (3<<7), 1,
@@ -1809,6 +1879,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_TEST_UNIT_READY:
+		SCSI_CMD_DBG("SC_TEST_UNIT_READY\n");
 		fsg->data_size_from_cmnd = 0;
 		reply = check_command(fsg, 6, DATA_DIR_NONE,
 				0, 1,
@@ -1818,6 +1889,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	/* Although optional, this command is used by MS-Windows.  We
 	 * support a minimal version: BytChk must be 0. */
 	case SC_VERIFY:
+		SCSI_CMD_DBG("SC_VERIFY\n");
 		fsg->data_size_from_cmnd = 0;
 		if ((reply = check_command(fsg, 10, DATA_DIR_NONE,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
@@ -1826,6 +1898,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_WRITE_6:
+		SCSI_CMD_DBG("SC_WRITE_6\n");
 		i = fsg->cmnd[4];
 		fsg->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
 		if ((reply = check_command(fsg, 6, DATA_DIR_FROM_HOST,
@@ -1835,6 +1908,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_WRITE_10:
+		SCSI_CMD_DBG("SC_WRITE_10\n");
 		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]) << 9;
 		if ((reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
@@ -1843,6 +1917,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_WRITE_12:
+		SCSI_CMD_DBG("SC_WRITE_12\n");
 		fsg->data_size_from_cmnd = get_be32(&fsg->cmnd[6]) << 9;
 		if ((reply = check_command(fsg, 12, DATA_DIR_FROM_HOST,
 				(1<<1) | (0xf<<2) | (0xf<<6), 1,
@@ -1850,13 +1925,25 @@ static int do_scsi_command(struct fsg_dev *fsg)
 			reply = do_write(fsg);
 		break;
 
+#ifdef ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD
+	case SC_RESERVE:
+		fsg->data_size_from_cmnd = fsg->cmnd[4];
+		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+				(1<<1) | (0xf<<2) , 0,
+				"RESERVE(6)")) == 0)
+		reply = do_reserve(fsg, bh);
+	break;
+#endif /* ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD */
+
 	/* Some mandatory commands that we recognize but don't implement.
 	 * They don't mean much in this setting.  It's left as an exercise
 	 * for anyone interested to implement RESERVE and RELEASE in terms
 	 * of Posix locks. */
 	case SC_FORMAT_UNIT:
 	case SC_RELEASE:
+#ifndef ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD
 	case SC_RESERVE:
+#endif /* ENABLE_SCSI_CMD_RESERVE_6_TO_SPEC_CMD */
 	case SC_SEND_DIAGNOSTIC:
 		/* Fall through */
 
@@ -2454,6 +2541,27 @@ static DEVICE_ATTR(file, 0444, show_file, store_file);
 
 /*-------------------------------------------------------------------------*/
 
+static ssize_t store_mass_storage_enable(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	if (buf[0] == '1' || buf[0] == '0')	{
+		/* Convert to int */
+		usb_function_enable(DRIVER_NAME, (unsigned char)buf[0] - 0x30);
+	}
+	return count;
+}
+
+static ssize_t show_mass_storage_enable(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	unsigned length;
+	length = sprintf(buf, "%d\n",
+		return_usb_function_enabled(DRIVER_NAME));
+	return length;
+}
+
+static DEVICE_ATTR(mass_storage_enable, 0644, show_mass_storage_enable, store_mass_storage_enable);
+
 static void fsg_release(struct kref *ref)
 {
 	struct fsg_dev	*fsg = container_of(ref, struct fsg_dev, ref);
@@ -2638,6 +2746,11 @@ static struct usb_function		fsg_function = {
 
 	.ifc_ept_count = 2,
 	.ifc_ept_type = { EPT_BULK_OUT, EPT_BULK_IN },
+	.disabled = 0,
+	.position_bit = USB_FUNCTION_MASS_STORAGE_NUM,
+	.cdc_desc = NULL,
+	.ifc_num = 1,
+	.ifc_index = STRING_UMS,
 };
 
 
@@ -2689,6 +2802,13 @@ static int fsg_probe(struct platform_device *pdev)
 	rc = switch_dev_register(&the_fsg->sdev);
 	if (rc < 0)
 		goto err_switch_dev_register;
+
+	rc = device_create_file(&the_fsg->pdev->dev,
+		&dev_attr_mass_storage_enable);
+	if (rc != 0) {
+		printk(KERN_WARNING "dev_attr_mass_storage_enable failed\n");
+		goto err_switch_dev_register;
+	}
 
 	wake_lock_init(&the_fsg->wake_lock, WAKE_LOCK_SUSPEND,
 		       "usb_mass_storage");

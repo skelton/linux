@@ -24,6 +24,28 @@
 
 #define EPT_BULK_IN   1
 #define EPT_BULK_OUT  2
+#define EPT_INT_IN   3
+#define EPT_INT_OUT  4   
+
+#define STRING_UMS			4
+#define STRING_ADB			5
+#define STRING_ES			6
+#define STRING_DIAG			7
+#define STRING_FSERIAL		8
+#define STRING_PROJECTOR	9
+#define STRING_FSYNC		10
+#define STRING_MTP			11
+
+typedef enum {
+	USB_FUNCTION_MASS_STORAGE_NUM = 0,      /* default, don't change position */
+	USB_FUNCTION_ADB_NUM,
+	USB_FUNCTION_INTERNET_SHARING_NUM,
+	USB_FUNCTION_DIAG_NUM,
+	USB_FUNCTION_FSERIAL_NUM,
+	USB_FUNCTION_PROJECTOR_NUM,
+	USB_FUNCTION_FSYNC_NUM,
+	USB_FUNCTION_MTP_TUNNEL_NUM,
+} usb_function_position;
 
 struct usb_endpoint;
 
@@ -38,6 +60,12 @@ struct usb_request
 	void *context;
 
 	struct list_head list;
+};
+
+struct usb_fi_ept
+{
+	struct usb_endpoint *ept;
+	struct usb_endpoint_descriptor desc;
 };
 
 struct usb_function
@@ -83,6 +111,8 @@ struct usb_function
 	const char *name;
 	void *context;
 
+	unsigned char ifc_num;
+
 	/* interface class/subclass/protocol for descriptor */
 	unsigned char ifc_class;
 	unsigned char ifc_subclass;
@@ -99,11 +129,22 @@ struct usb_function
 	** included in the configuration descriptor
 	*/
 	unsigned char   disabled;
+	usb_function_position position_bit;
+
+	/* the USB descriptor: interface name id */
+	u8 ifc_index;
+
+	/*builts a CDC ACM descriptor*/
+	struct usb_descriptor_header **cdc_desc; 
 };
+
+unsigned return_usb_function_enabled(const char *function);
 
 int usb_function_register(struct usb_function *driver);
 
-void usb_function_enable(const char *function, int enable);
+int usb_function_enable(const char *function, int enable);
+struct usb_fi_ept *get_ept_info(const char *function);
+struct usb_interface_descriptor *get_ifc_desc(const char *function);
 
 /* Allocate a USB request.
 ** Must be called from a context that can sleep.

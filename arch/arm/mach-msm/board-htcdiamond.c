@@ -44,6 +44,7 @@
 #include <mach/vreg.h>
 #include <mach/htc_battery.h>
 #include <mach/htc_pwrsink.h>
+#include <mach/board_htc.h>
 
 #include <mach/gpio.h>
 #include <mach/io.h>
@@ -70,80 +71,27 @@ static void htcdiamond_device_specific_fixes(void);
 extern int htcraphael_init_mmc(void);
 extern void msm_init_pmic_vibrator(void);
 
-static int halibut_phy_init_seq_diam100[] = {
+static int usb_phy_init_seq_diam100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
 	0x1D, 0x0D,
 	0x1D, 0x10,
 	-1
 };
 
-static int halibut_phy_init_seq_diam800[] = {
+static int usb_phy_init_seq_diam800[] = {
 	0x04, 0x48, /* Host mode is unsure for diam800 */
 	0x3A, 0x10,
 	0x3B, 0x10,
 	-1
 };
 
-static void halibut_phy_reset(void)
+static void usb_phy_reset(void)
 {
 	gpio_set_value(0x64, 0);
 	mdelay(1);
 	gpio_set_value(0x64, 1);
 	mdelay(3);
 }
-
-static char *halibut_usb_functions[] = {
-	"ether",
-//	"diag",
-	"adb",
-};
-
-static struct msm_hsusb_product halibut_usb_products[] = {
-	/* Use product_id 0x505a always, as we moved ether to the top of the list */
-	{
-		.product_id = 0x505a,
-		.functions = 0x01,
-	},
-	{
-		.product_id = 0x505a,
-		.functions = 0x02,
-	},
-	{
-		.product_id = 0x505a,
-		.functions = 0x03,
-	},
-};
-
-// netripper
-// orig vendor_id 0x18d1
-// orig product_id 0xd00d
-static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.phy_reset      = halibut_phy_reset,
-	.phy_init_seq	= halibut_phy_init_seq_diam100, /* Modified in htcdiamond_device_specific_fixes() */
-	.vendor_id      = 0x049F,
-	.product_id     = 0x0002,
-	.version        = 0x0100,
-	.product_name   = "MSM USB",
-	.manufacturer_name = "HTC",
-	.functions	= halibut_usb_functions,
-	.num_functions	= ARRAY_SIZE(halibut_usb_functions),
-	.products = halibut_usb_products,
-	.num_products = ARRAY_SIZE(halibut_usb_products),
-};
-
-static struct msm_hsusb_platform_data msm_hsusb_pdata_adb = {
-	.phy_reset      = halibut_phy_reset,
-	.phy_init_seq	= halibut_phy_init_seq_diam100, /* Modified in htcdiamond_device_specific_fixes() */
-	.vendor_id      = 0x0bb4,
-	.product_id     = 0x0c02,
-	.version        = 0x0100,
-	.product_name   = "MSM USB",
-	.manufacturer_name = "HTC",
-	.functions	= halibut_usb_functions,
-	.num_functions	= ARRAY_SIZE(halibut_usb_functions),
-	.products = halibut_usb_products,
-	.num_products = 0,
-};
 
 static struct i2c_board_info i2c_devices[] = {
 	{
@@ -355,7 +303,6 @@ static struct platform_device diamond_h2w = {
 
 static struct platform_device *devices[] __initdata = {
 	&diamond_pwr_sink,
-	&msm_device_hsusb,
 	&raphael_rfkill,
 	&msm_device_smd,
 	&msm_device_nand,
@@ -452,12 +399,13 @@ static void __init halibut_init(void)
 	msm_hw_reset_hook = htcraphael_reset;
 
 	// Device pdata overrides
-	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
-	if(adb)
-		msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata_adb;
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 
+	if(machine_is_htcdiamond())
+		msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_diam100);
+	else
+		msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_diam800);
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
 #endif
@@ -521,14 +469,12 @@ static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
 static void htcdiamond_device_specific_fixes(void)
 {
 	if (machine_is_htcdiamond()) {
-		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_diam100;
 		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
 		msm_htc_hw_pdata.battery_smem_field_size = 2;
 		msm_battery_pdata.smem_offset = 0xfc110;
 		msm_battery_pdata.smem_field_size = 2;
 	}
 	if (machine_is_htcdiamond_cdma()) {
-		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_diam800;
 		msm_htc_hw_pdata.battery_smem_offset = 0xfc140;
 		msm_htc_hw_pdata.battery_smem_field_size = 4;
 		msm_battery_pdata.smem_offset = 0xfc140;

@@ -37,6 +37,7 @@ struct msm_hsusb_product {
 struct msm_hsusb_platform_data {
 	/* hard reset the ULPI PHY */
 	void (*phy_reset)(void);
+	void (*phy_shutdown)(void);
 
 	/* val, reg pairs terminated by -1 */
 	int *phy_init_seq;

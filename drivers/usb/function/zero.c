@@ -108,6 +108,8 @@ static struct usb_function usb_func_zero = {
 
 	.ifc_ept_count = 1,
 	.ifc_ept_type = { EPT_BULK_IN },
+	.cdc_desc = NULL,
+	.ifc_num = 1,
 };
 
 static int __init zero_init(void)

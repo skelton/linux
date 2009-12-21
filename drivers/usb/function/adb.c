@@ -39,7 +39,7 @@
 #define TXN_MAX 4096
 
 /* number of rx and tx requests to allocate */
-#define RX_REQ_MAX 4
+#define RX_REQ_MAX 32
 #define TX_REQ_MAX 4
 
 #define ADB_FUNCTION_NAME "adb"
@@ -148,6 +148,7 @@ static ssize_t adb_read(struct file *fp, char __user *buf,
 	struct usb_request *req;
 	int r = count, xfer;
 	int ret;
+	unsigned MaxPacketSize;
 
 	DBG("adb_read(%d)\n", count);
 
@@ -163,6 +164,9 @@ static ssize_t adb_read(struct file *fp, char __user *buf,
 			return ret;
 		}
 	}
+	MaxPacketSize = usb_ept_get_max_packet(ctxt->out);
+	if (MaxPacketSize > 512)
+		MaxPacketSize = 512;
 
 	while (count > 0) {
 		if (ctxt->error) {
@@ -173,7 +177,7 @@ static ssize_t adb_read(struct file *fp, char __user *buf,
 		/* if we have idle read requests, get them queued */
 		while ((req = req_get(ctxt, &ctxt->rx_idle))) {
 requeue_req:
-			req->length = TXN_MAX;
+			req->length = MaxPacketSize;
 			ret = usb_ept_queue_xfer(ctxt->out, req);
 			if (ret < 0) {
 				DBG("adb_read: failed to queue req %p (%d)\n", req, ret);
@@ -182,7 +186,7 @@ requeue_req:
 				req_put(ctxt, &ctxt->rx_idle, req);
 				goto fail;
 			} else {
-				DBG("rx %p queue\n", req);
+				DBG("%s(): rx %p queue\n", __func__, req);
 			}
 		}
 
@@ -223,7 +227,7 @@ requeue_req:
 			ctxt->read_req = req;
 			ctxt->read_count = req->actual;
 			ctxt->read_buf = req->buf;
-			DBG("rx %p %d\n", req, req->actual);
+			DBG("%s(): rx %p %d\n", __func__, req, req->actual);
 		}
 
 		if (ret < 0) {
@@ -340,7 +344,7 @@ static int adb_enable_open(struct inode *ip, struct file *fp)
 	if (_lock(&ctxt->enable_excl))
 		return -EBUSY;
 
-	printk(KERN_INFO "enabling adb function\n");
+	DBG("%s(): Enabling adb function ###\n", __func__);
 	usb_function_enable(ADB_FUNCTION_NAME, 1);
 	/* clear the error latch */
 	ctxt->error = 0;
@@ -352,7 +356,7 @@ static int adb_enable_release(struct inode *ip, struct file *fp)
 {
 	struct adb_context *ctxt = &_context;
 
-	printk(KERN_INFO "disabling adb function\n");
+	DBG("%s(): Disabling adb function ###\n", __func__);
 	usb_function_enable(ADB_FUNCTION_NAME, 0);
 	_unlock(&ctxt->enable_excl);
 	return 0;
@@ -375,7 +379,7 @@ static void adb_unbind(void *_ctxt)
 	struct adb_context *ctxt = _ctxt;
 	struct usb_request *req;
 
-	printk(KERN_INFO "abd_unbind()\n");
+	DBG("%s()\n", __func__);
 
 	while ((req = req_get(ctxt, &ctxt->rx_idle))) {
 		usb_ept_free_req(ctxt->out, req);
@@ -400,10 +404,10 @@ static void adb_bind(struct usb_endpoint **ept, void *_ctxt)
 	ctxt->out = ept[0];
 	ctxt->in = ept[1];
 
-	printk(KERN_INFO "adb_bind() %p, %p\n", ctxt->out, ctxt->in);
+	DBG("%s() %p, %p\n", __func__, ctxt->out, ctxt->in);
 
 	for (n = 0; n < RX_REQ_MAX; n++) {
-		req = usb_ept_alloc_req(ctxt->out, 4096);
+		req = usb_ept_alloc_req(ctxt->out, 512);
 		if (req == 0) goto fail;
 		req->context = ctxt;
 		req->complete = adb_complete_out;
@@ -418,16 +422,15 @@ static void adb_bind(struct usb_endpoint **ept, void *_ctxt)
 		req_put(ctxt, &ctxt->tx_idle, req);
 	}
 
-	printk(KERN_INFO
-	       "adb_bind() allocated %d rx and %d tx requests\n",
-	       RX_REQ_MAX, TX_REQ_MAX);
+	DBG("%s: allocated %d rx and %d tx requests\n",
+	       __func__, RX_REQ_MAX, TX_REQ_MAX);
 
 	misc_register(&adb_device);
 	misc_register(&adb_enable_device);
 	return;
 
 fail:
-	printk(KERN_ERR "adb_bind() could not allocate requests\n");
+	printk(KERN_ERR "%s() could not allocate requests\n", __func__);
 	adb_unbind(ctxt);
 }
 
@@ -481,6 +484,10 @@ static struct usb_function usb_func_adb = {
 
 	/* the adb function is only enabled when its driver file is open */
 	.disabled = 1,
+	.position_bit = USB_FUNCTION_ADB_NUM,
+	.cdc_desc = NULL,
+	.ifc_num = 1,
+	.ifc_index = STRING_ADB,
 };
 
 static int __init adb_init(void)
