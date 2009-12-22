@@ -311,7 +311,7 @@ int htc_cable_status_update(int status)
 		/* give userspace some time to see the uevent and update
 		 * LED state or whatnot...
 		 */
-//		wake_lock_timeout(&vbus_wake_lock, HZ / 2);
+		wake_lock_timeout(&vbus_wake_lock, HZ / 2);
 	}
 
 	/* if the power source changes, all power supplies may change state */
