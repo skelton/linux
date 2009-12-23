@@ -249,8 +249,8 @@ static int snd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int snd_open(struct inode *inode, struct file *file)
-{
+int snd_ini() {
+
 	struct snd_ctxt *snd = &the_snd;
 	int rc = 0;
 
@@ -266,7 +266,6 @@ static int snd_open(struct inode *inode, struct file *file)
 				goto err;
 			}
 		}
-		file->private_data = snd;
 		snd->opened = 1;
 	} else {
 		pr_err("snd already opened.\n");
@@ -275,6 +274,17 @@ static int snd_open(struct inode *inode, struct file *file)
 
 err:
 	mutex_unlock(&snd->lock);
+	return rc;
+}
+
+static int snd_open(struct inode *inode, struct file *file)
+{
+	int rc = 0;
+	struct snd_ctxt *snd = &the_snd;
+	rc = snd_ini();
+	if(rc)
+		return rc;
+	file->private_data=snd;
 	return rc;
 }
 

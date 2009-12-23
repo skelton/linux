@@ -126,8 +126,10 @@ static void set_audio_parameters(char *name) {
 }
 #ifdef CONFIG_MSM_ADSP
 void snd_set_device(int device,int ear_mute, int mic_mute);
+int snd_ini();
 #else
 void snd_set_device(int device, int ear_mute, int mic_mute) {};
+int snd_ini() {}
 #endif
 void msm_audio_path(int i) {
 	struct msm_dex_command dex;
@@ -143,6 +145,7 @@ void msm_audio_path(int i) {
 			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080 | 0x100;
 			msm_proc_comm_wince(&dex,0);
 
+			snd_ini();
 			snd_set_device(0,SND_MUTE_UNMUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
 			break;
 		case 5: // Phone Audio End
@@ -152,6 +155,7 @@ void msm_audio_path(int i) {
 			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080;
                         msm_proc_comm_wince(&dex,0);
 
+			snd_ini();
 			snd_set_device(1,SND_MUTE_MUTED,SND_MUTE_MUTED); /* "SPEAKER" */
                         break;
 	}
