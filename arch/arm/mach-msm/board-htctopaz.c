@@ -55,7 +55,7 @@ module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void blackstone_device_specific_fixes(void);
 
-extern int htcraphael_init_mmc(void);
+extern int init_mmc(void);
 
 /*
  * GPIO Keys
@@ -393,7 +393,7 @@ static void __init halibut_init(void)
 	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
-	htcraphael_init_mmc();
+	init_mmc();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB
