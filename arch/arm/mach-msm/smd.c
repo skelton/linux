@@ -148,13 +148,18 @@ static DEFINE_MUTEX(smd_creation_mutex);
 
 static int smd_initialized;
 
-struct smd_alloc_elm {
+struct smd_alloc_elm_v1 {
 	char name[20];
 	uint32_t cid;
 	uint32_t ctype;
-#if defined(MSM_AMSS_VERSION_6120) || defined(MSM_AMSS_VERSION_6125)
+	uint32_t ref_count;
+};
+
+struct smd_alloc_elm_v2 {
+	char name[20];
+	uint32_t cid;
+	uint32_t ctype;
 	uint32_t unknown;
-#endif
 	uint32_t ref_count;
 };
 
@@ -215,9 +220,40 @@ extern void do_smd_7500_probe(unsigned char *, struct list_head *);
 static inline void do_smd_7500_probe(unsigned char * a, struct list_head * b) {}
 #endif
 
-static void smd_channel_probe_worker(struct work_struct *work)
+
+static void smd_channel_probe_worker_v1(struct work_struct *work)
 {
-	struct smd_alloc_elm *shared;
+	struct smd_alloc_elm_v1 *shared;
+	unsigned n;
+
+	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
+
+	for (n = 0; n < 64; n++) {
+		if (smd_ch_allocated[n])
+			continue;
+		if (!shared[n].ref_count)
+			continue;
+		if (!shared[n].name[0])
+			continue;
+		smd_alloc_channel(shared[n].name,
+				  shared[n].cid,
+				  shared[n].ctype);
+		smd_ch_allocated[n] = 1;
+	}
+
+	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) {
+		/* Pass whatever info we'll need in order to initialize the 7500
+		 * ports and keep them usable within smd.o
+		 */
+		mutex_lock(&smd_creation_mutex);
+		do_smd_7500_probe(smd_ch_allocated, &smd_ch_closed_list);
+		mutex_unlock(&smd_creation_mutex);
+	}
+}
+
+static void smd_channel_probe_worker_v2(struct work_struct *work)
+{
+	struct smd_alloc_elm_v2 *shared;
 	unsigned n;
 
 	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
@@ -709,7 +745,6 @@ static struct smd_channel *_smd_alloc_channel_v1(uint32_t cid)
 	return ch;
 }
 
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
 static struct smd_channel *_smd_alloc_channel_v2(uint32_t cid)
 {
 	struct smd_channel *ch;
@@ -744,17 +779,19 @@ static struct smd_channel *_smd_alloc_channel_v2(uint32_t cid)
 
 	return ch;
 }
-#endif
 
 static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 {
 	struct smd_channel *ch;
+	static struct smd_channel *(*_smd_alloc_channel)(uint32_t);
+	if(!_smd_alloc_channel) {
+		if(machine_is_htctopaz())
+			_smd_alloc_channel=_smd_alloc_channel_v2;
+		else
+			_smd_alloc_channel=_smd_alloc_channel_v1;
+	}
 
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125) 
-	ch = _smd_alloc_channel_v2(cid);
-#else
-	ch = _smd_alloc_channel_v1(cid);
-#endif
+	ch = (*_smd_alloc_channel)(cid);
 
 	if (ch == 0) {
 		pr_err("smd_alloc_channel() out of memory\n");
@@ -939,8 +976,12 @@ static void *_smem_find(unsigned id, unsigned *size)
 	struct smem_shared *shared = (void *) MSM_SHARED_RAM_BASE;
 	struct smem_heap_entry *toc = shared->heap_toc;
 
-	if (id >= SMEM_NUM_ITEMS)
-		return 0;
+	if (id >= SMEM_NUM_ITEMS_V1) {
+		if(!machine_is_htctopaz())
+			return 0;
+		if(id>=SMEM_NUM_ITEMS_V2)
+			return 0;
+	}
 
 	if (toc[id].allocated) {
 		*size = toc[id].size;
@@ -1312,12 +1353,21 @@ static int debug_read_mem(char *buf, int max)
 		       shared->heap_info.free_offset,
 		       shared->heap_info.heap_remaining);
 
-	for (n = 0; n < SMEM_NUM_ITEMS; n++) {
+	for (n = 0; n < SMEM_NUM_ITEMS_V1; n++) {
 		if (toc[n].allocated == 0)
 			continue;
 		i += scnprintf(buf + i, max - i,
 			       "%04d: offset %08x size %08x\n",
 			       n, toc[n].offset, toc[n].size);
+	}
+	if(machine_is_htctopaz()) {
+		for (n = SMEM_NUM_ITEMS_V1+1; n < SMEM_NUM_ITEMS_V2; n++) {
+			if (toc[n].allocated == 0)
+				continue;
+			i += scnprintf(buf + i, max - i,
+				       "%04d: offset %08x size %08x\n",
+				       n, toc[n].offset, toc[n].size);
+		}
 	}
 	for(i=0;i<0x200;i+=4)
 		printk("%x,",readl(MSM_SHARED_RAM_BASE+0xfc000+i));
@@ -1386,9 +1436,28 @@ static int debug_read_build_id(char *buf, int max)
 	return size;
 }
 
-static int debug_read_alloc_tbl(char *buf, int max)
+static int debug_read_alloc_tbl_v1(char *buf, int max)
 {
-	struct smd_alloc_elm *shared;
+	struct smd_alloc_elm_v1 *shared;
+	int n, i = 0;
+
+	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
+
+	for (n = 0; n < 64; n++) {
+		if (shared[n].ref_count == 0)
+			continue;
+		i += scnprintf(buf + i, max - i,
+			       "%03d: %20s cid=%02d ctype=%d ref_count=%d\n",
+			       n, shared[n].name, shared[n].cid,
+			       shared[n].ctype, shared[n].ref_count);
+	}
+
+	return i;
+}
+
+static int debug_read_alloc_tbl_v2(char *buf, int max)
+{
+	struct smd_alloc_elm_v2 *shared;
 	int n, i = 0;
 
 	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
@@ -1454,15 +1523,16 @@ static void smd_debugfs_init(void)
 	if (IS_ERR(dent))
 		return;
 
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
-	debug_create("ch", 0444, dent, debug_read_ch_v2);
-#else
-	debug_create("ch", 0444, dent, debug_read_ch_v1);
-#endif
+	if(machine_is_htctopaz()) {
+		debug_create("ch", 0444, dent, debug_read_ch_v2);
+		debug_create("tbl", 0444, dent, debug_read_alloc_tbl_v2);
+	} else {
+		debug_create("ch", 0444, dent, debug_read_ch_v1);
+		debug_create("tbl", 0444, dent, debug_read_alloc_tbl_v1);
+	}
 	debug_create("stat", 0444, dent, debug_read_stat);
 	debug_create("mem", 0444, dent, debug_read_mem);
 	debug_create("version", 0444, dent, debug_read_version);
-	debug_create("tbl", 0444, dent, debug_read_alloc_tbl);
 	debug_create("build", 0444, dent, debug_read_build_id);
 	debug_create("boom", 0444, dent, debug_boom);
 }
@@ -1474,7 +1544,10 @@ static int __init msm_smd_probe(struct platform_device *pdev)
 {
 	pr_info("smd_init()\n");
 
-	INIT_WORK(&probe_work, smd_channel_probe_worker);
+	if(machine_is_htctopaz())
+		INIT_WORK(&probe_work, smd_channel_probe_worker_v2);
+	else
+		INIT_WORK(&probe_work, smd_channel_probe_worker_v1);
 
 	if (smd_core_init()) {
 		pr_err("smd_core_init() failed\n");

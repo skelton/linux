@@ -210,7 +210,8 @@ struct msm_adsp_module {
 };
 
 extern void msm_adsp_publish_cdevs(struct msm_adsp_module *, unsigned);
-extern int adsp_init_info(struct adsp_info *info);
+extern int adsp_init_info_5200(struct adsp_info *info);
+extern int adsp_init_info_6120(struct adsp_info *info);
 extern struct msm_adsp_module *find_adsp_module_by_id(struct adsp_info *info,
 						      uint32_t id);
 
