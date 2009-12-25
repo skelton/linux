@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 #include <linux/wakelock.h>
+#include <asm/mach-types.h>
 #include "../smd_rpcrouter.h"
 
 static struct wake_lock adsp_wake_lock;
@@ -805,7 +806,22 @@ static int msm_adsp_probe(struct platform_device *pdev)
 
 	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
 
-	rc = adsp_init_info(&adsp_info);
+	switch(__machine_arch_type) {
+		case MACH_TYPE_TOPAZ:
+			rc = adsp_init_info_6120(&adsp_info);
+			break;
+		case MACH_TYPE_HTCRAPHAEL:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+		case MACH_TYPE_HTCDIAMOND:
+		case MACH_TYPE_HTCBLACKSTONE:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+			rc = adsp_init_info_5200(&adsp_info);
+			break;
+		default:
+			printk(KERN_ERR "Unsupported device for adsp driver\n");
+			rc=-ENODEV;
+			break;
+	}
 	if (rc)
 		return rc;
 	adsp_info.send_irq += MSM_AD5_BASE;

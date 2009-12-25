@@ -44,43 +44,17 @@
 
 
 #include <linux/microp-keypad.h>
+#include <mach/board_htc.h>
 
 #include "proc_comm_wince.h"
 #include "devices.h"
 #include "htc_hw.h"
 #include "board-htctopaz.h"
+#include "board-htctopaz.h"
 
-static int halibut_ffa;
-module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
-
-static void blackstone_device_specific_fixes(void);
+static void htctopaz_device_specific_fixes(void);
 
 extern int init_mmc(void);
-
-/*
- * GPIO Keys
- */
-
-static struct gpio_keys_button blackstone_button_table[] = {
-        {KEY_POWER,      83,      0, "Power button"},
-        {KEY_UP,         39,      0, "Up button"},
-        {KEY_DOWN,       40,      0, "Down button"},
-};
-
-static struct gpio_keys_platform_data gpio_keys_data = {
-        .buttons  = blackstone_button_table,
-        .nbuttons = ARRAY_SIZE(blackstone_button_table),
-};
-
-static struct platform_device gpio_keys = {
-        .name = "gpio-keys",
-        .dev  = {
-                .platform_data = &gpio_keys_data,
-        },
-        .id   = -1,
-};
-
-//END GPIO keys
 
 static struct resource msm_serial0_resources[] = {
 	{
@@ -102,56 +76,20 @@ static struct platform_device msm_serial0_device = {
 	.resource	= msm_serial0_resources,
 };
 
-static int halibut_phy_init_seq_raph100[] = {
+static int usb_phy_init_seq_raph100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
 	0x1D, 0x0D,
 	0x1D, 0x10,
 	-1
 };
 
-static void halibut_phy_reset(void)
+static void usb_phy_reset(void)
 {
 	gpio_set_value(0x64, 0);
 	mdelay(1);
 	gpio_set_value(0x64, 1);
 	mdelay(3);
 }
-
-static char *halibut_usb_functions[] = {
-        "ether",
-//	"diag",
-//	"adb",
-};
-
-static struct msm_hsusb_product halibut_usb_products[] = {
-	/* Use product_id 0x505a always, as we moved ether to the top of the list */
-	{
-		.product_id = 0x505a,
-		.functions = 0x01,
-	},
-	{
-		.product_id = 0x505a,
-		.functions = 0x02,
-	},
-	{
-		.product_id = 0x505a,
-		.functions = 0x03,
-	},
-};
-
-static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.phy_reset      = halibut_phy_reset,
-	.phy_init_seq	= halibut_phy_init_seq_raph100,
-	.vendor_id      = 0x049F,
-	.product_id     = 0x0002, // by default (no funcs)
-	.version        = 0x0100,
-	.product_name   = "MSM USB",
-	.manufacturer_name = "HTC",
-	.functions	= halibut_usb_functions,
-	.num_functions	= ARRAY_SIZE(halibut_usb_functions),
-	.products = halibut_usb_products,
-	.num_products = ARRAY_SIZE(halibut_usb_products),
-};
 
 static struct i2c_board_info i2c_devices[] = {
 	{
@@ -168,80 +106,6 @@ static struct i2c_board_info i2c_devices[] = {
 	},
 };
 
-static struct android_pmem_platform_data android_pmem_pdata = {
-	.name = "pmem",
-	.start = MSM_PMEM_MDP_BASE,
-	.size = MSM_PMEM_MDP_SIZE,
-	.no_allocator = 1,
-	.cached = 1,
-};
-
-static struct android_pmem_platform_data android_pmem_adsp_pdata = {
-	.name = "pmem_adsp",
-	.start = MSM_PMEM_ADSP_BASE,
-	.size = MSM_PMEM_ADSP_SIZE,
-	.no_allocator = 0,
-	.cached = 0,
-};
-
-static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
-        .name = "pmem_gpu0",
-        .start = MSM_PMEM_GPU0_BASE,
-        .size = MSM_PMEM_GPU0_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
-};
-
-static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
-        .name = "pmem_gpu1",
-        .start = MSM_PMEM_GPU1_BASE,
-        .size = MSM_PMEM_GPU1_SIZE,
-        .no_allocator = 1,
-        .cached = 0,
-};
-
-static struct platform_device android_pmem_device = {
-	.name = "android_pmem",
-	.id = 0,
-	.dev = { .platform_data = &android_pmem_pdata },
-};
-
-static struct platform_device android_pmem_adsp_device = {
-	.name = "android_pmem",
-	.id = 1,
-	.dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
-static struct platform_device android_pmem_gpu0_device = {
-	.name = "android_pmem",
-	.id = 2,
-	.dev = { .platform_data = &android_pmem_gpu0_pdata },
-};
-
-static struct platform_device android_pmem_gpu1_device = {
-	.name = "android_pmem",
-	.id = 3,
-	.dev = { .platform_data = &android_pmem_gpu1_pdata },
-};
-
-#define MSM_LOG_BASE 0x8e0000
-#define MSM_LOG_SIZE 0x020000
-
-static struct resource ram_console_resource[] = {
-        {
-                .start = MSM_LOG_BASE,
-                .end = MSM_LOG_BASE+MSM_LOG_SIZE-1,
-                .flags  = IORESOURCE_MEM,
-        }
-};
- 
-static struct platform_device ram_console_device = {
-        .name = "ram_console",
-        .id = -1,
-        .num_resources  = ARRAY_SIZE(ram_console_resource),
-        .resource       = ram_console_resource,
-};
-
 #define SND(num, desc) { .name = desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
 	SND(0, "HANDSET"),
@@ -252,40 +116,6 @@ static struct snd_endpoint snd_endpoints_list[] = {
 	SND(10, "HEADSET_AND_SPEAKER"),
 	SND(256, "CURRENT"),
 
-	/* Bluetooth accessories. */
-
-	SND(12, "HTC BH S100"),
-	SND(13, "HTC BH M100"),
-	SND(14, "Motorola H500"),
-	SND(15, "Nokia HS-36W"),
-	SND(16, "PLT 510v.D"),
-	SND(17, "M2500 by Plantronics"),
-	SND(18, "Nokia HDW-3"),
-	SND(19, "HBH-608"),
-	SND(20, "HBH-DS970"),
-	SND(21, "i.Tech BlueBAND"),
-	SND(22, "Nokia BH-800"),
-	SND(23, "Motorola H700"),
-	SND(24, "HTC BH M200"),
-	SND(25, "Jabra JX10"),
-	SND(26, "320Plantronics"),
-	SND(27, "640Plantronics"),
-	SND(28, "Jabra BT500"),
-	SND(29, "Motorola HT820"),
-	SND(30, "HBH-IV840"),
-	SND(31, "6XXPlantronics"),
-	SND(32, "3XXPlantronics"),
-	SND(33, "HBH-PV710"),
-	SND(34, "Motorola H670"),
-	SND(35, "HBM-300"),
-	SND(36, "Nokia BH-208"),
-	SND(37, "Samsung WEP410"),
-	SND(38, "Jabra BT8010"),
-	SND(39, "Motorola S9"),
-	SND(40, "Jabra BT620s"),
-	SND(41, "Nokia BH-902"),
-	SND(42, "HBH-DS220"),
-	SND(43, "HBH-DS980"),
 };
 #undef SND
 
@@ -308,22 +138,12 @@ static struct platform_device raphael_gps = {
 
 
 static struct platform_device *devices[] __initdata = {
-        &ram_console_device,
-//#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
-//	&msm_serial0_device,
-//#endif
-	&msm_device_hsusb,
-	&android_pmem_device,
-	&android_pmem_adsp_device,
-	&android_pmem_gpu0_device,
-	&android_pmem_gpu1_device,
-    &msm_device_smd,
-    &msm_device_nand,
-    &msm_device_i2c,
+	&msm_device_smd,
+	&msm_device_nand,
+	&msm_device_i2c,
 	&msm_device_rtc,
 	&msm_device_htc_hw,	
-    &gpio_keys,
-    &blac_snd,
+	&blac_snd,
 };
 
 extern struct sys_timer msm_timer;
@@ -381,19 +201,20 @@ static void __init halibut_init(void)
 	int i;
 
 	// Fix data in arrays depending on GSM/CDMA version
-	blackstone_device_specific_fixes();
+	htctopaz_device_specific_fixes();
 
-    msm_acpu_clock_init(&halibut_clock_data);
+	msm_acpu_clock_init(&halibut_clock_data);
 	msm_proc_comm_wince_init();
 
-    msm_hw_reset_hook = htcraphael_reset;
+	msm_hw_reset_hook = htcraphael_reset;
 
-	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
+	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 	init_mmc();
+
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB
@@ -416,7 +237,7 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
-static void __init blac_fixup(struct machine_desc *desc, struct tag *tags,
+static void __init htctopaz_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks = 1;
@@ -436,15 +257,14 @@ static void __init blac_fixup(struct machine_desc *desc, struct tag *tags,
 		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
-static void blackstone_device_specific_fixes(void)
+static void htctopaz_device_specific_fixes(void)
 {
-		msm_hsusb_pdata.phy_init_seq = halibut_phy_init_seq_raph100;
 		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
 		msm_htc_hw_pdata.battery_smem_field_size = 2;
 }
 
 MACHINE_START(HTCTOPAZ, "HTC Topaz cellphone (Topaz is a silicate mineral of aluminium and fluorine)")
-	.fixup 		= blac_fixup,
+	.fixup 		= htctopaz_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,

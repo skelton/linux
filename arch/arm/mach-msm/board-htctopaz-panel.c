@@ -623,11 +623,15 @@ struct msm_mddi_platform_data mddi_pdata = {
 	},
 };
 
-int __init htcraphael_init_panel(void)
+int __init htctopaz_init_panel(void)
 {
 	int rc;
 	
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
+	if(!machine_is_htctopaz()) {
+		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
+		return 0;
+	}
 
 //	if (!machine_is_htcblackstone() && !machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcdiamond() && !machine_is_htcdiamond_cdma() && !machine_is_htckovsky()) {
 //		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
@@ -659,4 +663,4 @@ int __init htcraphael_init_panel(void)
 	return platform_device_register(&msm_device_mddi0);
 }
 
-device_initcall(htcraphael_init_panel);
+device_initcall(htctopaz_init_panel);
