@@ -271,15 +271,10 @@ static void __init htctopaz_fixup(struct machine_desc *desc, struct tag *tags,
 
 static void htctopaz_device_specific_fixes(void)
 {
-<<<<<<< HEAD
-		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
-		msm_htc_hw_pdata.battery_smem_field_size = 2;
-=======
 	msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
 	msm_htc_hw_pdata.battery_smem_field_size = 2;
 	msm_battery_pdata.smem_offset = 0xfc110;
 	msm_battery_pdata.smem_field_size = 2;
->>>>>>> 16dbe797a67bacc07ab3c440f31d90a780525fde
 }
 
 MACHINE_START(HTCTOPAZ, "HTC Topaz cellphone (Topaz is a silicate mineral of aluminium and fluorine)")
