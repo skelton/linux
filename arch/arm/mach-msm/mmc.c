@@ -22,8 +22,6 @@
 
 #include "devices.h"
 
-#include "board-htcraphael.h"
-
 #include "proc_comm_wince.h"
 
 #define DEBUG_SDSLOT_VDD 1
@@ -452,6 +450,7 @@ int __init init_mmc(void)
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
+		case MACH_TYPE_HTCTOPAZ:
 			mmc_pdata = gsm_mmc_pdata;
 			break;
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
