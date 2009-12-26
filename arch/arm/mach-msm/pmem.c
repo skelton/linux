@@ -173,7 +173,7 @@ struct resource resources_msm_fb[]={
 
 
 static void __init msm_pmem_init() {
-	if(machine_is_htcdiamond() || machine_is_htcdiamond_cdma()) {
+	if(machine_is_htcdiamond()) {
 		//SMI 64 + EBI 128
 		pmem_setting.pmem_start=MSM_SMI2_BASE+0x100000;//First 1MB is wince SPL
 		pmem_setting.pmem_size=0x1000000;//16MB
@@ -185,8 +185,11 @@ static void __init msm_pmem_init() {
 		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 		pmem_setting.pmem_gpu1_size=0x800000;
 
+		//Put ramconsole somewhere ...
+		pmem_setting.ram_console_start=0x00800000;
+		pmem_setting.ram_console_size=0x00100000;
 
-	} else if(machine_is_htcraphael() || machine_is_htcblackstone() || machine_is_htctopaz() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) {
+	} else if(machine_is_htcraphael() || machine_is_htcdiamond_cdma() || machine_is_htcblackstone() || machine_is_htctopaz() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) {
 		//SMI 32 + EBI 2*128
 		pmem_setting.pmem_start=MSM_EBIN_BASE;
 		pmem_setting.pmem_size=0x1000000;//16MB
@@ -197,6 +200,9 @@ static void __init msm_pmem_init() {
 		//GPU1 must be in EBI bank 1
 		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 		pmem_setting.pmem_gpu1_size=0x800000;
+
+		pmem_setting.ram_console_start=0x8e0000;
+		pmem_setting.ram_console_size=0x20000;
 
 	} else if(machine_is_treopro()) {
 		//SMI 32 + EBI 128
@@ -216,9 +222,6 @@ static void __init msm_pmem_init() {
 	//GPU0 must be in SMI1
 	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+0x100000;//1MB for wince SPL
 	pmem_setting.pmem_gpu0_size=0x800000;
-	//Put ramconsole somewhere ...
-	pmem_setting.ram_console_start=0x00800000;
-	pmem_setting.ram_console_size=0x00100000;
 	resources_msm_fb[0].start=pmem_setting.fb_start;
 	resources_msm_fb[0].end=pmem_setting.fb_start+pmem_setting.fb_size;
 	resources_msm_fb[0].flags=IORESOURCE_MEM;
