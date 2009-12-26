@@ -173,49 +173,63 @@ struct resource resources_msm_fb[]={
 
 
 static void __init msm_pmem_init() {
-	if(machine_is_htcdiamond() || machine_is_htcdiamond_cdma()) {
-		//SMI 64 + EBI 128
-		pmem_setting.pmem_start=MSM_SMI2_BASE+0x100000;//First 1MB is wince SPL
-		pmem_setting.pmem_size=0x1000000;//16MB
-		CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
-		CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
-		CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCDIAMOND:
+			//SMI 64 + EBI 128
+			pmem_setting.pmem_start=MSM_SMI2_BASE+0x100000;//First 1MB is wince SPL
+			pmem_setting.pmem_size=0x1000000;//16MB
+			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
+			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
+			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
 
-		//GPU1 must be in EBI bank 1
-		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
-		pmem_setting.pmem_gpu1_size=0x800000;
+			//GPU1 must be in EBI bank 1
+			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
+			pmem_setting.pmem_gpu1_size=0x800000;
 
+			//Put ramconsole somewhere ...
+			pmem_setting.ram_console_start=0x00800000;
+			pmem_setting.ram_console_size=0x00100000;
+			break;
+		case MACH_TYPE_HTCRAPHAEL:
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+		case MACH_TYPE_HTCBLACKSTONE:
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
+			//SMI 32 + EBI 2*128
+			pmem_setting.pmem_start=MSM_EBIN_BASE;
+			pmem_setting.pmem_size=0x1000000;//16MB
+			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
+			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
+			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
+			
+			//GPU1 must be in EBI bank 1
+			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
+			pmem_setting.pmem_gpu1_size=0x800000;
 
-	} else if(machine_is_htcraphael() || machine_is_htcblackstone() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) {
-		//SMI 32 + EBI 2*128
-		pmem_setting.pmem_start=MSM_EBIN_BASE;
-		pmem_setting.pmem_size=0x1000000;//16MB
-		CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
-		CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
-		CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
-		
-		//GPU1 must be in EBI bank 1
-		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
-		pmem_setting.pmem_gpu1_size=0x800000;
+			pmem_setting.ram_console_start=0x8e0000;
+			pmem_setting.ram_console_size=0x20000;
+			break;
+		default:
+			//SMI 32 + EBI 128
+			//So much things for so few memory
 
-	} else if(machine_is_treopro()) {
-		//SMI 32 + EBI 128
-		//So much things for so few memory
-
-		pmem_setting.pmem_start=MSM_EBI_BASE+89*1024*1024;
-		pmem_setting.pmem_size=0x800000;//8MB
-		CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
-		CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
-		CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
-		
-		//GPU1 must be in EBI bank 1
-		pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
-		pmem_setting.pmem_gpu1_size=0x800000;
+			pmem_setting.pmem_start=MSM_EBI_BASE+89*1024*1024;
+			pmem_setting.pmem_size=0x800000;//8MB
+			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
+			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
+			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
+			
+			//GPU1 must be in EBI bank 1
+			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
+			pmem_setting.pmem_gpu1_size=0x800000;
+			break;
 
 	}
-	//Put ramconsole somewhere ...
-	pmem_setting.ram_console_start=0x00800000;
-	pmem_setting.ram_console_size=0x00100000;
+	//GPU0 must be in SMI1
+	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+0x100000;//1MB for wince SPL
+	pmem_setting.pmem_gpu0_size=0x800000;
 	resources_msm_fb[0].start=pmem_setting.fb_start;
 	resources_msm_fb[0].end=pmem_setting.fb_start+pmem_setting.fb_size;
 	resources_msm_fb[0].flags=IORESOURCE_MEM;
