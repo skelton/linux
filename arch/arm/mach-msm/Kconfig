@@ -137,6 +137,13 @@ config MACH_HTCTOPAZ
         help
           Support for the HTC Topaz cellphone
 
+config MACH_HTCRHODIUM
+        depends on ARCH_MSM
+        default n
+        bool "HTC Rhoidum cellphone"
+        help
+          Support for the HTC Rhodium cellphone
+
 config HTC_HEADSET
 	tristate "HTC 2 Wire detection driver"
 	default n

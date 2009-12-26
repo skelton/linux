@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-msm/board-htctopaz.c
+/* linux/arch/arm/mach-msm/board-htcrhodium.c
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -50,9 +50,9 @@
 #include "proc_comm_wince.h"
 #include "devices.h"
 #include "htc_hw.h"
-#include "board-htctopaz.h"
+#include "board-htcrhodium.h"
 
-static void htctopaz_device_specific_fixes(void);
+static void htcrhodium_device_specific_fixes(void);
 
 extern int init_mmc(void);
 
@@ -103,6 +103,10 @@ static struct i2c_board_info i2c_devices[] = {
 	{		
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
+	},
+	{
+		// Keyboard controller
+		I2C_BOARD_INFO("microp-ksc", 0x67),
 	},
 };
 
@@ -210,7 +214,7 @@ static void __init halibut_init(void)
 	int i;
 
 	// Fix data in arrays depending on GSM/CDMA version
-	htctopaz_device_specific_fixes();
+	htcrhodium_device_specific_fixes();
 
 	msm_acpu_clock_init(&halibut_clock_data);
 	msm_proc_comm_wince_init();
@@ -246,7 +250,7 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
-static void __init htctopaz_fixup(struct machine_desc *desc, struct tag *tags,
+static void __init htcrhodium_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks = 1;
@@ -267,7 +271,7 @@ static void __init htctopaz_fixup(struct machine_desc *desc, struct tag *tags,
 		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
-static void htctopaz_device_specific_fixes(void)
+static void htcrhodium_device_specific_fixes(void)
 {
 	msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
 	msm_htc_hw_pdata.battery_smem_field_size = 2;
@@ -275,8 +279,8 @@ static void htctopaz_device_specific_fixes(void)
 	msm_battery_pdata.smem_field_size = 2;
 }
 
-MACHINE_START(HTCTOPAZ, "HTC Topaz cellphone (Topaz is a silicate mineral of aluminium and fluorine)")
-	.fixup 		= htctopaz_fixup,
+MACHINE_START(HTCRHODIUM, "HTC Rhodium cellphone")
+	.fixup 		= htcrhodium_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,

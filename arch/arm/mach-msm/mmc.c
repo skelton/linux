@@ -445,6 +445,7 @@ int __init init_mmc(void)
 
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
 			gsm_mmc_pdata.sdcard_status_gpio=38;
 		case MACH_TYPE_HTCRAPHAEL:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
