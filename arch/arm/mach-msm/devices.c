@@ -325,7 +325,7 @@ struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.vendor_id = 0x0bb4,
 	.product_id = 0x0c02,
 	.version = 0x0100,
-	.product_name = "Android Phone",
+	.product_name = "Smartphone",
 	.manufacturer_name = "HTC",
 
 	.functions = usb_functions,

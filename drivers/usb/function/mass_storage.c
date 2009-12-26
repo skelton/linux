@@ -2746,7 +2746,7 @@ static struct usb_function		fsg_function = {
 
 	.ifc_ept_count = 2,
 	.ifc_ept_type = { EPT_BULK_OUT, EPT_BULK_IN },
-	.disabled = 0,
+	.disabled = 1,
 	.position_bit = USB_FUNCTION_MASS_STORAGE_NUM,
 	.cdc_desc = NULL,
 	.ifc_num = 1,
