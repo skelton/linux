@@ -22,8 +22,6 @@
 
 #include "devices.h"
 
-#include "board-htcraphael.h"
-
 #include "proc_comm_wince.h"
 
 #define DEBUG_SDSLOT_VDD 1

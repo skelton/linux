@@ -31,6 +31,7 @@
 #include <asm/setup.h>
 
 #include <mach/board.h>
+#include <mach/htc_battery.h>
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
 #include <mach/msm_fb.h>
@@ -142,7 +143,8 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_nand,
 	&msm_device_i2c,
 	&msm_device_rtc,
-	&msm_device_htc_hw,	
+	&msm_device_htc_hw,
+	&msm_device_htc_battery,
 	&blac_snd,
 };
 
@@ -192,8 +194,16 @@ static void blac_set_vibrate(uint32_t val)
 
 static htc_hw_pdata_t msm_htc_hw_pdata = {
 	.set_vibrate = blac_set_vibrate,
-	.battery_smem_offset = 0xfc140, //XXX: raph800
+	.battery_smem_offset = 0xfc140,
 	.battery_smem_field_size = 4,
+};
+
+static smem_batt_t msm_battery_pdata = {
+	.gpio_battery_detect = TOPA100_BAT_IRQ,
+	.gpio_charger_enable = TOPA100_CHARGE_EN_N,
+	.gpio_charger_current_select = TOPA100_USB_AC_PWR,
+	.smem_offset = 0xfc140,
+	.smem_field_size = 4,
 };
 
 static void __init halibut_init(void)
@@ -209,12 +219,14 @@ static void __init halibut_init(void)
 	msm_hw_reset_hook = htcraphael_reset;
 
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
+	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
+	
+	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 	init_mmc();
-
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB
@@ -259,8 +271,15 @@ static void __init htctopaz_fixup(struct machine_desc *desc, struct tag *tags,
 
 static void htctopaz_device_specific_fixes(void)
 {
+<<<<<<< HEAD
 		msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
 		msm_htc_hw_pdata.battery_smem_field_size = 2;
+=======
+	msm_htc_hw_pdata.battery_smem_offset = 0xfc110;
+	msm_htc_hw_pdata.battery_smem_field_size = 2;
+	msm_battery_pdata.smem_offset = 0xfc110;
+	msm_battery_pdata.smem_field_size = 2;
+>>>>>>> 16dbe797a67bacc07ab3c440f31d90a780525fde
 }
 
 MACHINE_START(HTCTOPAZ, "HTC Topaz cellphone (Topaz is a silicate mineral of aluminium and fluorine)")

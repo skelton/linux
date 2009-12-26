@@ -17,7 +17,7 @@
 #include <mach/msm_fb.h>
 #include <mach/vreg.h>
 
-#include "board-htcraphael.h"
+#include "board-htctopaz.h"
 #include "proc_comm_wince.h"
 #include "devices.h"
 
