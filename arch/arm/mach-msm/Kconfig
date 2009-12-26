@@ -140,7 +140,7 @@ config MACH_HTCTOPAZ
 config MACH_HTCRHODIUM
         depends on ARCH_MSM
         default n
-        bool "HTC Rhoidum cellphone"
+        bool "HTC Rhodium cellphone"
         help
           Support for the HTC Rhodium cellphone
 
