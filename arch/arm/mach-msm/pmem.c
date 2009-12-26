@@ -176,7 +176,7 @@ static void __init msm_pmem_init() {
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCDIAMOND:
 			//SMI 64 + EBI 128
-			pmem_setting.pmem_start=MSM_SMI2_BASE+0x100000;//First 1MB is wince SPL
+			pmem_setting.pmem_start=MSM_SMI2_BASE;
 			pmem_setting.pmem_size=0x1000000;//16MB
 			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
 			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB

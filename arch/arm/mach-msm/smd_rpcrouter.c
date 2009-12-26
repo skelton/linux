@@ -958,6 +958,9 @@ int msm_rpc_call_reply(struct msm_rpc_endpoint *ept, uint32_t proc,
 	if (request_size < sizeof(*req))
 		return -ETOOSMALL;
 
+	if(!ept)
+		return -EINVAL;
+
 	if (ept->dst_pid == 0xffffffff)
 		return -ENOTCONN;
 

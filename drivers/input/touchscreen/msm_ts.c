@@ -72,7 +72,7 @@ static void msm_ts_process_data(int irq);
 
 static struct input_dev *msm_ts_dev;
 
-static int calib_step, calib_xmin, calib_xmax, calib_ymin, calib_ymax;
+static int calib_step, calib_xmin, calib_xmax, calib_ymin, calib_ymax, rawts=0;
 
 /* lavender.t: (temporarily) add a kernel option to set calibration. */
 static int __init msmts_calib_setup(char *str)
@@ -119,6 +119,8 @@ static int __init msmts_calib_setup(char *str)
 }
 
 __setup("msmts_calib=", msmts_calib_setup);
+module_param_named(raw, rawts, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 
 static void msm_ts_predma_callback(struct fb_info *fb, struct msmfb_update_area *area)
 {
@@ -164,8 +166,8 @@ static void msm_ts_process_timeout(struct work_struct *tmp_work)
 static void msm_ts_process_data(int irq)
 {
 	unsigned long status, data;
-	int absx, absy, touched, x, y;
-	int vkey, bspad;
+	int absx, absy, touched, x=0, y=0;
+	int vkey=0, bspad=0;
 	static int prev_absx = -1, prev_absy = -1, prev_touched = -1;
 	unsigned long data2;
 	int x2,y2,ax,bx,ay,by,cx,cy,size;
@@ -212,7 +214,7 @@ static void msm_ts_process_data(int irq)
 	/* Only do something when the touch state or position have changed */
 	if (absx != prev_absx || absy != prev_absy || touched != prev_touched) {
 		/* First three tap are to calibrate upper-left and lower-right corners */
-		if (calib_step < 3) {
+		if (calib_step < 3 && !rawts) {
 			if (touched && !prev_touched) {
 				if (calib_step == 1) {
 					/* This is upper-left corner */
@@ -263,38 +265,47 @@ static void msm_ts_process_data(int irq)
 			}
 
 			/* Calculate coordinates in pixels, clip to screen and make sure we don't to divisions by zero */
-			x = MSM_TS_LCD_WIDTH - 1 - (absx - calib_xmin) * MSM_TS_LCD_WIDTH / (calib_xmax == calib_xmin ? MSM_TS_LCD_HEIGHT : calib_xmax - calib_xmin);
-			if (x < 0) x = 0;
-			if (x >= MSM_TS_LCD_WIDTH) x = MSM_TS_LCD_WIDTH - 1;
-			y = (absy - calib_ymin) * MSM_TS_LCD_HEIGHT / (calib_ymax == calib_ymin ? MSM_TS_LCD_HEIGHT : calib_ymax - calib_ymin);
-			if (y < 0) y = 0;
-			if (y >= MSM_TS_LCD_HEIGHT) y = MSM_TS_LCD_HEIGHT - 1;
+			if(!rawts) {
+				x = MSM_TS_LCD_WIDTH - 1 - (absx - calib_xmin) * MSM_TS_LCD_WIDTH / (calib_xmax == calib_xmin ? MSM_TS_LCD_HEIGHT : calib_xmax - calib_xmin);
+				if (x < 0) x = 0;
+				if (x >= MSM_TS_LCD_WIDTH) x = MSM_TS_LCD_WIDTH - 1;
+				y = (absy - calib_ymin) * MSM_TS_LCD_HEIGHT / (calib_ymax == calib_ymin ? MSM_TS_LCD_HEIGHT : calib_ymax - calib_ymin);
+				if (y < 0) y = 0;
+				if (y >= MSM_TS_LCD_HEIGHT) y = MSM_TS_LCD_HEIGHT - 1;
 
-			/* Call our handler if it's registered -- the virtual keyboards gets data from this */
-			if (msm_ts_handler_pad) {
-				bspad = (*msm_ts_handler_pad)(x, y, prev_touched);
-			} else {
-				bspad = 0;
-			}
-			if (msm_ts_handler) {
-				vkey = (*msm_ts_handler)(x, y, touched);
-			} else {
-				vkey = 0;
-			}
+				/* Call our handler if it's registered -- the virtual keyboards gets data from this */
+				if (msm_ts_handler_pad && !rawts) {
+					bspad = (*msm_ts_handler_pad)(x, y, prev_touched);
+				} else {
+					bspad = 0;
+				}
+				if (msm_ts_handler && !rawts) {
+					vkey = (*msm_ts_handler)(x, y, touched);
+				} else {
+					vkey = 0;
+				}
 
 #if MSM_TS_DEBUG
 				printk(KERN_DEBUG "msm_ts: x=%d,y=%d,t=%d,vkeyb=%d\n", x, y, touched, vkey);
 #endif
+			} else {
+#if MSM_TS_DEBUG
+				printk(KERN_DEBUG "msm_ts: absx=%d,absy=%d,t=%d\n", absx, absy, touched);
+#endif
+			}
 			
 			/* Send data to linux input system, if not eaten by vkeyb */
-			if (!(vkey || bspad)) {
+			if(rawts) {
+				input_report_abs(msm_ts_dev, ABS_X, absx);
+				input_report_abs(msm_ts_dev, ABS_Y, absy);
+			} else if (!(vkey || bspad)) {
 				input_report_abs(msm_ts_dev, ABS_X, x);
 				input_report_abs(msm_ts_dev, ABS_Y, y);
-				input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);
-				input_report_abs(msm_ts_dev, ABS_TOOL_WIDTH, size);
-				input_report_key(msm_ts_dev, BTN_TOUCH, touched);
-				input_sync(msm_ts_dev);
 			}
+			input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);
+			input_report_abs(msm_ts_dev, ABS_TOOL_WIDTH, size);
+			input_report_key(msm_ts_dev, BTN_TOUCH, touched);
+			input_sync(msm_ts_dev);
 		}
 
 		/* Save the state so we won't report the same position and state twice */
@@ -342,7 +353,7 @@ static int __init msm_ts_init(void)
 	printk(KERN_INFO "msm_ts: initing\n");
 
 	/* We depend on a framebuffer for painting calibration dots */
-	if (num_registered_fb == 0) {
+	if (num_registered_fb == 0 && !rawts) {
 		printk(KERN_INFO "msm_ts: no framebuffer registered, cannot paint calibration dots\n");
 	}
 
@@ -357,8 +368,13 @@ static int __init msm_ts_init(void)
 	msm_ts_dev->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
 	msm_ts_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
-	input_set_abs_params(msm_ts_dev, ABS_X, MSM_TS_ABS_X_MIN, MSM_TS_ABS_X_MAX, 0, 0);
-	input_set_abs_params(msm_ts_dev, ABS_Y, MSM_TS_ABS_Y_MIN, MSM_TS_ABS_Y_MAX, 0, 0);
+	if(!rawts) {
+		input_set_abs_params(msm_ts_dev, ABS_X, MSM_TS_ABS_X_MIN, MSM_TS_ABS_X_MAX, 0, 0);
+		input_set_abs_params(msm_ts_dev, ABS_Y, MSM_TS_ABS_Y_MIN, MSM_TS_ABS_Y_MAX, 0, 0);
+	} else {
+		input_set_abs_params(msm_ts_dev, ABS_X, 0, 0xffff, 0, 0);
+		input_set_abs_params(msm_ts_dev, ABS_Y, 0, 0xffff, 0, 0);
+	}
 	input_set_abs_params(msm_ts_dev, ABS_PRESSURE, MSM_TS_ABS_PRESSURE_MIN, MSM_TS_ABS_PRESSURE_MAX, 0, 0);
 	input_set_abs_params(msm_ts_dev, ABS_TOOL_WIDTH, MSM_TS_ABS_SIZE_MIN, MSM_TS_ABS_SIZE_MAX, 0, 0);
 
@@ -385,8 +401,10 @@ static int __init msm_ts_init(void)
 		goto fail3;
 
 	/* Register the msmfb pre-dma callback */
-	if (msmfb_predma_register_callback(msm_ts_predma_callback) != 0) {
-		printk(KERN_WARNING "msm_ts: unable to register pre-dma callback, calibration dots cannot be drawn\n");
+	if(!rawts) {
+		if (msmfb_predma_register_callback(msm_ts_predma_callback) != 0) {
+			printk(KERN_WARNING "msm_ts: unable to register pre-dma callback, calibration dots cannot be drawn\n");
+		}
 	}
 
 	/* Done */

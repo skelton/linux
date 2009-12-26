@@ -132,6 +132,10 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 	pr_info("snd_set_device %d %d %d\n", device,
 					 ear_mute, mic_mute);
 
+	if(!snd->ept) {
+		pr_err("No sound endpoint found, can't set snd_device");
+		return;
+	}
 	msm_rpc_call(snd->ept,
 		SND_SET_DEVICE_PROC,
 		&dmsg, sizeof(dmsg), 5 * HZ);

@@ -22,8 +22,6 @@
 
 #include "devices.h"
 
-#include "board-htcraphael.h"
-
 #include "proc_comm_wince.h"
 
 #define DEBUG_SDSLOT_VDD 1
@@ -446,7 +444,7 @@ int __init init_mmc(void)
 	sdslot_vreg_enabled = 0;
 
 	switch(__machine_arch_type) {
-		case MACH_TYPE_TOPAZ:
+		case MACH_TYPE_HTCTOPAZ:
 			gsm_mmc_pdata.sdcard_status_gpio=38;
 		case MACH_TYPE_HTCRAPHAEL:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
