@@ -213,6 +213,9 @@ static void __init msm_pmem_init() {
 		pmem_setting.pmem_gpu1_size=0x800000;
 
 	}
+	//GPU0 must be in SMI1
+	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+0x100000;//1MB for wince SPL
+	pmem_setting.pmem_gpu0_size=0x800000;
 	//Put ramconsole somewhere ...
 	pmem_setting.ram_console_start=0x00800000;
 	pmem_setting.ram_console_size=0x00100000;
