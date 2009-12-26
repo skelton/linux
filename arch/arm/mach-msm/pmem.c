@@ -186,7 +186,7 @@ static void __init msm_pmem_init() {
 		pmem_setting.pmem_gpu1_size=0x800000;
 
 
-	} else if(machine_is_htcraphael() || machine_is_htcblackstone() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) {
+	} else if(machine_is_htcraphael() || machine_is_htcblackstone() || machine_is_htctopaz() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) {
 		//SMI 32 + EBI 2*128
 		pmem_setting.pmem_start=MSM_EBIN_BASE;
 		pmem_setting.pmem_size=0x1000000;//16MB
