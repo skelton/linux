@@ -221,8 +221,6 @@ static void __init halibut_init(void)
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
 	
-	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
-	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
