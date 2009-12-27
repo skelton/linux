@@ -270,6 +270,7 @@ static struct msm_gpio_config wifi_off_gpio_table_cdma[] = {
 
 static struct vreg *vreg_wifi_osc;	/* WIFI 32khz oscilator */
 static struct vreg *vreg_wifi_2;	/* WIFI foo? */
+static struct vreg *vreg_wifi_3;	/* WIFI tre? */
 static int wifi_cd = 0;	/* WIFI virtual 'card detect' status */
 
 static struct sdio_embedded_func wifi_func = {
@@ -348,6 +349,11 @@ int trout_wifi_power(int on)
 		if (rc)
 			return rc;
 
+		if(machine_is_htcrhodium() || machine_is_htctopaz()) {
+			rc = vreg_enable(vreg_wifi_2);
+			if (rc)
+				return rc;
+		}
 		mdelay(100);
 		htc_pwrsink_set(PWRSINK_WIFI, 70);
 		gpio_direction_output( mmc_pdata.wifi_power_gpio1, 0 );
@@ -372,6 +378,8 @@ int trout_wifi_power(int on)
 	if (!on) {
 		vreg_disable(vreg_wifi_osc);
 		vreg_disable(vreg_wifi_2);
+		if(machine_is_htcrhodium() || machine_is_htctopaz())
+			vreg_disable(vreg_wifi_3);
 	}
 	wifi_power_state = on;
 	return 0;
@@ -473,6 +481,10 @@ int __init init_mmc(void)
 	vreg_wifi_2 = vreg_get(0, "msme1");
 	if (IS_ERR(vreg_wifi_2))
 		return PTR_ERR(vreg_wifi_2);
+
+	vreg_wifi_3 = vreg_get(0, "rftx");
+	if (IS_ERR(vreg_wifi_2))
+		return PTR_ERR(vreg_wifi_3);
 
 	if (!opt_disable_wifi)
 	{
