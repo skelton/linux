@@ -269,6 +269,7 @@ static void __init halibut_init(void)
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 	init_mmc();
+	msm_init_pmic_vibrator();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB
