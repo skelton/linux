@@ -184,7 +184,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_htc_battery,
 	&blac_snd,
-	&raphael_gps,
+	//&raphael_gps,
 };
 
 extern struct sys_timer msm_timer;
