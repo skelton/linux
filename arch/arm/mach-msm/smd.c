@@ -785,7 +785,7 @@ static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	struct smd_channel *ch;
 	static struct smd_channel *(*_smd_alloc_channel)(uint32_t);
 	if(!_smd_alloc_channel) {
-		if(machine_is_htctopaz())
+		if(machine_is_htctopaz() || machine_is_htcrhodium() )
 			_smd_alloc_channel=_smd_alloc_channel_v2;
 		else
 			_smd_alloc_channel=_smd_alloc_channel_v1;
@@ -977,7 +977,7 @@ static void *_smem_find(unsigned id, unsigned *size)
 	struct smem_heap_entry *toc = shared->heap_toc;
 
 	if (id >= SMEM_NUM_ITEMS_V1) {
-		if(!machine_is_htctopaz())
+		if(!machine_is_htctopaz() || !machine_is_htcrhodium() )
 			return 0;
 		if(id>=SMEM_NUM_ITEMS_V2)
 			return 0;
@@ -1444,7 +1444,7 @@ static int debug_read_mem(char *buf, int max)
 			       "%04d: offset %08x size %08x\n",
 			       n, toc[n].offset, toc[n].size);
 	}
-	if(machine_is_htctopaz()) {
+	if(machine_is_htctopaz() || machine_is_htcrhodium()) {
 		for (n = SMEM_NUM_ITEMS_V1+1; n < SMEM_NUM_ITEMS_V2; n++) {
 			if (toc[n].allocated == 0)
 				continue;
@@ -1607,7 +1607,7 @@ static void smd_debugfs_init(void)
 	if (IS_ERR(dent))
 		return;
 
-	if(machine_is_htctopaz()) {
+	if(machine_is_htctopaz() || machine_is_htcrhodium()) {
 		debug_create("ch", 0444, dent, debug_read_ch_v2);
 		debug_create("tbl", 0444, dent, debug_read_alloc_tbl_v2);
 	} else {
@@ -1628,7 +1628,7 @@ static int __init msm_smd_probe(struct platform_device *pdev)
 {
 	pr_info("smd_init()\n");
 
-	if(machine_is_htctopaz())
+	if(machine_is_htctopaz() || machine_is_htcrhodium())
 		INIT_WORK(&probe_work, smd_channel_probe_worker_v2);
 	else
 		INIT_WORK(&probe_work, smd_channel_probe_worker_v1);
