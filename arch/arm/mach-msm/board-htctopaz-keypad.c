@@ -19,10 +19,6 @@
 #include <asm/mach-types.h>
 #include "gpio_chip.h"
 #include "board-htctopaz.h"
-static char *keycaps = "--qwerty";
-#undef MODULE_PARAM_PREFIX
-#define MODULE_PARAM_PREFIX "board_topaz."
-module_param_named(keycaps, keycaps, charp, 0);
 
 #define TOPAZ_POWER_KEY     83
 
@@ -40,7 +36,7 @@ static const unsigned short topaz_keymap[ARRAY_SIZE(topaz_col_gpios) *
 	[KEYMAP_INDEX(0, 1)] = KEY_VOLUMEUP,
 	[KEYMAP_INDEX(0, 2)] = KEY_VOLUMEDOWN,
 
-	[KEYMAP_INDEX(1, 0)] = KEY_HOME,
+	[KEYMAP_INDEX(1, 0)] = KEY_END,
 	[KEYMAP_INDEX(1, 1)] = KEY_MENU,
 	[KEYMAP_INDEX(1, 2)] = KEY_BACK,
 };
@@ -61,22 +57,8 @@ static struct gpio_event_matrix_info topaz_keypad_matrix_info = {
 		 GPIOKPF_PRINT_UNMAPPED_KEYS /*| GPIOKPF_PRINT_MAPPED_KEYS*/
 };
 
-static struct gpio_event_direct_entry topaz_keypad_nav_map[] = {
-	{ TOPAZ_POWER_KEY,              KEY_END   },
-};
-
-static struct gpio_event_input_info topaz_keypad_nav_info = {
-	.info.func = gpio_event_input_func,
-	.flags = 0,
-	.type = EV_KEY,
-	.keymap = topaz_keypad_nav_map,
-	.debounce_time.tv.nsec = 20 * NSEC_PER_MSEC,
-	.keymap_size = ARRAY_SIZE(topaz_keypad_nav_map)
-};
-
 static struct gpio_event_info *topaz_keypad_info[] = {
 	&topaz_keypad_matrix_info.info,
-	&topaz_keypad_nav_info.info,
 };
 
 static struct gpio_event_platform_data topaz_keypad_data = {
