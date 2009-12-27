@@ -55,6 +55,29 @@
 static void htcrhodium_device_specific_fixes(void);
 
 extern int init_mmc(void);
+static struct resource rhodium_keypad_resources[] = {
+	{
+		.start = MSM_GPIO_TO_INT(RHODIUM_KPD_IRQ),
+		.end = MSM_GPIO_TO_INT(RHODIUM_KPD_IRQ),
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct microp_keypad_platform_data rhodium_keypad_data = {
+	.clamshell = {
+		.gpio = RHODIUM_KB_SLIDER_IRQ,
+		.irq = MSM_GPIO_TO_INT(RHODIUM_KB_SLIDER_IRQ),
+	},
+	.backlight_gpio = RHODIUM_BKL_PWR,
+};
+
+static struct platform_device rhodium_keypad_device = {
+	.name = "microp-keypad",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(rhodium_keypad_resources),
+	.resource = rhodium_keypad_resources,
+	.dev = { .platform_data = &rhodium_keypad_data, },
+};
 
 static struct resource msm_serial0_resources[] = {
 	{
@@ -149,6 +172,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_hw,
 	&msm_device_htc_battery,
 	&blac_snd,
+	&rhodium_keypad_device,
 };
 
 extern struct sys_timer msm_timer;
