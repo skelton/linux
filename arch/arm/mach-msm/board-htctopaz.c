@@ -86,9 +86,9 @@ static int usb_phy_init_seq_raph100[] = {
 
 static void usb_phy_reset(void)
 {
-	gpio_set_value(0x64, 0);
+	gpio_set_value(TOPA100_USBPHY_RST, 0);
 	mdelay(1);
-	gpio_set_value(0x64, 1);
+	gpio_set_value(TOPA100_USBPHY_RST, 1);
 	mdelay(3);
 }
 
