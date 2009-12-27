@@ -35,6 +35,84 @@
 
 static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 
+// Rhodium keymapping by VicBush
+// Right now its for all Rhodium models. Tested on RHOD400
+
+static int microp_keymap_rhodium[] = {
+               			KEY_B, //KEY_RESERVED, // invalid
+     	KEY_BACK, //Back key
+        KEY_Q,
+     	KEY_HOME, //Mute button on back of device
+        KEY_E,
+        KEY_A,
+        KEY_F,
+        KEY_S,
+        KEY_D,
+     	KEY_SEND, //Send Key
+    	KEY_MENU, //Windows Key
+        			KEY_S, //KEY_RESERVED, // 0x0b   //Unknown
+        KEY_I,
+        KEY_K,
+        KEY_J,
+        KEY_H,
+        KEY_G,
+       	KEY_A,
+        KEY_4,
+        			KEY_1, //KEY_RESERVED, // 0x13  //Unknown
+       				KEY_2, //KEY_RESERVED, // 0x14	//Unknown
+       	KEY_L,
+       	KEY_I,
+        KEY_P,
+       	KEY_O,
+        KEY_B,
+        KEY_9,
+        KEY_8,
+        KEY_N,
+    	KEY_ENTER,
+        KEY_M,
+        KEY_C,
+        KEY_V,
+	KEY_0, 
+       	KEY_U,
+        KEY_E,
+        KEY_R,
+        KEY_Q,
+        KEY_T,
+        KEY_Y,
+        KEY_W,
+        		KEY_UP,  //ARROW KEY
+       	KEY_1, 	
+       	KEY_2,
+     			KEY_DOWN, //KEY_LEFT,	//KEY_DOWN,   //ITS KEY DOWN FOR SURE!!!! STILL DOESN't GO DOWN THO
+        KEY_3,
+        KEY_4,
+        KEY_5,
+    			KEY_UP, 	//KEY_LEFT,	//ARROW KEY
+        KEY_6,
+        			KEY_2,			//KEY_RESERVED, // 0x32 //Unknown
+   	KEY_SPACE,
+	KEY_BACKSPACE,
+        KEY_7,
+   			KEY_RIGHT,		//KEY_UNKNOWN,  // ARROW KEY
+        			KEY_SPACE, //UNKNOWN
+        			KEY_X,	//KEY_COMMA, //UNKNOWN
+   	KEY_EMAIL,
+    	KEY_DOT,
+       	KEY_FN,  //Doesn't do anything?
+	KEY_LEFTSHIFT,
+     	KEY_Z,
+   	KEY_X,
+   	KEY_COMMA,
+  	KEY_COMPOSE, //Brings up search box?
+        			KEY_C, //KEY_SLASH,  //Unknown
+    	KEY_COMMA,
+        			KEY_6, 			//Unknown
+        			KEY_8,			//Unknown
+        			KEY_1, //KEY_RESERVED, // 0x45	//Unknown
+        			KEY_2, //KEY_RESERVED, // 0x46	//Unknown
+        			KEY_P, //KEY_EMAIL,	//Unknown
+};
+
 
 // This is raph800's default keymap.  can be remapped by userland
 static int microp_keymap_raph800[] = {
@@ -478,6 +556,10 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	else if (machine_is_htckovsky()) {
 		input->keycodemax = ARRAY_SIZE(microp_keymap_htckovsky);
 		input->keycode = data->keymap = microp_keymap_htckovsky;
+	}
+	else if (machine_is_htcrhodium()) {
+		input->keycodemax = ARRAY_SIZE(microp_keymap_rhodium);
+		input->keycode = data->keymap = microp_keymap_rhodium;
 	}
 	else {
 		goto fail;
