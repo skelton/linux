@@ -48,6 +48,13 @@ static struct gpio_keys_button topaz_button_table[] = {
 	{PWRK,			83,		1, "Power button",	EV_KEY,		1,	0},
 };
 
+static struct gpio_keys_button rhodium_button_table[] = {
+	/*KEY                   GPIO    ACTIVE_LOW DESCRIPTION          type            wakeup  debounce*/
+	{PWRK,                  83,             0, "Power button",      EV_KEY,         1,      0},
+	{KEY_UP,                39,             0, "Up button",         EV_KEY,         0,      0},
+	{KEY_DOWN,              40,             0, "Down button",       EV_KEY,         0,      0},
+};
+
 static struct gpio_keys_platform_data gpio_keys_data;
 
 static struct platform_device gpio_keys = {
@@ -70,9 +77,12 @@ static void __init msm_gpio_keys_init(void) {
 			machine_is_htcdiamond() || machine_is_htcdiamond_cdma()) {
 		gpio_keys_data.buttons=raph_button_table;
 		gpio_keys_data.nbuttons=ARRAY_SIZE(raph_button_table);
-	} else if(machine_is_htctopaz() || machine_is_htcrhodium()) {
+	} else if(machine_is_htctopaz()) {
 		gpio_keys_data.buttons=topaz_button_table;
 		gpio_keys_data.nbuttons=ARRAY_SIZE(topaz_button_table);
+	} else if(machine_is_htcrhodium()) {
+		gpio_keys_data.buttons=rhodium_button_table;
+		gpio_keys_data.nbuttons=ARRAY_SIZE(rhodium_button_table);
 	} else {
 		printk(KERN_INFO "Callled msm_gpio_keys on unsupported device!");
 		return;
