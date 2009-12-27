@@ -1136,21 +1136,106 @@ int smsm_limit_sleep(uint32_t delay)
 	return 0;
 }
 
-int smsm_set_interrupt_info(struct smsm_interrupt_info *info)
+int smsm_set_interrupt_info_6120(struct smsm_interrupt_info *info)
 {
-	struct smsm_interrupt_info *ptr;
+	struct smsm_interrupt_info_6120 *ptr;
 
 	ptr = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*ptr));
 	if (ptr == NULL) {
-		pr_err("smsm_set_sleep_duration <SM NO INT_INFO>\n");
+		pr_err("smsm_set_interrupt_info_6120 <SM NO INT_INFO>\n");
 		return -EIO;
 	}
 	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
 		pr_info("smsm_set_interrupt_info %x %x -> %x %x\n",
 		       ptr->aArm_en_mask, ptr->aArm_interrupts_pending,
 		       info->aArm_en_mask, info->aArm_interrupts_pending);
-	*ptr = *info;
+	ptr->aArm_en_mask=info->aArm_en_mask;
+	ptr->aArm_interrupts_pending=info->aArm_interrupts_pending;
+	ptr->aArm_wakeup_reason=info->aArm_wakeup_reason;
 	return 0;
+}
+
+int smsm_set_interrupt_info_5200(struct smsm_interrupt_info *info)
+{
+	struct smsm_interrupt_info_5200 *ptr;
+
+	ptr = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*ptr));
+	if (ptr == NULL) {
+		pr_err("smsm_set_interrupt_info_5200 <SM NO INT_INFO>\n");
+		return -EIO;
+	}
+	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+		pr_info("smsm_set_interrupt_info %x %x -> %x %x\n",
+		       ptr->aArm_en_mask, ptr->aArm_interrupts_pending,
+		       info->aArm_en_mask, info->aArm_interrupts_pending);
+	ptr->aArm_en_mask=info->aArm_en_mask;
+	ptr->aArm_interrupts_pending=info->aArm_interrupts_pending;
+	ptr->aArm_wakeup_reason=info->aArm_wakeup_reason;
+	return 0;
+}
+
+int smsm_set_interrupt_info(struct smsm_interrupt_info *info) {
+	static int (*_smsm_set_interrupt_info)(struct smsm_interrupt_info *info)=NULL;
+	if(likely(_smsm_set_interrupt_info!=0))
+		return (*_smsm_set_interrupt_info)(info);
+	if(machine_is_htctopaz() || machine_is_htcrhodium()) {
+		_smsm_set_interrupt_info=smsm_set_interrupt_info_6120;
+		return smsm_set_interrupt_info_6120(info);
+	} else {
+		_smsm_set_interrupt_info=smsm_set_interrupt_info_5200;
+		return smsm_set_interrupt_info_5200(info);
+	}
+}
+
+int smsm_get_interrupt_info_5200(struct smsm_interrupt_info *info)
+{
+	struct smsm_interrupt_info_5200 *ptr;
+
+	ptr = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*ptr));
+	if (ptr == NULL) {
+		pr_err("smsm_get_interrupt_info_5200 <SM NO INT_INFO>\n");
+		return -EIO;
+	}
+	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+		pr_info("smsm_get_interrupt_info %x %x -> %x %x\n",
+		       ptr->aArm_en_mask, ptr->aArm_interrupts_pending,
+		       info->aArm_en_mask, info->aArm_interrupts_pending);
+	info->aArm_en_mask=ptr->aArm_en_mask;
+	info->aArm_interrupts_pending=ptr->aArm_interrupts_pending;
+	info->aArm_wakeup_reason=ptr->aArm_wakeup_reason;
+	return 0;
+}
+
+int smsm_get_interrupt_info_6120(struct smsm_interrupt_info *info)
+{
+	struct smsm_interrupt_info_6120 *ptr;
+
+	ptr = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*ptr));
+	if (ptr == NULL) {
+		pr_err("smsm_get_interrupt_info_6120 <SM NO INT_INFO>\n");
+		return -EIO;
+	}
+	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+		pr_info("smsm_set_interrupt_info %x %x -> %x %x\n",
+		       ptr->aArm_en_mask, ptr->aArm_interrupts_pending,
+		       info->aArm_en_mask, info->aArm_interrupts_pending);
+	info->aArm_en_mask=ptr->aArm_en_mask;
+	info->aArm_interrupts_pending=ptr->aArm_interrupts_pending;
+	info->aArm_wakeup_reason=ptr->aArm_wakeup_reason;
+	return 0;
+}
+
+int smsm_get_interrupt_info(struct smsm_interrupt_info *info) {
+	static int (*_smsm_get_interrupt_info)(struct smsm_interrupt_info *info)=NULL;
+	if(likely(_smsm_get_interrupt_info!=0))
+		return (*_smsm_get_interrupt_info)(info);
+	if(machine_is_htctopaz() || machine_is_htcrhodium()) {
+		_smsm_get_interrupt_info=smsm_get_interrupt_info_6120;
+		return smsm_get_interrupt_info_6120(info);
+	} else {
+		_smsm_get_interrupt_info=smsm_get_interrupt_info_5200;
+		return smsm_get_interrupt_info_5200(info);
+	}
 }
 
 #define MAX_NUM_SLEEP_CLIENTS		64
@@ -1180,7 +1265,7 @@ void smsm_print_sleep_info(void)
 	unsigned long flags;
 	uint32_t *ptr;
 	struct tramp_gpio_smem *gpio;
-	struct smsm_interrupt_info *int_info;
+	struct smsm_interrupt_info int_info;
 
 	int i,j;
 	struct smem_shared *shared = (void *) MSM_SHARED_RAM_BASE;
@@ -1200,12 +1285,11 @@ void smsm_print_sleep_info(void)
 	if (ptr)
 		pr_info("SMEM_SLEEP_POWER_COLLAPSE_DISABLED: %x\n", *ptr);
 
-	int_info = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*int_info));
-	if (int_info)
+	if (!smsm_get_interrupt_info(&int_info))
 		pr_info("SMEM_SMSM_INT_INFO %x %x %x\n",
-			int_info->aArm_en_mask,
-			int_info->aArm_interrupts_pending,
-			int_info->aArm_wakeup_reason);
+			int_info.aArm_en_mask,
+			int_info.aArm_interrupts_pending,
+			int_info.aArm_wakeup_reason);
 
 	gpio = smem_alloc(SMEM_GPIO_INT, sizeof(*gpio));
 	if (gpio) {

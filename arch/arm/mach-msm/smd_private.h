@@ -63,6 +63,32 @@ struct smsm_shared
 	unsigned state;
 };
 
+//SMEM
+struct smsm_interrupt_info_5200
+{
+	uint32_t aArm_en_mask;
+	uint32_t aArm_interrupts_pending;
+	uint32_t aArm_wakeup_reason;
+	uint32_t padding;
+};
+
+struct smsm_interrupt_info_6120
+{
+	uint32_t aArm_en_mask;
+	uint32_t aArm_interrupts_pending;
+	uint32_t aArm_wakeup_reason;
+	uint32_t padding;
+	uint32_t reserved[8];
+	/*
+	 * Something like:
+uint32_t aArm_rpc_prog;
+uint32_t aArm_rpc_proc;
+char aArm_smd_port_name[3];
+uint32_t aArm_gpio_info;
+	 */
+};
+
+//Kernel use
 struct smsm_interrupt_info
 {
 	uint32_t aArm_en_mask;
@@ -105,6 +131,7 @@ int smsm_change_state(uint32_t clear_mask, uint32_t set_mask);
 uint32_t smsm_get_state(void);
 int smsm_set_sleep_duration(uint32_t delay);
 int smsm_set_interrupt_info(struct smsm_interrupt_info *info);
+int smsm_get_interrupt_info(struct smsm_interrupt_info *info);
 void smsm_print_sleep_info(void);
 
 #define SMEM_NUM_SMD_CHANNELS        64

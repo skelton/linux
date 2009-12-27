@@ -342,7 +342,7 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 
 void msm_irq_exit_sleep1(void)
 {
-	struct smsm_interrupt_info *int_info;
+	struct smsm_interrupt_info int_info;
 	int i;
 
 	msm_irq_ack(INT_A9_M2A_6);
@@ -355,16 +355,15 @@ void msm_irq_exit_sleep1(void)
 
 	writel(3, VIC_INT_MASTEREN);
 
-	int_info = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*int_info));
-	if (int_info == NULL) {
+	if (smsm_get_interrupt_info(&int_info)) {
 		printk(KERN_ERR "msm_irq_exit_sleep <SM NO INT_INFO>\n");
 		return;
 	}
 	if (msm_irq_debug_mask & IRQ_DEBUG_SLEEP)
 		printk(KERN_INFO "msm_irq_exit_sleep1 %x %x %x now %x %x\n",
-		       int_info->aArm_en_mask,
-		       int_info->aArm_interrupts_pending,
-		       int_info->aArm_wakeup_reason,
+		       int_info.aArm_en_mask,
+		       int_info.aArm_interrupts_pending,
+		       int_info.aArm_wakeup_reason,
 		       readl(VIC_IRQ_STATUS0), readl(VIC_IRQ_STATUS1));
 }
 
@@ -372,19 +371,18 @@ void msm_irq_exit_sleep2(void)
 {
 	int i;
 	uint32_t pending;
-	struct smsm_interrupt_info *int_info;
-	int_info = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*int_info));
-	if (int_info == NULL) {
+	struct smsm_interrupt_info int_info;
+	if (smsm_get_interrupt_info(&int_info)) {
 		printk(KERN_ERR "msm_irq_exit_sleep <SM NO INT_INFO>\n");
 		return;
 	}
 	if (msm_irq_debug_mask & IRQ_DEBUG_SLEEP)
 		printk(KERN_INFO "msm_irq_exit_sleep2 %x %x %x now %x %x %x %x\n",
-		       int_info->aArm_en_mask,
-		       int_info->aArm_interrupts_pending,
-		       int_info->aArm_wakeup_reason,
+		       int_info.aArm_en_mask,
+		       int_info.aArm_interrupts_pending,
+		       int_info.aArm_wakeup_reason,
 	 readl(VIC_IRQ_STATUS0), readl(VIC_IRQ_STATUS1),readl(VIC_FIQ_STATUS0), readl(VIC_FIQ_STATUS1));
-	pending = int_info->aArm_interrupts_pending;
+	pending = int_info.aArm_interrupts_pending;
 	for (i = 0; pending && i < ARRAY_SIZE(msm_irq_to_smsm); i++) {
 		unsigned reg_offset = (i & 32) ? 4 : 0;
 		uint32_t reg_mask = 1UL << (i & 31);
@@ -416,17 +414,16 @@ void msm_irq_exit_sleep2(void)
 
 void msm_irq_exit_sleep3(void)
 {
-	struct smsm_interrupt_info *int_info;
-	int_info = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*int_info));
-	if (int_info == NULL) {
+	struct smsm_interrupt_info int_info;
+	if (smsm_get_interrupt_info(&int_info)) {
 		printk(KERN_ERR "msm_irq_exit_sleep <SM NO INT_INFO>\n");
 		return;
 	}
 	if (msm_irq_debug_mask & IRQ_DEBUG_SLEEP)
 		printk(KERN_INFO "msm_irq_exit_sleep3 %x %x %x now %x %x "
-		       "state %x\n", int_info->aArm_en_mask,
-		       int_info->aArm_interrupts_pending,
-		       int_info->aArm_wakeup_reason, readl(VIC_IRQ_STATUS0),
+		       "state %x\n", int_info.aArm_en_mask,
+		       int_info.aArm_interrupts_pending,
+		       int_info.aArm_wakeup_reason, readl(VIC_IRQ_STATUS0),
 		       readl(VIC_IRQ_STATUS1), smsm_get_state());
 }
 
