@@ -46,6 +46,7 @@
 
 #include <linux/microp-keypad.h>
 #include <mach/board_htc.h>
+#include <mach/htc_headset.h>
 
 #include "proc_comm_wince.h"
 #include "devices.h"
@@ -136,6 +137,49 @@ static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
 
+#ifdef CONFIG_HTC_HEADSET
+
+static void h2w_config_cpld(int route);
+static void h2w_init_cpld(void);
+static struct h2w_platform_data topaz_h2w_data = {
+	.cable_in1              = TOPA100_GPIO_CABLE_IN1,
+	.cable_in2              = TOPA100_GPIO_CABLE_IN2,
+	.h2w_clk                = TOPA100_GPIO_H2W_CLK,
+	.h2w_data               = TOPA100_GPIO_H2W_DATA,
+	.debug_uart             = H2W_UART3,
+	.config_cpld            = h2w_config_cpld,
+	.init_cpld              = h2w_init_cpld,
+	.headset_mic_35mm       = TOPA100_GPIO_AUD_HSMIC_DET_N,
+};
+
+static void h2w_config_cpld(int route)
+{
+	switch (route) {
+		case H2W_UART3:
+			gpio_set_value(0, 1);
+			break;
+		case H2W_GPIO:
+			gpio_set_value(0, 0);
+			break;
+	}
+}
+
+
+static void h2w_init_cpld(void)
+{
+	h2w_config_cpld(H2W_UART3);
+	gpio_set_value(topaz_h2w_data.h2w_clk, 0);
+	gpio_set_value(topaz_h2w_data.h2w_data, 0);
+}
+
+static struct platform_device topaz_h2w = {
+	.name           = "h2w",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &topaz_h2w_data,
+	},
+};
+#endif
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
@@ -145,6 +189,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_hw,
 	&msm_device_htc_battery,
 	&blac_snd,
+	&topaz_h2w,
 };
 
 extern struct sys_timer msm_timer;
