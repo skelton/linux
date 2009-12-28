@@ -977,7 +977,7 @@ static void *_smem_find(unsigned id, unsigned *size)
 	struct smem_heap_entry *toc = shared->heap_toc;
 
 	if (id >= SMEM_NUM_ITEMS_V1) {
-		if(!machine_is_htctopaz() || !machine_is_htcrhodium() )
+		if(!machine_is_htctopaz() && !machine_is_htcrhodium() )
 			return 0;
 		if(id>=SMEM_NUM_ITEMS_V2)
 			return 0;
