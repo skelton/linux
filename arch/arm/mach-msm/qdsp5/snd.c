@@ -270,7 +270,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			case MACH_TYPE_HTCRHODIUM:
 				rc = msm_rpc_call(snd->ept,
 					SND_SET_VOLUME_PROC_6120,
-					&dmsg, sizeof(dmsg), 5 * HZ);
+					&vmsg, sizeof(vmsg), 5 * HZ);
 				break;
 			case MACH_TYPE_HTCRAPHAEL:
 			case MACH_TYPE_HTCDIAMOND_CDMA:
@@ -279,7 +279,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			case MACH_TYPE_HTCRAPHAEL_CDMA:
 				rc = msm_rpc_call(snd->ept,
 					SND_SET_VOLUME_PROC_5200,
-					&dmsg, sizeof(dmsg), 5 * HZ);
+					&vmsg, sizeof(vmsg), 5 * HZ);
 				break;
 			default:
 				printk(KERN_ERR "Unsupported device for snd_set_device driver\n");
