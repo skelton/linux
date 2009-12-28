@@ -807,7 +807,8 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
 
 	switch(__machine_arch_type) {
-		case MACH_TYPE_TOPAZ:
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
 			rc = adsp_init_info_6120(&adsp_info);
 			break;
 		case MACH_TYPE_HTCRAPHAEL:
