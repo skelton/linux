@@ -177,7 +177,7 @@ static void __init msm_pmem_init() {
 		case MACH_TYPE_HTCDIAMOND:
 			//SMI 64 + EBI 128
 			pmem_setting.pmem_start=MSM_SMI2_BASE;
-			pmem_setting.pmem_size=0x1000000;//16MB
+			pmem_setting.pmem_size=0x1300000;//19MB
 			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
 			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
 			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
@@ -199,8 +199,8 @@ static void __init msm_pmem_init() {
 		case MACH_TYPE_HTCRHODIUM:
 			//SMI 32 + EBI 2*128
 			pmem_setting.pmem_start=MSM_EBIN_BASE;
-			pmem_setting.pmem_size=0x1000000;//16MB
-			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
+			pmem_setting.pmem_size=0x2000000;//32MB
+			CALC_PMEM(pmem_adsp, pmem, 0x1000000);//16MB
 			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
 			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
 			
