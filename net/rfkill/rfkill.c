@@ -323,6 +323,8 @@ static const char *rfkill_get_type_str(enum rfkill_type type)
 		return "wimax";
 	case RFKILL_TYPE_WWAN:
 		return "wwan";
+	case RFKILL_TYPE_GPS:
+		return "gps";
 	default:
 		BUG();
 	}
