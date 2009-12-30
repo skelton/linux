@@ -315,7 +315,7 @@ static int snd_release(struct inode *inode, struct file *file)
 	struct snd_ctxt *snd = file->private_data;
 
 	mutex_lock(&snd->lock);
-	snd->opened = 0;
+	snd->opened--;
 	mutex_unlock(&snd->lock);
 	return 0;
 }
@@ -354,11 +354,10 @@ int snd_ini() {
 				goto err;
 			}
 		}
-		snd->opened = 1;
 	} else {
 		pr_err("snd already opened.\n");
-		rc = -EBUSY;
 	}
+	snd->opened++;
 
 err:
 	mutex_unlock(&snd->lock);
