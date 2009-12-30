@@ -439,7 +439,7 @@ static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_dat
 	int i;
 	
 	printk("htcraphael_mddi_power_client(%d)\n", on);
-	printk("XC=%x\n", i=readl(MSM_SHARED_RAM_BASE + 0xfc048));
+//	printk("XC=%x\n", i=readl(MSM_SHARED_RAM_BASE + 0xfc048));
 	
 
 	if(on) {

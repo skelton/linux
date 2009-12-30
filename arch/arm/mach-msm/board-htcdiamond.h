@@ -5,47 +5,6 @@
 
 #include <mach/board.h>
 
-#define MSM_SMI_BASE            0x00000000
-#define MSM_SMI_SIZE            0x900000 /* 9mb */
-
-#define MSM_SMI2_BASE            0x02000000
-#define MSM_SMI2_SIZE            0x02000000 /* 32mb */
-
-#define MSM_EBI_BASE            0x10000000
-#define MSM_EBI_SIZE            0x8000000 /* 128mb */
-
-/* Define the SMI layout */
-#define MSM_SMI_READONLY_BASE	MSM_SMI_BASE
-#define MSM_SMI_READONLY_SIZE	0x100000 /* 1mb, wince SPL */
-
-#define MSM_PMEM_GPU0_BASE      MSM_SMI_READONLY_BASE + MSM_SMI_READONLY_SIZE
-#define MSM_PMEM_GPU0_SIZE      0x700000 /* 7mb */
-
-#define MSM_PMEM_MDP_BASE       MSM_SMI2_BASE
-#define MSM_PMEM_MDP_SIZE       0x1000000 /* 16mb */
-
-#define MSM_PMEM_ADSP_BASE      MSM_PMEM_MDP_BASE + MSM_PMEM_MDP_SIZE
-#define MSM_PMEM_ADSP_SIZE      0x800000 /* 8mb */
-
-#define MSM_FB_BASE		MSM_PMEM_ADSP_BASE + MSM_PMEM_ADSP_SIZE
-#define MSM_FB_SIZE		0x200000 /* 2mb */
-
-/* Define the EBI layout */
-#define MSM_LINUX_BASE          MSM_EBI_BASE
-#define MSM_LINUX_SIZE          0x6b00000 /* 107mb */
-
-
-#define MSM_RAM_CONSOLE_BASE	0x00800000
-#define MSM_RAM_CONSOLE_SIZE	0x00100000 // 1M at 0x00800000
-
-#define MSM_PMEM_GPU1_BASE      MSM_LINUX_BASE + MSM_LINUX_SIZE
-#define MSM_PMEM_GPU1_SIZE      0x800000 /* 8mb */
-
-#define MSM_EBI_LOCKED_BASE	MSM_PMEM_GPU1_BASE + MSM_PMEM_GPU1_SIZE
-#define MSM_EBI_LOCKED_SIZE	0xD00000 /* 13mb */
-
-#define DECLARE_MSM_IOMAP
-#include <mach/msm_iomap.h>
 
 
 /* GPIO */
