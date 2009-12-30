@@ -27,6 +27,8 @@
 #include <mach/msm_smd.h>
 #include <mach/msm_rpcrouter.h>
 #include <mach/msm_iomap.h>
+#include <asm/mach-types.h>
+#include "proc_comm_wince.h"
 
 #include "smd_private.h"
 
@@ -68,36 +70,16 @@ static struct msm_rpc_endpoint *endpoint;
 static struct mutex api_lock;
 static struct mutex rpc_connect_mutex;
 
-static int is_rpc_connect(void)
-{
-	mutex_lock(&rpc_connect_mutex);
-	if (endpoint == NULL) {
-		endpoint = msm_rpc_connect(HTCRPOG, HTCVERS, 0);
-		if (IS_ERR(endpoint)) {
-			pr_err("%s: init rpc failed! rc = %ld\n",
-				__func__, PTR_ERR(endpoint));
-			mutex_unlock(&rpc_connect_mutex);
-			return 0;
-		}
-	}
-	mutex_unlock(&rpc_connect_mutex);
-	return 1;
-}
-
 int turn_mic_bias_on(int on)
 {
-	struct mic_bias_req {
-		struct rpc_request_hdr hdr;
-		uint32_t on;
-	} req;
-
-	if (!is_rpc_connect())
-		return -1;
-
-	req.on = cpu_to_be32(on);
-	return msm_rpc_call(endpoint, ONCRPC_SET_MIC_BIAS_PROC,
-			    &req, sizeof(req), 5 * HZ);
+	struct msm_dex_command dex;
+	dex.cmd=PCOM_UPDATE_AUDIO;
+	dex.has_data=1;
+	dex.data=0x10;
+	*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080 | (on?0x100:0);
+	msm_proc_comm_wince(&dex,0);
 }
+
 EXPORT_SYMBOL(turn_mic_bias_on);
 
 static int acoustic_mmap(struct file *file, struct vm_area_struct *vma)
@@ -156,28 +138,8 @@ static int acoustic_open(struct inode *inode, struct file *file)
 	mutex_lock(&api_lock);
 
 	if (!htc_acoustic_vir_addr) {
-		if (!is_rpc_connect())
-			goto done;
-
-		req_smem.size = cpu_to_be32(HTC_ACOUSTIC_TABLE_SIZE);
-		rc = msm_rpc_call_reply(endpoint,
-					ONCRPC_ALLOC_ACOUSTIC_MEM_PROC,
-					&req_smem, sizeof(req_smem),
-					&rep_smem, sizeof(rep_smem),
-					5 * HZ);
-
-		if (rep_smem.n != 0 || rc < 0) {
-			E("open failed: ALLOC_ACOUSTIC_MEM_PROC error %d.\n",
-				rc);
-			goto done;
-		}
-		htc_acoustic_vir_addr =
-			(uint32_t)smem_alloc(SMEM_ID_VENDOR1,
-					HTC_ACOUSTIC_TABLE_SIZE);
-		if (!htc_acoustic_vir_addr) {
-			E("open failed: smem_alloc error\n");
-			goto done;
-		}
+		//Depends on the AMSS, need to use smem_alloc
+		htc_acoustic_vir_addr=(void *)(MSM_SHARED_RAM_BASE+0xfc300);
 	}
 
 	rc = 0;
@@ -206,20 +168,11 @@ static long acoustic_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case ACOUSTIC_ARM11_DONE:
 		D("ioctl: ACOUSTIC_ARM11_DONE called %d.\n", current->pid);
-		rc = msm_rpc_call_reply(endpoint,
-					ONCRPC_ACOUSTIC_INIT_PROC, &req,
-					sizeof(req), &rep, sizeof(rep),
-					5 * HZ);
-
-		reply_value = be32_to_cpu(rep.n);
-		if (reply_value != 0 || rc < 0) {
-			E("ioctl failed: ONCRPC_ACOUSTIC_INIT_PROC "\
-				"error %d.\n", rc);
-			if (rc >= 0)
-				rc = -EIO;
-			break;
-		}
-		D("ioctl: ONCRPC_ACOUSTIC_INIT_PROC success.\n");
+		struct msm_dex_command dex;
+		dex.cmd=PCOM_UPDATE_AUDIO;
+		dex.has_data=1;
+		dex.data=0x10;
+		msm_proc_comm_wince(&dex,0);
 		break;
 	default:
 		E("ioctl: invalid command\n");
@@ -247,6 +200,18 @@ static struct miscdevice acoustic_misc = {
 
 static int __init acoustic_init(void)
 {
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCRAPHAEL:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+		case MACH_TYPE_HTCDIAMOND:
+		case MACH_TYPE_HTCBLACKSTONE:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+			break;
+		default:
+			printk(KERN_ERR "Unsupported device for htc_acoustic driver\n");
+			return -1;
+			break;
+	}
 	mutex_init(&api_lock);
 	mutex_init(&rpc_connect_mutex);
 	return misc_register(&acoustic_misc);
