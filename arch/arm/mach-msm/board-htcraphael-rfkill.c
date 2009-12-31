@@ -72,28 +72,36 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 				return rc;
 			}
 			vreg_set_level(vreg_bt, 1800);
+			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(RAPH100_BT_RST, 0);
+			mdelay(50);
+			gpio_set_value(RAPH100_BT_RST, 1);
+		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma_500() || machine_is_htcdiamond_cdma()) {
+			gpio_configure(0x52, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(0x52, 1);
 		} else {
-
 			gpio_configure(RAPH100_WIFI_BT_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
 			gpio_set_value(RAPH100_WIFI_BT_PWR2, 1);
 			mdelay(50);
+			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(RAPH100_BT_RST, 0);
+			mdelay(50);
+			gpio_set_value(RAPH100_BT_RST, 1);
 		}
-		gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
-		gpio_set_value(RAPH100_BT_RST, 0);
-		mdelay(50);
-		gpio_set_value(RAPH100_BT_RST, 1);
-		mdelay(200);
 		break;
 	case RFKILL_STATE_OFF:
 		printk("   bluetooth rfkill state   OFF\n");
 #if 1
 		config_gpio_table(bt_off_gpio_table_raph100,ARRAY_SIZE(bt_off_gpio_table_raph100));
 #endif
-		gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 		if(machine_is_htctopaz() || machine_is_htcrhodium()) {
+			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			vreg_set_level(vreg_bt, 0);
 			vreg_disable(vreg_bt);
+		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma_500() || machine_is_htcdiamond_cdma()) {
+			gpio_set_value(0x52, 0);
 		} else {
+			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			gpio_set_value(RAPH100_WIFI_BT_PWR2, 0);
 		}
 		break;
