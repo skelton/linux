@@ -29,6 +29,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/mmc.h>
 #include <asm/setup.h>
+#include <mach/msm_serial_hs.h>
 
 #include <mach/board.h>
 #include <mach/htc_battery.h>
@@ -76,6 +77,14 @@ static struct platform_device msm_serial0_device = {
 	.num_resources	= ARRAY_SIZE(msm_serial0_resources),
 	.resource	= msm_serial0_resources,
 };
+
+#ifdef CONFIG_SERIAL_MSM_HS
+static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
+	.wakeup_irq = MSM_GPIO_TO_INT(21),
+	.inject_rx_on_wakeup = 1,
+	.rx_to_inject = 0x32,
+};
+#endif
 
 static int usb_phy_init_seq_raph100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
@@ -190,6 +199,9 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&blac_snd,
 	&topaz_h2w,
+#ifdef CONFIG_SERIAL_MSM_HS
+	&msm_device_uart_dm2,
+#endif
 };
 
 extern struct sys_timer msm_timer;
@@ -269,6 +281,9 @@ static void __init halibut_init(void)
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 	init_mmc();
+#ifdef CONFIG_SERIAL_MSM_HS
+	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
+#endif
 	msm_init_pmic_vibrator();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 

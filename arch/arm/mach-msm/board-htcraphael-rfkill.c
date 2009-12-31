@@ -21,6 +21,9 @@
 #include <linux/rfkill.h>
 #include <linux/delay.h>
 #include <asm/gpio.h>
+#include <mach/vreg.h>
+#include <linux/err.h>
+#include <asm/mach-types.h>
 
 #include "board-htcraphael.h"
 #include "proc_comm_wince.h" /* ?? GPIO ?? */
@@ -29,6 +32,7 @@ void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state);
 
 static struct rfkill *bt_rfk;
 static const char bt_name[] = "brf6300";
+static struct vreg *vreg_bt;
 
 /* ---- COMMON ---- */
 static void config_gpio_table(struct msm_gpio_config *table, int len)
@@ -55,16 +59,25 @@ static struct msm_gpio_config bt_off_gpio_table_raph100[] = {
 
 static int bluetooth_set_power(void *data, enum rfkill_state state)
 {
+	int rc;
 	switch (state) {
 	case RFKILL_STATE_ON:
 		printk("   bluetooth rfkill state ON\n");
 
-#if 1
 		config_gpio_table(bt_on_gpio_table_raph100,ARRAY_SIZE(bt_on_gpio_table_raph100));
-#endif
-		gpio_configure(RAPH100_WIFI_BT_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
-		gpio_set_value(RAPH100_WIFI_BT_PWR2, 1);
-		mdelay(50);
+		if(machine_is_htctopaz() || machine_is_htcrhodium()) {
+			rc = vreg_enable(vreg_bt);
+			if(rc) {
+				printk(KERN_ERR "BT VREG Activate Error %d\n", rc);
+				return rc;
+			}
+			vreg_set_level(vreg_bt, 1800);
+		} else {
+
+			gpio_configure(RAPH100_WIFI_BT_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+			gpio_set_value(RAPH100_WIFI_BT_PWR2, 1);
+			mdelay(50);
+		}
 		gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 		gpio_set_value(RAPH100_BT_RST, 0);
 		mdelay(50);
@@ -77,7 +90,12 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 		config_gpio_table(bt_off_gpio_table_raph100,ARRAY_SIZE(bt_off_gpio_table_raph100));
 #endif
 		gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
-		gpio_set_value(RAPH100_WIFI_BT_PWR2, 0);
+		if(machine_is_htctopaz() || machine_is_htcrhodium()) {
+			vreg_set_level(vreg_bt, 0);
+			vreg_disable(vreg_bt);
+		} else {
+			gpio_set_value(RAPH100_WIFI_BT_PWR2, 0);
+		}
 		break;
 	default:
 		printk(KERN_ERR "bad bluetooth rfkill state %d\n", state);
@@ -124,6 +142,9 @@ static struct platform_driver htcraphael_rfkill_driver = {
 static int __init htcraphael_rfkill_init(void)
 {
 	printk("BT RFK register\n");
+	vreg_bt=vreg_get(0, "rftx");
+	if(IS_ERR(vreg_bt))
+		return PTR_ERR(vreg_bt);
 	return platform_driver_register(&htcraphael_rfkill_driver);
 }
 
