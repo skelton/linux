@@ -191,7 +191,7 @@ static void __init msm_pmem_init() {
 		case MACH_TYPE_HTCDIAMOND:
 			//SMI 64 + EBI 128
 			pmem_setting.pmem_start=MSM_SMI2_BASE;
-			pmem_setting.pmem_size=0x1300000;//19MB
+			pmem_setting.pmem_size=0x1000000;//19MB
 			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
 			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
 			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
@@ -209,11 +209,12 @@ static void __init msm_pmem_init() {
 		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
 			//SMI 32 + EBI 2*128
-			pmem_setting.pmem_start=MSM_EBIN_BASE;
-			pmem_setting.pmem_size=0x2000000;//32MB
-			CALC_PMEM(pmem_adsp, pmem, 0x1000000);//16MB
-			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
-			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
+			pmem_setting.pmem_start=MSM_EBIN_BASE+128*1024*1024-51*1024*1024;
+			pmem_setting.pmem_size=32*1024*1024;//32MB
+			CALC_PMEM(pmem_adsp, pmem, 16*1024*1024);//16MB
+			CALC_PMEM(fb, pmem_adsp, 2*1024*1024);//2MB
+			CALC_PMEM(pmem_camera, fb, 1024*1024);//1MB
+			//Total 51MB
 			
 			//GPU1 must be in EBI bank 1
 			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
