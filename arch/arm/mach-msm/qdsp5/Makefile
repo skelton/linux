@@ -18,3 +18,4 @@ obj-y += snd.o
 
 obj-y += adsp_5200.o
 obj-y += adsp_6120.o
+obj-y += adsp_6150.o
