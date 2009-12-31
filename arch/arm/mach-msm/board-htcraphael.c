@@ -376,20 +376,6 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
-static void htcraphael_cdma_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
-	mi->nr_banks = 1;
-	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
-	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
-	mi->bank[0].size = (89 * 1024 * 1024);
-};
-
-static void htcraphael_cdma500_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
-	mi->nr_banks = 1;
-	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
-	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
-	mi->bank[0].size = (89 * 1024 * 1024);
-};
-
 static void treopro_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi) {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
@@ -446,7 +432,7 @@ MACHINE_START(HTCRAPHAEL, "HTC Raphael GSM phone (aka HTC Touch Pro)")
 MACHINE_END
 
 MACHINE_START(HTCRAPHAEL_CDMA, "HTC Raphael CDMA phone (aka HTC Touch Pro)")
-	.fixup 		= htcraphael_cdma_fixup,
+	.fixup 		= htcraphael_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,
@@ -455,7 +441,7 @@ MACHINE_START(HTCRAPHAEL_CDMA, "HTC Raphael CDMA phone (aka HTC Touch Pro)")
 MACHINE_END
 
 MACHINE_START(HTCRAPHAEL_CDMA500, "HTC Raphael CDMA phone (Touch Pro) raph500")
-	.fixup		= htcraphael_cdma500_fixup,
+	.fixup		= htcraphael_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,
