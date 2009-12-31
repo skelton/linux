@@ -117,6 +117,7 @@ struct adsp_info {
 #define RPC_ADSP_RTOS_APP_TO_MODEM_PROC 1
 #define RPC_ADSP_RTOS_MODEM_TO_APP_PROC 1
 
+//Move that to adsp_info ?
 #if CONFIG_MSM_AMSS_VERSION == 6210
 #define RPC_ADSP_RTOS_ATOM_VERS 0x20f17fd3
 #define RPC_ADSP_RTOS_MTOA_VERS 0x75babbd6
@@ -212,6 +213,7 @@ struct msm_adsp_module {
 extern void msm_adsp_publish_cdevs(struct msm_adsp_module *, unsigned);
 extern int adsp_init_info_5200(struct adsp_info *info);
 extern int adsp_init_info_6120(struct adsp_info *info);
+extern int adsp_init_info_6150(struct adsp_info *info);
 extern struct msm_adsp_module *find_adsp_module_by_id(struct adsp_info *info,
 						      uint32_t id);
 
