@@ -76,7 +76,7 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 			gpio_set_value(RAPH100_BT_RST, 0);
 			mdelay(50);
 			gpio_set_value(RAPH100_BT_RST, 1);
-		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma_500() || machine_is_htcdiamond_cdma()) {
+		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || machine_is_htcdiamond_cdma()) {
 			gpio_configure(0x52, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			gpio_set_value(0x52, 1);
 		} else {
@@ -98,7 +98,7 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			vreg_set_level(vreg_bt, 0);
 			vreg_disable(vreg_bt);
-		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma_500() || machine_is_htcdiamond_cdma()) {
+		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || machine_is_htcdiamond_cdma()) {
 			gpio_set_value(0x52, 0);
 		} else {
 			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
