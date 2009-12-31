@@ -78,6 +78,9 @@ int msm_blackstone_pad_handle_ts_event(int x, int y, int touched)
 static int __init msm_blackstone_pad_init(void)
 {
 	int err, i;
+	//Do we want that only on black?
+	if(!machine_is_htcblackstone())
+		return 0;
 
 	printk(KERN_INFO "msm_blackstone_pad: init\n");
 
