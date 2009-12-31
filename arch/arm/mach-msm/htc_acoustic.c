@@ -137,10 +137,7 @@ static int acoustic_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&api_lock);
 
-	if (!htc_acoustic_vir_addr) {
-		//Depends on the AMSS, need to use smem_alloc
-		htc_acoustic_vir_addr=(void *)(MSM_SHARED_RAM_BASE+0xfc300);
-	}
+	BUG_ON(!htc_acoustic_vir_addr);
 
 	rc = 0;
 done:
@@ -206,6 +203,9 @@ static int __init acoustic_init(void)
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
+			htc_acoustic_vir_addr=(void *)(MSM_SHARED_RAM_BASE+0xfc300);
 			break;
 		default:
 			printk(KERN_ERR "Unsupported device for htc_acoustic driver\n");
