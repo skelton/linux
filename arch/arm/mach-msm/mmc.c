@@ -623,7 +623,7 @@ static int __init mmc_dbg_init(void)
 {
 	struct dentry *dent;
 
-	dent = debugfs_create_dir("htcraphaelmmc_dbg", 0);//TODO: Change userland to accept mmc_dbg instead of htcraphaelmmc_dbg
+	dent = debugfs_create_dir("mmc_dbg", 0);
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 
