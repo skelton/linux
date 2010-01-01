@@ -394,9 +394,9 @@ int trout_wifi_reset(int on)
 	printk("%s: %d\n", __func__, on);
 //	gpio_set_value( TROUT_GPIO_WIFI_PA_RESETX, !on );
 	wifi_reset_state = on;
-	gpio_direction_output( mmc_pdata.wifi_power_gpio1, !on );
-	mdelay(100);
 	gpio_direction_output( mmc_pdata.wifi_power_gpio1, on );
+	mdelay(100);
+	gpio_direction_output( mmc_pdata.wifi_power_gpio1, !on );
 	return 0;
 }
 #ifndef CONFIG_WIFI_CONTROL_FUNC
