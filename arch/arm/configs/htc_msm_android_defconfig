@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.27
-# Sat Dec 26 23:06:36 2009
+# Sat Jan  2 00:43:49 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -249,8 +249,7 @@ CONFIG_MSM_CPU_FREQ_ONDEMAND_MIN=128000
 CONFIG_MSM_HW3D=y
 CONFIG_MSM_ADSP=y
 # CONFIG_HTC_FB_CONSOLE is not set
-CONFIG_WIFI_CONTROL_FUNC=y
-# CONFIG_WIFI_MEM_PREALLOC is not set
+# CONFIG_WIFI_CONTROL_FUNC is not set
 
 #
 # Processor Type
