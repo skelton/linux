@@ -814,9 +814,10 @@ static int msm_adsp_probe(struct platform_device *pdev)
 		case MACH_TYPE_HTCRAPHAEL:
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
-		case MACH_TYPE_HTCRAPHAEL_CDMA:
 			rc = adsp_init_info_5200(&adsp_info);
 			break;
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 			rc = adsp_init_info_6150(&adsp_info);
 			break;
