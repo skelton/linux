@@ -25,6 +25,8 @@
 #define MSM_SMI2_BASE	0x02000000
 #define MSM_EBI_BASE	0x10000000
 #define MSM_EBIN_BASE	0x20000000
+int use_extra_bank=0;
+module_param_named(extra, use_extra_bank, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 /* Copy paste from devices_htc.c
  */
