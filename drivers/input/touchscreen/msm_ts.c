@@ -298,14 +298,18 @@ static void msm_ts_process_data(int irq)
 			if(rawts) {
 				input_report_abs(msm_ts_dev, ABS_X, absx);
 				input_report_abs(msm_ts_dev, ABS_Y, absy);
+				input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);
+				input_report_abs(msm_ts_dev, ABS_TOOL_WIDTH, size);
+				input_report_key(msm_ts_dev, BTN_TOUCH, touched);
+				input_sync(msm_ts_dev);
 			} else if (!(vkey || bspad)) {
 				input_report_abs(msm_ts_dev, ABS_X, x);
 				input_report_abs(msm_ts_dev, ABS_Y, y);
+				input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);
+				input_report_abs(msm_ts_dev, ABS_TOOL_WIDTH, size);
+				input_report_key(msm_ts_dev, BTN_TOUCH, touched);
+				input_sync(msm_ts_dev);
 			}
-			input_report_abs(msm_ts_dev, ABS_PRESSURE, touched ? MSM_TS_ABS_PRESSURE_MAX : MSM_TS_ABS_PRESSURE_MIN);
-			input_report_abs(msm_ts_dev, ABS_TOOL_WIDTH, size);
-			input_report_key(msm_ts_dev, BTN_TOUCH, touched);
-			input_sync(msm_ts_dev);
 		}
 
 		/* Save the state so we won't report the same position and state twice */
