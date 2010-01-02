@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
+#include <linux/io.h>
 #include <linux/mutex.h>
 
 #include <mach/msm_smd.h>
@@ -69,15 +70,19 @@ static uint32_t htc_acoustic_vir_addr;
 static struct msm_rpc_endpoint *endpoint;
 static struct mutex api_lock;
 static struct mutex rpc_connect_mutex;
+static unsigned int mic_offset;
 
 int turn_mic_bias_on(int on)
 {
 	struct msm_dex_command dex;
 	dex.cmd=PCOM_UPDATE_AUDIO;
 	dex.has_data=1;
+
+	/*  enable handset mic */
+	writel(0xffff0080|(on?0x100:0), MSM_SHARED_RAM_BASE+mic_offset);
 	dex.data=0x10;
-	*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080 | (on?0x100:0);
 	msm_proc_comm_wince(&dex,0);
+	return 0;
 }
 
 EXPORT_SYMBOL(turn_mic_bias_on);
@@ -198,13 +203,17 @@ static struct miscdevice acoustic_misc = {
 static int __init acoustic_init(void)
 {
 	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
+			htc_acoustic_vir_addr=(void *)(MSM_SHARED_RAM_BASE+0xfc300);
+			mic_offset = 0xfb9c0;
+			break;
 		case MACH_TYPE_HTCRAPHAEL:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
-		case MACH_TYPE_HTCTOPAZ:
-		case MACH_TYPE_HTCRHODIUM:
+			mic_offset = 0xfed00;
 			htc_acoustic_vir_addr=(void *)(MSM_SHARED_RAM_BASE+0xfc300);
 			break;
 		default:

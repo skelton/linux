@@ -131,15 +131,16 @@ int snd_ini();
 void snd_set_device(int device, int ear_mute, int mic_mute) {};
 int snd_ini() {}
 #endif
+//htc_hw.c
+int turn_mic_bias_on(int on);
+
 void msm_audio_path(int i) {
-	unsigned int moffset = 0;
 	char* sparameterraph = "PHONE_EARCUPLE_VOL2";
 	char* sparametertopa = "PHONE_EARCUPLE_VOL0";
 	char* sparameter = NULL;
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
-			moffset = 0xfb9c0;
 			sparameter = sparametertopa;
 			break;
 		case MACH_TYPE_HTCRAPHAEL:
@@ -147,7 +148,6 @@ void msm_audio_path(int i) {
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
-			moffset = 0xfed00;
 			sparameter = sparameterraph;
 			break;
 		default:
@@ -166,11 +166,7 @@ void msm_audio_path(int i) {
 			dex.data=0x01;
 			msm_proc_comm_wince(&dex,0);
 
-                        /*  enable handset mic */
-			*(unsigned *)(MSM_SHARED_RAM_BASE+moffset)=0xffff0080 | 0x100;
-			dex.data=0x10;
-			msm_proc_comm_wince(&dex,0);
-
+			turn_mic_bias_on(1);
 			snd_ini();
 			snd_set_device(0,SND_MUTE_UNMUTED,SND_MUTE_UNMUTED); /* "HANDSET" */
 			break;
@@ -178,11 +174,9 @@ void msm_audio_path(int i) {
                         set_audio_parameters("CE_PLAYBACK_HANDSFREE");
 			dex.data=0x01;
 			msm_proc_comm_wince(&dex,0);
-
-                        /* disable handset mic */
-			*(unsigned *)(MSM_SHARED_RAM_BASE+moffset)=0xffff0080;
- 			dex.data=0x10;
-			msm_proc_comm_wince(&dex,0);
+			//Really turn mic off?
+			//Some soft apps might want that too.
+			turn_mic_bias_on(0);
 
 			snd_ini();
 			snd_set_device(1,SND_MUTE_MUTED,SND_MUTE_MUTED); /* "SPEAKER" */
