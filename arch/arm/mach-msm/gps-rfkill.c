@@ -365,4 +365,4 @@ static int __init gps_rfkill_init (void)
     return platform_driver_register (&gps_driver);
 }
 
-module_init (gps_rfkill_init);
+late_initcall (gps_rfkill_init);
