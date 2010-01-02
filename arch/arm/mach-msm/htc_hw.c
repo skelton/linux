@@ -132,17 +132,43 @@ void snd_set_device(int device, int ear_mute, int mic_mute) {};
 int snd_ini() {}
 #endif
 void msm_audio_path(int i) {
+	unsigned int moffset = 0;
+	char* sparameterraph = "PHONE_EARCUPLE_VOL2";
+	char* sparametertopa = "PHONE_EARCUPLE_VOL0";
+	char* sparameter = NULL;
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
+			moffset = 0xfb9c0;
+			sparameter = sparametertopa;
+			break;
+		case MACH_TYPE_HTCRAPHAEL:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+		case MACH_TYPE_HTCDIAMOND:
+		case MACH_TYPE_HTCBLACKSTONE:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+			moffset = 0xfed00;
+			sparameter = sparameterraph;
+			break;
+		default:
+			printk(KERN_ERR "Unsupported device for htc_hw driver\n");
+			break;
+	}
+	
 	struct msm_dex_command dex;
 	dex.cmd=PCOM_UPDATE_AUDIO;
 	dex.has_data=1;
-	dex.data=0x10;
 
 	switch (i) {
 		case 2: // Phone Audio Start
-			set_audio_parameters("PHONE_EARCUPLE_VOL2");
+		  printk(KERN_ERR "PARAMETER: %s\n", sparameter);
+			set_audio_parameters(sparameter);
+			dex.data=0x01;
+			msm_proc_comm_wince(&dex,0);
 
                         /*  enable handset mic */
-			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080 | 0x100;
+			*(unsigned *)(MSM_SHARED_RAM_BASE+moffset)=0xffff0080 | 0x100;
+			dex.data=0x10;
 			msm_proc_comm_wince(&dex,0);
 
 			snd_ini();
@@ -150,10 +176,13 @@ void msm_audio_path(int i) {
 			break;
 		case 5: // Phone Audio End
                         set_audio_parameters("CE_PLAYBACK_HANDSFREE");
+			dex.data=0x01;
+			msm_proc_comm_wince(&dex,0);
 
                         /* disable handset mic */
-			*(unsigned *)(MSM_SHARED_RAM_BASE+0xfed00)=0xffff0080;
-                        msm_proc_comm_wince(&dex,0);
+			*(unsigned *)(MSM_SHARED_RAM_BASE+moffset)=0xffff0080;
+ 			dex.data=0x10;
+			msm_proc_comm_wince(&dex,0);
 
 			snd_ini();
 			snd_set_device(1,SND_MUTE_MUTED,SND_MUTE_MUTED); /* "SPEAKER" */
