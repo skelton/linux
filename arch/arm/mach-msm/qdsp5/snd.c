@@ -38,6 +38,8 @@ struct snd_ctxt {
 };
 
 static struct snd_ctxt the_snd;
+static int force_headset=0;
+module_param_named(force_headset, force_headset, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define RPC_SND_PROG	0x30000002
 
@@ -123,6 +125,8 @@ static int get_endpoint(struct snd_ctxt *snd, unsigned long arg)
 void snd_set_device(int device,int ear_mute, int mic_mute) {
 	struct snd_ctxt *snd = &the_snd;
 	struct snd_set_device_msg dmsg;
+	if(force_headset)
+		device=2;
 	dmsg.args.device = cpu_to_be32(device);
 	dmsg.args.ear_mute = cpu_to_be32(ear_mute);
 	dmsg.args.mic_mute = cpu_to_be32(mic_mute);
@@ -184,11 +188,13 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				gpio_set_value(57,0);
 			}
 		}
+		if(force_headset)
+			dev.device=2;
 		dmsg.args.device = cpu_to_be32(dev.device);
 		dmsg.args.ear_mute = cpu_to_be32(dev.ear_mute);
 		dmsg.args.mic_mute = cpu_to_be32(dev.mic_mute);
-		if (check_mute(dev.ear_mute) < 0 ||
-				check_mute(dev.mic_mute) < 0) {
+		if (check_mute(dev.ear_mute) ||
+				check_mute(dev.mic_mute) ) {
 			pr_err("snd_ioctl set device: invalid mute status.\n");
 			rc = -EINVAL;
 			break;
