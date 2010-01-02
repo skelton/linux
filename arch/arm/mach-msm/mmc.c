@@ -372,14 +372,18 @@ int trout_wifi_power(int on)
 	mdelay(50);
 	gpio_direction_output(mmc_pdata.wifi_power_gpio2, on );
 	gpio_direction_input(29);
-	set_irq_wake(gpio_to_irq(29),1);
+	set_irq_wake(gpio_to_irq(29), on);
 	mdelay(150);
 
 	if (!on) {
-		vreg_disable(vreg_wifi_osc);
-		vreg_disable(vreg_wifi_2);
-		if(machine_is_htcrhodium() || machine_is_htctopaz())
+		if(machine_is_htcrhodium() || machine_is_htctopaz()) {
 			vreg_disable(vreg_wifi_3);
+			//These vregs shuts the phone off raph/diam(/blac?)
+			//So don't disable it for them.
+			//The radio chip is fair enough not to drain everything anyway.
+			vreg_disable(vreg_wifi_osc);
+			vreg_disable(vreg_wifi_2);
+		}
 	}
 	wifi_power_state = on;
 	return 0;
