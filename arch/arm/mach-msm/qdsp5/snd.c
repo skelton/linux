@@ -122,6 +122,8 @@ static int get_endpoint(struct snd_ctxt *snd, unsigned long arg)
 	return rc;
 }
 
+int turn_mic_bias_on(int on);
+
 void snd_set_device(int device,int ear_mute, int mic_mute) {
 	struct snd_ctxt *snd = &the_snd;
 	struct snd_set_device_msg dmsg;
@@ -133,6 +135,10 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 	dmsg.args.cb_func = -1;
 	dmsg.args.client_data = 0;
 
+	if(mic_mute==SND_MUTE_UNMUTED)
+		turn_mic_bias_on(1);
+	else
+		turn_mic_bias_on(0);
 	pr_info("snd_set_device %d %d %d\n", device,
 					 ear_mute, mic_mute);
 
@@ -190,6 +196,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		if(force_headset)
 			dev.device=2;
+
 		dmsg.args.device = cpu_to_be32(dev.device);
 		dmsg.args.ear_mute = cpu_to_be32(dev.ear_mute);
 		dmsg.args.mic_mute = cpu_to_be32(dev.mic_mute);
@@ -199,6 +206,10 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			rc = -EINVAL;
 			break;
 		}
+		if(dev.mic_mute==SND_MUTE_UNMUTED)
+			turn_mic_bias_on(1);
+		else
+			turn_mic_bias_on(0);
 		dmsg.args.cb_func = -1;
 		dmsg.args.client_data = 0;
 
