@@ -75,6 +75,7 @@ static unsigned int mic_offset;
 int turn_mic_bias_on(int on)
 {
 	struct msm_dex_command dex;
+	printk("Turnin mic bias on %d\n", on);
 	dex.cmd=PCOM_UPDATE_AUDIO;
 	dex.has_data=1;
 
