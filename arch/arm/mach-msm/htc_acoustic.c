@@ -80,7 +80,8 @@ int turn_mic_bias_on(int on)
 	dex.has_data=1;
 
 	/*  enable handset mic */
-	writel(0xffff0080|(on?0x100:0), MSM_SHARED_RAM_BASE+mic_offset);
+	//writel(0xffff0080|(on?0x100:0), MSM_SHARED_RAM_BASE+mic_offset);
+	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0xffff0080 | (on?0x100:0);
 	dex.data=0x10;
 	msm_proc_comm_wince(&dex,0);
 	return 0;
