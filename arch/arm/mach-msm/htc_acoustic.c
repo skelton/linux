@@ -225,7 +225,10 @@ static int __init acoustic_init(void)
 	}
 	mutex_init(&api_lock);
 	mutex_init(&rpc_connect_mutex);
-	return misc_register(&acoustic_misc);
+	//No seriously, you don't want htc_acoustic yet.
+	//Most likely needs a rewritten libhtc_acoustic
+	//return misc_register(&acoustic_misc);
+	return 0;
 }
 
 static void __exit acoustic_exit(void)
