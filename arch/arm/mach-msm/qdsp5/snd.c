@@ -141,6 +141,7 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 		turn_mic_bias_on(0);
 	pr_info("snd_set_device %d %d %d\n", device,
 					 ear_mute, mic_mute);
+	mic_mute=0;
 
 	if(!snd->ept) {
 		pr_err("No sound endpoint found, can't set snd_device");
@@ -197,6 +198,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if(force_headset)
 			dev.device=2;
 
+		dev.mic_mute=SND_MUTE_UNMUTED;
 		dmsg.args.device = cpu_to_be32(dev.device);
 		dmsg.args.ear_mute = cpu_to_be32(dev.ear_mute);
 		dmsg.args.mic_mute = cpu_to_be32(dev.mic_mute);
