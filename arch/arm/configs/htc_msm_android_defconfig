@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.27
-# Wed Jan  6 00:43:34 2010
+# Sat Jan  9 00:11:35 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -588,6 +588,9 @@ CONFIG_DUMMY=y
 # CONFIG_WLAN_PRE80211 is not set
 # CONFIG_WLAN_80211 is not set
 # CONFIG_IWLWIFI_LEDS is not set
+CONFIG_BCM4329=y
+CONFIG_BCM4329_FW_PATH="/system/etc/firmware/fw_bcm4329.bin"
+CONFIG_BCM4329_NVRAM_PATH="/proc/calibration"
 # CONFIG_WAN is not set
 CONFIG_PPP=y
 # CONFIG_PPP_MULTILINK is not set

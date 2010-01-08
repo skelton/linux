@@ -231,6 +231,19 @@ static void blac_set_vibrate(uint32_t val)
 	}
 }
 
+//TODO: use platform data
+int wifi_set_power(int on, unsigned long msec) {
+	gpio_configure(93, GPIOF_OWNER_ARM11);
+	gpio_direction_output(25, 0);
+	msleep(0x64);
+	gpio_direction_output(25, 1);
+	return 0;
+}
+
+int wifi_get_irq_number(int on, unsigned long msec) {
+	return gpio_to_irq(29);
+}
+
 static htc_hw_pdata_t msm_htc_hw_pdata = {
 	.set_vibrate = blac_set_vibrate,
 	.battery_smem_offset = 0xfc140,
