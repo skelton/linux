@@ -35,6 +35,8 @@
 #define MSM_BLACKSTONE_PAD_LCD_HEIGHT	800
 #define MSM_BLACKSTONE_PAD_NBUTTONS	4
 #define MSM_BLACKSTONE_PAD_BWIDTH	120
+extern int vibrate=0;
+module_param_named(vibrate, vibrate, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 /* returns whether position was inside blackstone_pad, so as to eat event */
 typedef int msm_ts_handler_t(int, int, int);
@@ -61,12 +63,14 @@ int msm_blackstone_pad_handle_ts_event(int x, int y, int touched)
 			input_sync(msm_blackstone_pad_dev);
 			input_event(msm_blackstone_pad_dev, EV_KEY, pad_keymap[button], 0);
 			input_sync(msm_blackstone_pad_dev);
-			// vibrate when pressed
-			vibra.cmd = PCOM_VIBRA_ON;
-			msm_proc_comm_wince(&vibra, 0);
-			mdelay(20);
-			vibra.cmd = PCOM_VIBRA_OFF;
-			msm_proc_comm_wince(&vibra, 0);
+			if(vibrate) {
+				// vibrate when pressed
+				vibra.cmd = PCOM_VIBRA_ON;
+				msm_proc_comm_wince(&vibra, 0);
+				mdelay(20);
+				vibra.cmd = PCOM_VIBRA_OFF;
+				msm_proc_comm_wince(&vibra, 0);
+			}
 			mdelay(75);
 		}
 		return 1; //prevent Linux from getting events when buttons clicked
