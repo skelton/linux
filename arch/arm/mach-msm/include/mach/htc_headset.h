@@ -172,5 +172,7 @@ typedef enum {
 } KEYFUNC;
 
 extern int turn_mic_bias_on(int on);
+extern int headset_plugged(void);
+
 
 #endif

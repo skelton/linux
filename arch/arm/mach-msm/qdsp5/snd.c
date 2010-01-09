@@ -28,6 +28,7 @@
 #include <asm/ioctls.h>
 #include <mach/board.h>
 #include <mach/msm_rpcrouter.h>
+#include <mach/htc_headset.h>
 #include <asm/mach-types.h>
 
 struct snd_ctxt {
@@ -127,7 +128,7 @@ int turn_mic_bias_on(int on);
 void snd_set_device(int device,int ear_mute, int mic_mute) {
 	struct snd_ctxt *snd = &the_snd;
 	struct snd_set_device_msg dmsg;
-	if(force_headset)
+	if(force_headset && (force_headset==2 || headset_plugged()))
 		device=2;
 	dmsg.args.device = cpu_to_be32(device);
 	dmsg.args.ear_mute = cpu_to_be32(ear_mute);
@@ -195,7 +196,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				gpio_set_value(57,0);
 			}
 		}
-		if(force_headset)
+		if(force_headset && (force_headset==2 || headset_plugged()))
 			dev.device=2;
 
 		dev.mic_mute=SND_MUTE_UNMUTED;

@@ -1060,6 +1060,17 @@ static irqreturn_t button_35mm_irq_handler(int irq, void *dev_id)
 
 }
 
+int headset_plugged(void)
+{
+	int ret = switch_get_state(&hi->sdev) == H2W_HTC_HEADSET;
+	printk(KERN_INFO "[H2W] headset present? %d\n", ret);
+	return ret;
+}
+
+EXPORT_SYMBOL(headset_plugged);
+
+
+
 #if defined(CONFIG_DEBUG_FS)
 static int h2w_debug_set(void *data, u64 val)
 {
