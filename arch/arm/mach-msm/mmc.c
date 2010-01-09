@@ -278,7 +278,7 @@ static struct sdio_embedded_func wifi_func = {
 	.f_maxblksize	= 512,
 };
 
-static struct embedded_sdio_data wifi_emb_data = {
+static struct embedded_sdio_data ti_wifi_emb_data = {
 	.cis	= {
 		.vendor		= 0x104c,
 		.device		= 0x9066,
@@ -295,6 +295,17 @@ static struct embedded_sdio_data wifi_emb_data = {
 	},
 	.funcs	= &wifi_func,
 	.num_funcs = 1,
+};
+
+static struct embedded_sdio_data bcm_wifi_emb_data = {
+	.cccr   = {
+		.sdio_vsn       = 2,
+		.multi_block    = 1,
+		.low_speed      = 0,
+		.wide_bus       = 0,
+		.high_power     = 1,
+		.high_speed     = 1,
+	},
 };
 
 static void (*wifi_status_cb)(int card_present, void *dev_id);
@@ -411,7 +422,7 @@ static struct mmc_platform_data wifi_data = {
 	.ocr_mask		= MMC_VDD_28_29,
 	.status			= wifi_status,
 	.register_status_notify	= wifi_status_register,
-	.embedded_sdio		= &wifi_emb_data,
+	.embedded_sdio		= &ti_wifi_emb_data,
 };
 
 static struct mmc_dev_data cdma_mmc_pdata = {
@@ -456,8 +467,9 @@ int __init init_mmc(void)
 	sdslot_vreg_enabled = 0;
 
 	switch(__machine_arch_type) {
-		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
+			wifi_data.embedded_sdio=&bcm_wifi_emb_data;
+		case MACH_TYPE_HTCTOPAZ:
 			gsm_mmc_pdata.sdcard_status_gpio=38;
 		case MACH_TYPE_HTCRAPHAEL:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
