@@ -233,10 +233,12 @@ static void blac_set_vibrate(uint32_t val)
 
 //TODO: use platform data
 int wifi_set_power(int on, unsigned long msec) {
-	gpio_configure(93, GPIOF_OWNER_ARM11);
-	gpio_direction_output(25, 0);
-	msleep(0x64);
-	gpio_direction_output(25, 1);
+	if(board_htcrhodium()) {
+		gpio_configure(25, GPIOF_OWNER_ARM11);
+		gpio_direction_output(25, 0);
+		msleep(0x64);
+		gpio_direction_output(25, 1);
+	}
 	return 0;
 }
 
