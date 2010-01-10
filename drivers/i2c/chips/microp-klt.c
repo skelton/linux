@@ -23,6 +23,7 @@
 
 static int micropklt_read(struct i2c_client *, unsigned, char *, int);
 static int micropklt_write(struct i2c_client *, const char *, int);
+extern int init_spi_bma150(struct microp_klt*);
 
 #define MODULE_NAME "microp-klt"
 
@@ -251,17 +252,19 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	 *   060d
 	 */
 	supported = 0;
+	data->version = (buf[0] << 8) | buf[1];
 	switch (buf[0]) {
 	case 0x01:
 	case 0x02:
 	case 0x0a:
 	case 0x0b:
 		switch (buf[1])	{
+		case 0x88: /* rhod210 */
+		case 0x0e: /* topa100 */
+			init_spi_bma150(data);
 		case 0x01:
 		case 0x05:
 		case 0x81: /* diam500 */
-		case 0x88: /* rhod210 */
-		case 0x0e: /* topa100 */
 			supported = 1;
 			break;
 		}
@@ -290,7 +293,6 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		}
 		break;
 	}
-	data->version = (buf[0] << 8) | buf[1];
 
 	if (!supported) {
 		printk(KERN_WARNING MODULE_NAME ": This hardware is not yet supported: %04x\n", data->version);
