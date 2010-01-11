@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/swap.h>
 #include <linux/oom.h>
 #include <linux/sched.h>
 
@@ -52,6 +53,7 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 {
 	struct task_struct *p;
 	struct task_struct *selected = NULL;
+	struct sysinfo si;
 	int rem = 0;
 	int tasksize;
 	int i;
@@ -60,6 +62,9 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	int array_size = ARRAY_SIZE(lowmem_adj);
 	int other_free = global_page_state(NR_FREE_PAGES);
 	int other_file = global_page_state(NR_FILE_PAGES);
+	si_meminfo(&si);
+	si_swapinfo(&si);
+	other_free+=si.freeswap;
 	if(lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if(lowmem_minfree_size < array_size)
