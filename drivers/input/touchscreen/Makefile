@@ -36,3 +36,5 @@ obj-$(CONFIG_TOUCHSCREEN_WM97XX_MAINSTONE)	+= mainstone-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_MSM)          += msm_ts.o
 obj-$(CONFIG_MSM_VIRTUAL_KEYBOARD)     += msm_vkeyb.o
 obj-$(CONFIG_MSM_BLACKSTONE_PAD)     += msm_blackstone_pad.o
+obj-$(CONFIG_TOUCHSCREEN_TSSC_MANAGER)       += tssc_manager.o calibrate.o tp_cal.o
+

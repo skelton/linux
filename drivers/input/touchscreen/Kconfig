@@ -381,6 +381,11 @@ config TOUCHSCREEN_TOUCHIT213
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchit213.
 
+config TOUCHSCREEN_TSSC_MANAGER
+	tristate "TSSC touchscreen"
+	help
+	  This enables support for MSM TSSC IF touchscreens.
+	
 config TOUCHSCREEN_MSM
 	default n
 	bool "MSM touchscreen"
