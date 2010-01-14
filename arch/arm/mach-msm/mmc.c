@@ -361,15 +361,17 @@ int trout_wifi_power(int on)
 			return rc;
 
 		if(machine_is_htcrhodium() || machine_is_htctopaz()) {
-			rc = vreg_enable(vreg_wifi_2);
+			rc = vreg_enable(vreg_wifi_3);
 			if (rc)
 				return rc;
 		}
 		mdelay(100);
 		htc_pwrsink_set(PWRSINK_WIFI, 70);
 		gpio_direction_output( mmc_pdata.wifi_power_gpio1, 0 );
-		mdelay(50);
-		gpio_direction_output( mmc_pdata.wifi_power_gpio2, 0 );
+		if( mmc_pdata.wifi_power_gpio2>=0) {
+		  mdelay(50);
+		  gpio_direction_output( mmc_pdata.wifi_power_gpio2, 0 );
+		}
 		mdelay(200);
 
 
@@ -378,10 +380,11 @@ int trout_wifi_power(int on)
 				  mmc_pdata.wifi_off_gpio_table_size);
 		htc_pwrsink_set(PWRSINK_WIFI, 0);
 	}
-
 	gpio_direction_output(mmc_pdata.wifi_power_gpio1, on );
 	mdelay(50);
-	gpio_direction_output(mmc_pdata.wifi_power_gpio2, on );
+	if( mmc_pdata.wifi_power_gpio2>=0) {
+	  gpio_direction_output(mmc_pdata.wifi_power_gpio2, on );
+	}
 	gpio_direction_input(29);
 	set_irq_wake(gpio_to_irq(29), on);
 	mdelay(150);
@@ -469,8 +472,10 @@ int __init init_mmc(void)
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCRHODIUM:
 			wifi_data.embedded_sdio=&bcm_wifi_emb_data;
+			gsm_mmc_pdata.wifi_power_gpio1 = 93;
 		case MACH_TYPE_HTCTOPAZ:
 			gsm_mmc_pdata.sdcard_status_gpio=38;
+			gsm_mmc_pdata.wifi_power_gpio2 = -1;
 		case MACH_TYPE_HTCRAPHAEL:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 		case MACH_TYPE_HTCDIAMOND:
@@ -499,7 +504,7 @@ int __init init_mmc(void)
 		return PTR_ERR(vreg_wifi_2);
 
 	vreg_wifi_3 = vreg_get(0, "rftx");
-	if (IS_ERR(vreg_wifi_2))
+	if (IS_ERR(vreg_wifi_3))
 		return PTR_ERR(vreg_wifi_3);
 
 	if (!opt_disable_wifi)
