@@ -26,6 +26,8 @@
 #define PM_LIBPROG	  0x30000061
 #if (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
 #define PM_LIBVERS	  0xfb837d0b
+#elif (CONFIG_MSM_AMSS_VERSION == 6120)
+#define PM_LIBVERS	  0x0
 #else
 #define PM_LIBVERS	  0x10001
 #endif
