@@ -125,9 +125,9 @@ static int microp_keymap_raph800[] = {
         KEY_T,
         KEY_Y,
         KEY_1,
-        KEY_U,
+        KEY_RESERVED, // 0x09
         KEY_RESERVED, // 0x0a
-        KEY_RESERVED, // 0x0b
+        KEY_U, // 0x0b
         KEY_I,
         KEY_O,
         KEY_P,
