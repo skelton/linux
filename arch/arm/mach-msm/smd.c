@@ -163,48 +163,6 @@ struct smd_alloc_elm_v2 {
 	uint32_t ref_count;
 };
 
-struct smd_half_channel {
-	unsigned state;
-	unsigned char fDSR;
-	unsigned char fCTS;
-	unsigned char fCD;
-	unsigned char fRI;
-	unsigned char fHEAD;
-	unsigned char fTAIL;
-	unsigned char fSTATE;
-	unsigned char fUNUSED;
-	unsigned tail;
-	unsigned head;
-};
-
-struct smd_channel 
-{
-	volatile struct smd_half_channel *send;
-	volatile struct smd_half_channel *recv;
-	unsigned char *send_buf;
-	unsigned char *recv_buf;
-	unsigned buf_size;
-	struct list_head ch_list;
-
-	unsigned current_packet;
-	unsigned n;
-	void *priv;
-	void (*notify)(void *priv, unsigned flags);
-
-	int (*read)(smd_channel_t *ch, void *data, int len);
-	int (*write)(smd_channel_t *ch, const void *data, int len);
-	int (*read_avail)(smd_channel_t *ch);
-	int (*write_avail)(smd_channel_t *ch);
-
-	void (*update_state)(smd_channel_t *ch);
-	void (*check_for_data)(smd_channel_t *ch);
-	unsigned last_state;
-
-	char name[32];
-	struct platform_device pdev;
-	short * open;
-};
-
 static LIST_HEAD(smd_ch_closed_list);
 static LIST_HEAD(smd_ch_list);
 
