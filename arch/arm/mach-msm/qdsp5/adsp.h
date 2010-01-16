@@ -110,27 +110,6 @@ struct adsp_info {
 	uint32_t event_backlog_max;
 };
 
-#define RPC_ADSP_RTOS_ATOM_PROG 0x3000000a
-#define RPC_ADSP_RTOS_MTOA_PROG 0x3000000b
-#define RPC_ADSP_RTOS_ATOM_NULL_PROC 0
-#define RPC_ADSP_RTOS_MTOA_NULL_PROC 0
-#define RPC_ADSP_RTOS_APP_TO_MODEM_PROC 1
-#define RPC_ADSP_RTOS_MODEM_TO_APP_PROC 1
-
-//Move that to adsp_info ?
-#if CONFIG_MSM_AMSS_VERSION == 6210
-#define RPC_ADSP_RTOS_ATOM_VERS 0x20f17fd3
-#define RPC_ADSP_RTOS_MTOA_VERS 0x75babbd6
-#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
-#define RPC_ADSP_RTOS_ATOM_VERS 0x71d1094b
-#define RPC_ADSP_RTOS_MTOA_VERS 0xee3a9966
-#elif (CONFIG_MSM_AMSS_VERSION == 5200) || (CONFIG_MSM_AMSS_VERSION == 6150) || (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
-#define RPC_ADSP_RTOS_ATOM_VERS 0x0
-#define RPC_ADSP_RTOS_MTOA_VERS 0x0
-#else
-#error "Unknown AMSS version"
-#endif
-
 enum rpc_adsp_rtos_proc_type {
 	RPC_ADSP_RTOS_PROC_NONE = 0,
 	RPC_ADSP_RTOS_PROC_MODEM = 1,
@@ -172,9 +151,16 @@ struct rpc_adsp_rtos_modem_to_app_args_t {
 	uint32_t proc_id; /* e.g., RPC_ADSP_RTOS_PROC_APPS */
 	uint32_t module; /* e.g., QDSP_MODULE_AUDPPTASK */
 	uint32_t image; /* RPC_QDSP_IMAGE_GAUDIO */
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
+};
+
+struct rpc_adsp_rtos_modem_to_app_args_t_6120 {
+	struct rpc_request_hdr hdr;
+	uint32_t gotit; /* if 1, the next elements are present */
+	uint32_t event; /* e.g., RPC_ADSP_RTOS_CMD_REGISTER_APP */
+	uint32_t proc_id; /* e.g., RPC_ADSP_RTOS_PROC_APPS */
+	uint32_t module; /* e.g., QDSP_MODULE_AUDPPTASK */
+	uint32_t image; /* RPC_QDSP_IMAGE_GAUDIO */
 	uint32_t unknown; /* unknown*/
-#endif
 };
 
 #define ADSP_STATE_DISABLED   0

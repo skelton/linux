@@ -44,6 +44,7 @@
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 #include "../../../drivers/video/msm/mdp_hw.h"
+#include <asm/mach-types.h>
 
 
 /* Defined in /arch/arm/mm/mmu.c, helps us map physical memory to virtual memory.
@@ -59,34 +60,49 @@ extern int num_registered_fb;
 /* Green message (color = 2), the reset color to white (color = 6) */
 #define HTC_FB_MSG		("\n\n" "\x1b" "2" "HTC Linux framebuffer console by druidu" "\x1b" "7" "\n\n")
 
-/* LCD resolution */
-#define HTC_FB_LCD_WIDTH	480
-#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY) || defined(CONFIG_MACH_HTCTOPAZ)|| defined(CONFIG_MACH_HTCRHODIUM)
-#define HTC_FB_LCD_HEIGHT      800
-#else
-#define HTC_FB_LCD_HEIGHT      640
-#endif
+struct fb_para {
+	uint32_t htc_fb_lcd_width;
+	uint32_t htc_fb_lcd_height;
+	uint32_t htc_fb_phys;
+	uint32_t htc_fb_off;
+	uint32_t htc_fb_size;
+	uint32_t htc_fb_con_max_rows;
+	uint32_t htc_fb_con_max_cols;
+} para;
 
-/* Set max console size for a 4x4 font */
-#define HTC_FB_CON_MAX_ROWS	(HTC_FB_LCD_WIDTH / 4)
-#define HTC_FB_CON_MAX_COLS	(HTC_FB_LCD_HEIGHT / 4)
+struct fb_para blackstone_para = {
+ 	.htc_fb_lcd_width 	= 480,
+	.htc_fb_lcd_height 	= 800,
+	.htc_fb_phys 	 	= 0x16800000,
+	.htc_fb_off 	 	= 0x0006a000,
+	.htc_fb_size 	 	= 0x00200000,
+	.htc_fb_con_max_rows 	= 120,
+	.htc_fb_con_max_cols 	= 200,
+};
+
+struct fb_para topaz_para = {
+ 	.htc_fb_lcd_width 	= 480,
+	.htc_fb_lcd_height 	= 800,
+	.htc_fb_phys 	 	= 0x15100000,
+	.htc_fb_off 	 	= 0x00000780,
+	.htc_fb_size 	 	= 0x00200000,
+	.htc_fb_con_max_rows 	= 120,
+	.htc_fb_con_max_cols 	= 200,
+};
+
+struct fb_para default_para = {
+ 	.htc_fb_lcd_width 	= 480, 		/* LCD resolution width*/
+	.htc_fb_lcd_height 	= 640, 		/* LCD resolution height*/
+	.htc_fb_phys 	 	= 0x16800000, 	/* physical page for our fb */
+	.htc_fb_off 	 	= 0x0006a000, 	/* offset in the page to start of fb */
+	.htc_fb_size 	 	= 0x00100000, 	/* map 1 MB (640 * 480 * 2 rounded properly) */
+	.htc_fb_con_max_rows 	= 120,		/* Set max console size for a 4x4 font */
+	.htc_fb_con_max_cols 	= 160,		/* Set max console size for a 4x4 font */
+};
+
 
 /* Framebuffer stuff */
 #define HTC_FB_BASE		0xe2000000 /* virtual page for our fb */
-
-#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
-#define HTC_FB_PHYS		0x16800000 /* physical page for our fb */
-#define HTC_FB_OFF		0x0006a000 /* offset in the page to start of fb */
-#define HTC_FB_SIZE             0x00200000 /* map 2 MB (640 * 480 * 2 rounded properly) */
-#elif defined(CONFIG_MACH_HTCTOPAZ)|| defined(CONFIG_MACH_HTCRHODIUM)
-#define HTC_FB_PHYS		0x15100000 /* physical page for our fb */
-#define HTC_FB_OFF		0x00000780 /* offset in the page to start of fb */
-#define HTC_FB_SIZE             0x00200000 /* map 2 MB (640 * 480 * 2 rounded properly) */
-#else
-#define HTC_FB_PHYS		0x16800000 /* physical page for our fb */
-#define HTC_FB_OFF		0x0006a000 /* offset in the page to start of fb */
-#define HTC_FB_SIZE             0x00100000 /* map 1 MB (640 * 480 * 2 rounded properly) */
-#endif
 
 /* Pack color data in 565 RGB format; r and b are 5 bits, g is 6 bits */
 #define HTC_FB_RGB(r, g, b) 	((((r) & 0x1f) << 11) | (((g) & 0x3f) << 5) | (((b) & 0x1f) << 0))
@@ -121,10 +137,10 @@ unsigned int htc_fb_cur_x, htc_fb_cur_y;
 /* Current fg / bg colors */
 unsigned char htc_fb_cur_fg, htc_fb_cur_bg;
 
-/* Buffer to hold characters and attributes */
-unsigned char htc_fb_chars[HTC_FB_CON_MAX_ROWS][HTC_FB_CON_MAX_COLS];
-unsigned char htc_fb_fg[HTC_FB_CON_MAX_ROWS][HTC_FB_CON_MAX_COLS];
-unsigned char htc_fb_bg[HTC_FB_CON_MAX_ROWS][HTC_FB_CON_MAX_COLS];
+/* Buffer to hold characters and attributes, set it to the biggest size! */
+unsigned char htc_fb_chars[120][200];
+unsigned char htc_fb_fg[120][200];
+unsigned char htc_fb_bg[120][200];
 
 static void htc_fb_console_write(struct console *console, const char *s, unsigned int count);
 
@@ -149,8 +165,8 @@ static void htc_fb_console_update(void)
 	unsigned short *ptr;
 	unsigned char ch;
 
-	fbram = HTC_FB_PHYS + HTC_FB_OFF;
-	memaddr = HTC_FB_BASE + HTC_FB_OFF;
+	fbram = para.htc_fb_phys + para.htc_fb_off;
+	memaddr = HTC_FB_BASE + para.htc_fb_off;
 
 	ptr = (unsigned short*) memaddr;
 	for (i = 0; i < htc_fb_console_rows * htc_fb_font_rows; i++) {
@@ -164,12 +180,12 @@ static void htc_fb_console_update(void)
 				? htc_fb_colors[htc_fb_fg[r1][c1]]
 				: htc_fb_colors[htc_fb_bg[r1][c1]];
 		}
-		ptr += HTC_FB_LCD_WIDTH - htc_fb_console_cols * htc_fb_font_cols;
+		ptr += para.htc_fb_lcd_width - htc_fb_console_cols * htc_fb_font_cols;
 	}
 
-	stride = HTC_FB_LCD_WIDTH * 2;
-	width = HTC_FB_LCD_WIDTH;
-	height = HTC_FB_LCD_HEIGHT;
+	stride = para.htc_fb_lcd_width * 2;
+	width = para.htc_fb_lcd_width;
+	height = para.htc_fb_lcd_height;
 	x = 0;
 	y = 0;
 
@@ -210,7 +226,7 @@ static void htc_fb_console_update(void)
 static void htc_fb_console_clear(void)
 {
 	/* Default white on black, clear everything */
-	memset((void*) (HTC_FB_BASE + HTC_FB_OFF), 0, HTC_FB_LCD_WIDTH * HTC_FB_LCD_HEIGHT * 2);
+	memset((void*) (HTC_FB_BASE + para.htc_fb_off), 0, para.htc_fb_lcd_width * para.htc_fb_lcd_height * 2);
 	memset(htc_fb_chars, 0, htc_fb_console_cols * htc_fb_console_rows);
 	memset(htc_fb_fg, 7, htc_fb_console_cols * htc_fb_console_rows);
 	memset(htc_fb_bg, 0, htc_fb_console_cols * htc_fb_console_rows);
@@ -311,18 +327,31 @@ static void htc_fb_console_write(struct console *console, const char *s, unsigne
 static int __init htc_fb_console_init(void)
 {
 	struct map_desc map;
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
+			memcpy(&para, &topaz_para, sizeof(para));
+			break;
+		case MACH_TYPE_HTCBLACKSTONE:
+		case MACH_TYPE_HTCKOVSKY:
+			memcpy(&para, &blackstone_para, sizeof(para));
+			break;
+		default:
+			memcpy(&para, &default_para, sizeof(para));
+			break;
+	}
 
 	/* Map the framebuffer Windows was using, as we know the physical address */
-	map.pfn = __phys_to_pfn(HTC_FB_PHYS & SECTION_MASK);
+	map.pfn = __phys_to_pfn(para.htc_fb_phys & SECTION_MASK);
 	map.virtual = HTC_FB_BASE;
-	map.length = ((unsigned long) HTC_FB_SIZE + ~SECTION_MASK) & SECTION_MASK;
+	map.length = ((unsigned long) para.htc_fb_size + ~SECTION_MASK) & SECTION_MASK;
 	map.type = MT_MEMORY;
 	/* Ugly hack, but we're not sure what works and what doesn't,
 	 * so better use the lowest level we have for setting the mapping */
 	create_mapping(&map);
 
 	/* Init font (we support any font that has width <= 8; height doesn't matter) */
-	htc_fb_default_font = get_default_font(HTC_FB_LCD_WIDTH, HTC_FB_LCD_HEIGHT, 0xFF, 0xFFFFFFFF);
+	htc_fb_default_font = get_default_font(para.htc_fb_lcd_width, para.htc_fb_lcd_height, 0xFF, 0xFFFFFFFF);
 	if (!htc_fb_default_font) {
 		printk(KERN_WARNING "Can't find a suitable font for htc_fb");
 		return -1;
@@ -331,12 +360,12 @@ static int __init htc_fb_console_init(void)
 	htc_fb_font_data = htc_fb_default_font->data;
 	htc_fb_font_cols = htc_fb_default_font->width;
 	htc_fb_font_rows = htc_fb_default_font->height;
-	htc_fb_console_cols = HTC_FB_LCD_WIDTH / htc_fb_font_cols;
-	if (htc_fb_console_cols > HTC_FB_CON_MAX_COLS)
-		htc_fb_console_cols = HTC_FB_CON_MAX_COLS;
-	htc_fb_console_rows = HTC_FB_LCD_HEIGHT / htc_fb_font_rows;
-	if (htc_fb_console_rows > HTC_FB_CON_MAX_ROWS)
-		htc_fb_console_rows = HTC_FB_CON_MAX_ROWS;
+	htc_fb_console_cols = para.htc_fb_lcd_width / htc_fb_font_cols;
+	if (htc_fb_console_cols > para.htc_fb_con_max_cols)
+		htc_fb_console_cols = para.htc_fb_con_max_cols;
+	htc_fb_console_rows = para.htc_fb_lcd_height / htc_fb_font_rows;
+	if (htc_fb_console_rows > para.htc_fb_con_max_rows)
+		htc_fb_console_rows = para.htc_fb_con_max_rows;
 
 	/* Clear the buffer; we could probably see the Haret output if we didn't clear
 	 * the buffer (if it used same physical address) */

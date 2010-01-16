@@ -17,44 +17,33 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <mach/msm_rpcrouter.h>
+#include <mach/amss_para.h>
 
 /* dog_keepalive server definitions */
 
-#define DOG_KEEPALIVE_PROG 0x30000015
-#define RPC_DOG_KEEPALIVE_NULL 0
-
-#if CONFIG_MSM_AMSS_VERSION==6210
- #define DOG_KEEPALIVE_VERS 0
- #define RPC_DOG_KEEPALIVE_BEACON 1
-#elif (CONFIG_MSM_AMSS_VERSION==6220) || (CONFIG_MSM_AMSS_VERSION==6225)
- #define DOG_KEEPALIVE_VERS 0x731fa727
- #define RPC_DOG_KEEPALIVE_BEACON 2
-#else
- #error "Unsupported AMSS version"
-#endif
 
 static int handle_rpc_call(struct msm_rpc_server *server,
 			   struct rpc_request_hdr *req, unsigned len)
 {
-	switch (req->procedure) {
-	case RPC_DOG_KEEPALIVE_NULL:
+	if (req->procedure == amss_get_num_value(RPC_DOG_KEEPALIVE_NULL))
 		return 0;
-	case RPC_DOG_KEEPALIVE_BEACON:
+	else if (req->procedure == amss_get_num_value(RPC_DOG_KEEPALIVE_BEACON)) {
 		printk(KERN_INFO "DOG KEEPALIVE PING\n");
 		return 0;
-	default:
-		return -ENODEV;
 	}
+	else 
+		return -ENODEV;
+	
 }
 
 static struct msm_rpc_server rpc_server = {
-	.prog = DOG_KEEPALIVE_PROG,
-	.vers = DOG_KEEPALIVE_VERS,
 	.rpc_call = handle_rpc_call,
 };
 
 static int __init rpc_server_init(void)
 {
+	rpc_server.prog = amss_get_num_value(DOG_KEEPALIVE_PROG);
+	rpc_server.vers = amss_get_num_value(DOG_KEEPALIVE_VERS);
 	return msm_rpc_create_server(&rpc_server);
 }
 

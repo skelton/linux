@@ -132,8 +132,7 @@ gps_disable (void)
     msg.msg[1] = cpu_to_be32 (0);
     msg.msg[2] = cpu_to_be32 (0);
     msg.msg[3] = cpu_to_be32 (PD_CLIENT_ID);
-    rc =
-    msm_rpc_call (ept, END_SESSION, &msg, 4*4 + sizeof (struct rpc_request_hdr), 15 * HZ);
+    rc = msm_rpc_call (ept, END_SESSION, &msg, 4*4 + sizeof (struct rpc_request_hdr), 15 * HZ);
     if (rc < 0)
         printk ("ERROR: %s:%d %d\n", __func__, __LINE__, rc);
 

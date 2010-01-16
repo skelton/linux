@@ -35,6 +35,7 @@
 #include <linux/wakelock.h>
 #include <asm/mach-types.h>
 #include "../smd_rpcrouter.h"
+#include <mach/amss_para.h>
 
 static struct wake_lock adsp_wake_lock;
 static inline void prevent_suspend(void)
@@ -90,9 +91,9 @@ static int rpc_adsp_rtos_app_to_modem(uint32_t cmd, uint32_t module,
 	struct rpc_reply_hdr *rpc_rsp;
 
 	msm_rpc_setup_req(&rpc_req.hdr,
-			  RPC_ADSP_RTOS_ATOM_PROG,
-			  RPC_ADSP_RTOS_ATOM_VERS,
-			  RPC_ADSP_RTOS_APP_TO_MODEM_PROC);
+			  amss_get_num_value(RPC_ADSP_RTOS_ATOM_PROG),
+			  amss_get_num_value(RPC_ADSP_RTOS_ATOM_VERS),
+			  amss_get_num_value(RPC_ADSP_RTOS_APP_TO_MODEM_PROC));
 
 	rpc_req.gotit = cpu_to_be32(1);
 	rpc_req.cmd = cpu_to_be32(cmd);
@@ -152,9 +153,9 @@ static struct msm_adsp_module *find_adsp_module_by_name(
 static int adsp_rpc_init(struct msm_adsp_module *adsp_module)
 {
 	adsp_module->rpc_client = msm_rpc_connect(
-		RPC_ADSP_RTOS_ATOM_PROG,
-		RPC_ADSP_RTOS_ATOM_VERS,
-		MSM_RPC_UNINTERRUPTIBLE);
+		amss_get_num_value(RPC_ADSP_RTOS_ATOM_PROG),
+		amss_get_num_value(RPC_ADSP_RTOS_ATOM_VERS),
+		amss_get_num_value(MSM_RPC_UNINTERRUPTIBLE));
 
 	if (IS_ERR(adsp_module->rpc_client)) {
 		int rc = PTR_ERR(adsp_module->rpc_client);
@@ -432,12 +433,32 @@ fail:
 
 static void handle_adsp_rtos_mtoa_app(struct rpc_request_hdr *req)
 {
-	struct rpc_adsp_rtos_modem_to_app_args_t *args =
-		(struct rpc_adsp_rtos_modem_to_app_args_t *)req;
-	uint32_t event = be32_to_cpu(args->event);
-	uint32_t proc_id = be32_to_cpu(args->proc_id);
-	uint32_t module_id = be32_to_cpu(args->module);
-	uint32_t image = be32_to_cpu(args->image);
+	uint32_t event = 0;
+	uint32_t proc_id =  0;
+	uint32_t module_id =  0;
+	uint32_t image =  0;
+	
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM: {
+			struct rpc_adsp_rtos_modem_to_app_args_t_6120 *args =
+				(struct rpc_adsp_rtos_modem_to_app_args_t_6120 *)req;
+			event = be32_to_cpu(args->event);
+			proc_id = be32_to_cpu(args->proc_id);
+			module_id = be32_to_cpu(args->module);
+			image = be32_to_cpu(args->image);
+			break;
+		}
+		default: {
+			struct rpc_adsp_rtos_modem_to_app_args_t *args =
+				(struct rpc_adsp_rtos_modem_to_app_args_t *)req;
+			event = be32_to_cpu(args->event);
+			proc_id = be32_to_cpu(args->proc_id);
+			module_id = be32_to_cpu(args->module);
+			image = be32_to_cpu(args->image);
+			break;
+		}
+	}
 	struct msm_adsp_module *module;
 
 	pr_info("adsp: rpc event=%d, proc_id=%d, module=%d, image=%d\n",
@@ -489,21 +510,19 @@ done:
 
 static int handle_adsp_rtos_mtoa(struct rpc_request_hdr *req)
 {
-	switch (req->procedure) {
-	case RPC_ADSP_RTOS_MTOA_NULL_PROC:
+	if(req->procedure == amss_get_num_value(RPC_ADSP_RTOS_MTOA_NULL_PROC)) {
 		rpc_send_accepted_void_reply(rpc_cb_server_client,
 					     req->xid,
 					     RPC_ACCEPTSTAT_SUCCESS);
-		break;
-	case RPC_ADSP_RTOS_MODEM_TO_APP_PROC:
+	}
+	else if(req->procedure == amss_get_num_value(RPC_ADSP_RTOS_MODEM_TO_APP_PROC)) {
 		handle_adsp_rtos_mtoa_app(req);
-		break;
-	default:
+	}
+	else {
 		pr_err("adsp: unknowned proc %d\n", req->procedure);
 		rpc_send_accepted_void_reply(
 			rpc_cb_server_client, req->xid,
 			RPC_ACCEPTSTAT_PROC_UNAVAIL);
-		break;
 	}
 	return 0;
 }
@@ -534,9 +553,9 @@ static int adsp_rpc_thread(void *data)
 			goto bad_rpc;
 		if (req->rpc_vers != 2)
 			goto bad_rpc;
-		if (req->prog != RPC_ADSP_RTOS_MTOA_PROG)
+		if (req->prog != amss_get_num_value(RPC_ADSP_RTOS_MTOA_PROG))
 			goto bad_rpc;
-		if (req->vers != RPC_ADSP_RTOS_MTOA_VERS)
+		if (req->vers != amss_get_num_value(RPC_ADSP_RTOS_MTOA_VERS))
 			goto bad_rpc;
 
 		handle_adsp_rtos_mtoa(req);
@@ -861,8 +880,8 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	rpc_cb_server_client->cid=adsp_cid;
 	
 	rc = msm_rpc_register_server(rpc_cb_server_client,
-				     RPC_ADSP_RTOS_MTOA_PROG,
-				     RPC_ADSP_RTOS_MTOA_VERS);
+				     amss_get_num_value(RPC_ADSP_RTOS_MTOA_PROG),
+				     amss_get_num_value(RPC_ADSP_RTOS_MTOA_VERS));
 
 	if (rc) {
 		pr_err("adsp: could not register callback server (%d)\n", rc);
@@ -912,17 +931,6 @@ fail_request_irq:
 static struct platform_driver msm_adsp_driver = {
 	.probe = msm_adsp_probe,
 	.driver = {
-#if CONFIG_MSM_AMSS_VERSION == 6210
-		.name = "rs3000000a:20f17fd3",
-#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
-		.name = "rs3000000a:71d1094b",
-#elif (CONFIG_MSM_AMSS_VERSION == 5200)  || (CONFIG_MSM_AMSS_VERSION == 6120)  || (CONFIG_MSM_AMSS_VERSION == 6125)
-		.name = "rs3000000a:00000000",
-#elif CONFIG_MSM_AMSS_VERSION == 6150 /* TODO */
-		.name = "rs3000000a:00000000",
-#else
-#error "Unknown AMSS version"
-#endif
 		.owner = THIS_MODULE,
 	},
 };
@@ -931,6 +939,7 @@ static int __init adsp_init(void)
 {
 	int i;
 	unsigned *rpcchan;
+	char drivename[20];
 	
 	/*
 	if(!adsp_cid) {
@@ -947,6 +956,9 @@ static int __init adsp_init(void)
 		printk("Using adsp_cid=%08x\n", adsp_cid);
 	}
 	*/
+	amss_get_str_value(RPC_ADSP_RTOS_ATOM_PROG_VERS, drivename, sizeof(drivename));
+	msm_adsp_driver.driver.name = drivename;
+	pr_err("ADSP DRIVERNAME: %s \n", msm_adsp_driver.driver.name);
 
 	return platform_driver_register(&msm_adsp_driver);
 }

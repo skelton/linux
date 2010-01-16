@@ -23,6 +23,7 @@
 
 #include <asm/atomic.h>
 #include <mach/msm_rpcrouter.h>
+#include <mach/amss_para.h>
 
 #include "audmgr.h"
 
@@ -208,8 +209,10 @@ int audmgr_open(struct audmgr *am)
 	if (am->state != STATE_CLOSED)
 		return 0;
 
-	am->ept = msm_rpc_connect(AUDMGR_PROG, AUDMGR_VERS,
-				  MSM_RPC_UNINTERRUPTIBLE);
+	am->ept = msm_rpc_connect(
+				amss_get_num_value(AUDMGR_PROG), 
+				amss_get_num_value(AUDMGR_VERS),
+				MSM_RPC_UNINTERRUPTIBLE);
 	init_waitqueue_head(&am->wait);
 
 	if (IS_ERR(am->ept)) {
@@ -258,7 +261,9 @@ int audmgr_enable(struct audmgr *am, struct audmgr_config *cfg)
 	msg.args.cb_func = cpu_to_be32(0x11111111);
 	msg.args.client_data = cpu_to_be32(0x11223344);
 
-	msm_rpc_setup_req(&msg.hdr, AUDMGR_PROG, AUDMGR_VERS,
+	msm_rpc_setup_req(&msg.hdr, 
+			  amss_get_num_value(AUDMGR_PROG), 
+			  amss_get_num_value(AUDMGR_VERS),
 			  AUDMGR_ENABLE_CLIENT);
 
 	rc = msm_rpc_write(am->ept, &msg, sizeof(msg));
@@ -285,7 +290,9 @@ int audmgr_disable(struct audmgr *am)
 	if (am->state == STATE_DISABLED)
 		return 0;
 
-	msm_rpc_setup_req(&msg.hdr, AUDMGR_PROG, AUDMGR_VERS,
+	msm_rpc_setup_req(&msg.hdr, 
+			  amss_get_num_value(AUDMGR_PROG), 
+			  amss_get_num_value(AUDMGR_VERS),
 			  AUDMGR_DISABLE_CLIENT);
 	msg.handle = cpu_to_be32(am->handle);
 
