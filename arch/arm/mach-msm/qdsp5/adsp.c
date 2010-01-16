@@ -958,7 +958,6 @@ static int __init adsp_init(void)
 	*/
 	amss_get_str_value(RPC_ADSP_RTOS_ATOM_PROG_VERS, drivename, sizeof(drivename));
 	msm_adsp_driver.driver.name = drivename;
-	pr_err("ADSP DRIVERNAME: %s \n", msm_adsp_driver.driver.name);
 
 	return platform_driver_register(&msm_adsp_driver);
 }

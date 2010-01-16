@@ -121,7 +121,7 @@ struct amss_value amss_6150_para[] = {
 
 // Function to init of the struct and get the Values, Init in first call.
 
-int amss_get_value(int id, uint32_t numval, char* strval, size_t size)
+int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 {
 	static struct amss_value *active_para = NULL;
 	struct amss_value *mach_para;
@@ -175,9 +175,9 @@ int amss_get_value(int id, uint32_t numval, char* strval, size_t size)
 		return -EINVAL;
 	}
 	
-	numval = active_para[id].numval;
+	*numval = active_para[id].numval;
 	memcpy (strval, active_para[id].strval, size);
-	pr_err("AMSS ASK: %d   GET:  %x    :%s\n", id, numval, strval);
+	pr_info              ("AMSS ASK: %d   GET:  %x    :%s\n", id, *numval, strval);
 
 	return 0;
 	
@@ -188,13 +188,13 @@ uint32_t amss_get_num_value(int id)
 {
 	char* str = "";
 	uint32_t num = 0;
-	amss_get_value(id, num, str, 0);
+	amss_get_value(id, &num, str, 0);
 	return num;
 }
   
 void amss_get_str_value(int id, char* str, size_t size)
 {
 	uint32_t num = 0;
-	amss_get_value(id, num, str, size);
+	amss_get_value(id, &num, str, size);
 }
  
