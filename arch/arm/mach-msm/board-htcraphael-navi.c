@@ -118,7 +118,7 @@ static int raphnavi_keymap[] =
 		//1 col
 /*10*/		KEY_RIGHT, // impossible: = 4..6
 		//2 col
-		KEY_RESERVED,
+		KEY_PHONE, // push-to-talk, RAPH110 only
 		//3 col
 		KEY_DOWN,
 

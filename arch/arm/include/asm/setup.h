@@ -209,6 +209,13 @@ struct meminfo {
 	struct membank bank[NR_BANKS];
 };
 
+#define bank_pfn_start(bank)    __phys_to_pfn((bank)->start)
+#define bank_pfn_end(bank)      __phys_to_pfn((bank)->start + (bank)->size)
+#define bank_pfn_size(bank)     ((bank)->size >> PAGE_SHIFT)
+#define bank_phys_start(bank)   (bank)->start
+#define bank_phys_end(bank)     ((bank)->start + (bank)->size)
+#define bank_phys_size(bank)    (bank)->size
+
 /*
  * Early command line parameters.
  */
