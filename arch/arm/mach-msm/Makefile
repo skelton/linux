@@ -40,7 +40,7 @@ obj-$(CONFIG_MACH_HTCBLACKSTONE) += board-htcblackstone.o board-htcblackstone-pa
 obj-$(CONFIG_MACH_HTCBLACKSTONE) += msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
 
 obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htcblackstone-panel.o htc_wifi_nvs.o board-htckovsky-mmc.o
-obj-$(CONFIG_MACH_HTCTOPAZ) += board-htctopaz.o board-htctopaz-panel.o board-htctopaz-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o
+obj-$(CONFIG_MACH_HTCTOPAZ) += board-htctopaz.o board-htctopaz-panel.o board-htctopaz-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o msm-gpio-keys.o
 obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium.o board-htctopaz-panel.o htc_wifi_nvs.o mmc.o pmem.o 
 
 obj-$(CONFIG_MACH_HALIBUT) += board-halibut.o board-halibut-keypad.o

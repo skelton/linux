@@ -29,8 +29,6 @@
 #include "smd_private.h"
 
 #define MSM_A2M_INT(n) (MSM_CSR_BASE + 0x400 + (n) * 4)
-#define SMD_BUF_SIZE 8192
-#define SMD_SS_OPENED            0x00000002
 #define BURST_SIZE 0xfffffff
 
 #if 0
@@ -42,58 +40,13 @@
 extern void *smem_alloc(unsigned id, unsigned size);
 
 struct smd_7500_buffer {
-	// Take up space so none of the half_channel attributes clobber our attributes
-	unsigned unused[5];
-	// and our attributes end up inside the half_channel data buffer
-	unsigned short size;
-	unsigned short *head;
-	unsigned short *tail;
-	unsigned char *open;
-	char *buffer;
-};
+	unsigned short send_size;
+	unsigned short *send_head;
+	unsigned short *send_tail;
 
-struct smd_half_channel {
-	unsigned state;
-	unsigned char fDSR;
-	unsigned char fCTS;
-	unsigned char fCD;
-	unsigned char fRI;
-	unsigned char fHEAD;
-	unsigned char fTAIL;
-	unsigned char fSTATE;
-	unsigned char fUNUSED;
-	unsigned tail;
-	unsigned head;
-	unsigned char data[SMD_BUF_SIZE];
-};
-
-struct smd_shared {
-	struct smd_half_channel ch0;
-	struct smd_half_channel ch1;
-};
-
-struct smd_channel {
-	volatile struct smd_half_channel *send;
-	volatile struct smd_half_channel *recv;
-	struct list_head ch_list;
-
-	unsigned current_packet;
-	unsigned n;
-	void *priv;
-	void (*notify)(void *priv, unsigned flags);
-
-	int (*read)(smd_channel_t *ch, void *data, int len);
-	int (*write)(smd_channel_t *ch, const void *data, int len);
-	int (*read_avail)(smd_channel_t *ch);
-	int (*write_avail)(smd_channel_t *ch);
-
-	void (*update_state)(smd_channel_t *ch);
-	void (*check_for_data)(smd_channel_t *ch);
-	unsigned last_state;
-
-	char name[32];
-	struct platform_device pdev;
-	short *open;
+	unsigned short recv_size;
+	unsigned short *recv_head;
+	unsigned short *recv_tail;
 };
 
 static inline void notify_other_smd(int ch)
@@ -135,23 +88,23 @@ void do_smd_7500_probe(unsigned char *smd_ch_allocated, struct list_head *smd_ch
 
 		ch->send = kzalloc(sizeof(struct smd_half_channel), GFP_KERNEL);
 		ch->recv = kzalloc(sizeof(struct smd_half_channel), GFP_KERNEL);
+		ch->buf_7500 = kzalloc(sizeof(struct smd_7500_buffer), GFP_KERNEL);
 		ch->n = i;
 
 		memcpy(ch->name, "SMD_", 4);
 
 		if (i == 0) {
-			
-			p = (struct smd_7500_buffer*)ch->recv;
-			p->size = 0x200;
-			p->buffer = (char*)(MSM_SHARED_RAM_BASE + 0xf0000);
-			p->head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fc8);
-			p->tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fca);
+			p = ch->buf_7500;
 
-			p = (struct smd_7500_buffer*)ch->send;
-			p->size = 0x200;
-			p->buffer = (char*)(MSM_SHARED_RAM_BASE + 0xf0200);
-			p->head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fcc);
-			p->tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fce);
+			p->recv_size = 0x200;
+			ch->recv_buf = (unsigned char*)(MSM_SHARED_RAM_BASE + 0xf0000);
+			p->recv_head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fc8);
+			p->recv_tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fca);
+
+			p->send_size = 0x200;
+			ch->send_buf = (unsigned char*)(MSM_SHARED_RAM_BASE + 0xf0200);
+			p->send_head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fcc);
+			p->send_tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fce);
 
 			ch->open = (short *)(MSM_SHARED_RAM_BASE + 0xf3fc4);
 			// Mark this as always-open, to avoid watchdog from crashing the modem
@@ -159,17 +112,17 @@ void do_smd_7500_probe(unsigned char *smd_ch_allocated, struct list_head *smd_ch
 
 			memcpy(ch->name + 4, "DS", 20);
 		} else if (i == 1) {
-			p = (struct smd_7500_buffer*)ch->recv;
-			p->size = 0xd82;
-			p->buffer = (char*)(MSM_SHARED_RAM_BASE + 0xf0a00);
-			p->head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fd8);
-			p->tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fda);
+			p = ch->buf_7500;
 
-			p = (struct smd_7500_buffer*)ch->send;
-			p->size = 0x282;
-			p->buffer = (char*)(MSM_SHARED_RAM_BASE + 0xf1782);
-			p->head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fdc);
-			p->tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fde);
+			p->recv_size = 0xd82;
+			ch->recv_buf = (char*)(MSM_SHARED_RAM_BASE + 0xf0a00);
+			p->recv_head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fd8);
+			p->recv_tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fda);
+
+			p->send_size = 0x282;
+			ch->send_buf = (char*)(MSM_SHARED_RAM_BASE + 0xf1782);
+			p->send_head = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fdc);
+			p->send_tail = (unsigned short *)(MSM_SHARED_RAM_BASE + 0xf3fde);
 
 			ch->open = (short *)(MSM_SHARED_RAM_BASE + 0xf3fd4);
 			// Mark this as always-open, to avoid watchdog from crashing the modem
@@ -190,9 +143,7 @@ void do_smd_7500_probe(unsigned char *smd_ch_allocated, struct list_head *smd_ch
 		ch->pdev.id = -1;
 		
 		printk(KERN_INFO "%s: late-alloc '%s' cid=%d, send=%p, recv=%p\n",
-			__func__, ch->name, ch->n,
-			((struct smd_7500_buffer*)ch->send)->buffer,
-			((struct smd_7500_buffer*)ch->recv)->buffer );
+			__func__, ch->name, ch->n, ch->send_buf, ch->recv_buf);
 		
 		list_add(&ch->ch_list, smd_ch_closed_list);
 		smd_ch_allocated[i] = 1;
@@ -210,7 +161,7 @@ static int smd_7500_read(smd_channel_t *ch, void *data, int len)
 	
 	recvd = 0;
 	buf = data;
-	p = (struct smd_7500_buffer *)ch->recv;
+	p = ch->buf_7500;
 	
 	D("%s on ch %d\n", __func__, ch->n);
 	
@@ -219,19 +170,19 @@ static int smd_7500_read(smd_channel_t *ch, void *data, int len)
 	
 	notify_other_smd(ch->n);
 	
-	mytail = *p->tail;
+	mytail = *p->recv_tail;
 	
 	while (recvd < len) {
-		mytail = (mytail + 1) % p->size;
+		mytail = (mytail + 1) % p->recv_size;
 		if (buf)
-			*buf++ = *(p->buffer + mytail);
+			*buf++ = *(ch->recv_buf + mytail);
 		++recvd;
 		if ((recvd % BURST_SIZE) == 0) {
-			*p->tail = mytail;
+			*p->recv_tail = mytail;
 			notify_other_smd(ch->n);
 		}
 	}
-	*p->tail = mytail;
+	*p->recv_tail = mytail;
 	D("received %d bytes from cid=%d\n", recvd, ch->n);
 
 	notify_other_smd(ch->n);
@@ -248,7 +199,7 @@ static int smd_7500_write(smd_channel_t *ch, const void *data, int len)
 	
 	sent = 0;
 	buf = data;
-	p = (struct smd_7500_buffer *)ch->send;
+	p = ch->buf_7500;
 	
 	D("%s: on ch %d, %d bytes\n", __func__, ch->n, len);
 	
@@ -257,24 +208,24 @@ static int smd_7500_write(smd_channel_t *ch, const void *data, int len)
 	if (len < 0)
 		return -EINVAL;
 	
-	myhead = *p->head;
+	myhead = *p->send_head;
 	notify_other_smd(ch->n);
 	while (len > 0) {
-		myhead = (myhead + 1) % p->size;
-		while (myhead == *p->tail)
+		myhead = (myhead + 1) % p->send_size;
+		while (myhead == *p->send_tail)
 			udelay(5);
 		
 		--len;
 		
-		*(p->buffer + myhead) = *buf++;
+		*(ch->send_buf + myhead) = *buf++;
 		++sent;
 		
-		if ((sent % BURST_SIZE) == 0 || (myhead == (p->size - 1))) {
-			*p->head = myhead;
+		if ((sent % BURST_SIZE) == 0 || (myhead == (p->send_size - 1))) {
+			*p->send_head = myhead;
 			notify_other_smd(ch->n);
 		}
 	}
-	*p->head = myhead;
+	*p->send_head = myhead;
 	D("wrote %d bytes to cid=%d\n", sent, ch->n);
 
 	notify_other_smd(ch->n);
@@ -287,29 +238,28 @@ static int smd_7500_write(smd_channel_t *ch, const void *data, int len)
 static int smd_7500_read_avail(smd_channel_t *ch)
 {
 	struct smd_7500_buffer *p;
-	p = (struct smd_7500_buffer *)ch->recv;
-	return (*p->head - *p->tail + p->size) % p->size;
+	p = ch->buf_7500;
+	return (*p->recv_head - *p->recv_tail + p->recv_size) % p->recv_size;
 }
 
 static int smd_7500_write_avail(smd_channel_t *ch)
 {
 	struct smd_7500_buffer *p;
-	p = (struct smd_7500_buffer *)ch->send;
-	return p->size - ((*p->head - *p->tail + p->size) % p->size) - 1;
+	p = ch->buf_7500;
+	return p->send_size - ((*p->send_head - *p->send_tail + p->send_size) % p->send_size) - 1;
 }
 
 static void smd_7500_check_for_data(smd_channel_t *ch)
 {
 	struct smd_7500_buffer *p;
 	if (ch->open && *ch->open) {
-		p = (struct smd_7500_buffer *)ch->recv;
-		if (*p->head != *p->tail) {
+		p = ch->buf_7500;
+		if (*p->recv_head != *p->recv_tail) {
 			if (ch->notify && ch->priv)
 				ch->notify(ch->priv, SMD_EVENT_DATA);
 			ch->recv->fHEAD = 0;
 		}
-		p = (struct smd_7500_buffer *)ch->send;
-		if (*p->head != *p->tail) {
+		if (*p->send_head != *p->send_tail) {
 			notify_other_smd(ch->n);
 			ch->send->fTAIL = 0;
 		}

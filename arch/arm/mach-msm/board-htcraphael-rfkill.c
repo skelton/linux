@@ -65,8 +65,20 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 		printk("   bluetooth rfkill state ON\n");
 
 		config_gpio_table(bt_on_gpio_table_raph100,ARRAY_SIZE(bt_on_gpio_table_raph100));
-		if(machine_is_htctopaz() || machine_is_htcrhodium()) {
-			rc = vreg_enable(vreg_bt);
+		if(machine_is_htcrhodium()) {
+			gpio_configure(91, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+			gpio_set_value(91, 1);
+			mdelay(50);
+			gpio_configure(35, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(35, 0);
+			mdelay(50);
+			gpio_configure(31, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(31, 0);
+			mdelay(100);
+			gpio_set_value(31, 1);
+				
+		} else if(machine_is_htctopaz()) {
+			rc = vreg_enable(vreg_bt);	// Don't use on Rhod, disables the display!
 			if(rc) {
 				printk(KERN_ERR "BT VREG Activate Error %d\n", rc);
 				return rc;
@@ -94,7 +106,11 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 #if 1
 		config_gpio_table(bt_off_gpio_table_raph100,ARRAY_SIZE(bt_off_gpio_table_raph100));
 #endif
-		if(machine_is_htctopaz() || machine_is_htcrhodium()) {
+		if(machine_is_htcrhodium()) {
+			gpio_configure(91, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(91, 0);
+	      
+		} else if(machine_is_htctopaz()) {
 			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			vreg_set_level(vreg_bt, 0);
 			vreg_disable(vreg_bt);

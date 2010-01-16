@@ -17,12 +17,26 @@
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
+#include <mach/vreg.h>
+#include <mach/msm_iomap.h>
+#include <linux/err.h>
 #include <linux/debugfs.h>
+#include <asm/uaccess.h>
+#include <linux/unistd.h>
 
 #include <linux/microp-klt.h>
 
+#include <asm/mach-types.h>
+#include "../../../arch/arm/mach-msm/proc_comm_wince.h"
+
+
 static int micropklt_read(struct i2c_client *, unsigned, char *, int);
 static int micropklt_write(struct i2c_client *, const char *, int);
+extern int init_spi_bma150(struct microp_klt*);
+
+
+void micropklt_lcd_ctrl(int v);
+int micropklt_set_lcd_state(int on);
 
 #define MODULE_NAME "microp-klt"
 
@@ -31,6 +45,7 @@ static int micropklt_write(struct i2c_client *, const char *, int);
 #else
  #define D(fmt, arg...) do {} while(0)
 #endif
+#define GP_NS_REG (0x005c)
 
 static struct microp_klt {
 	struct i2c_client *client;
@@ -46,8 +61,10 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 	struct microp_klt *data;
 	struct i2c_client *client;
 	char buffer[4] = { 0, 0, 0, 0 };
-	int idx, b, state;
+	int idx, b, state, i;
 
+
+	
 	if ( !strcmp(led_cdev->name, "klt::home") )
 		idx = 0;
 	else if ( !strcmp(led_cdev->name, "klt::back") )
@@ -65,6 +82,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 	else
 		return;
 
+	
 	data = container_of(led_cdev, struct microp_klt, leds[idx]);
 	client = data->client;
 
@@ -80,7 +98,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 
 	if ( brightness == LED_OFF )
 		state &= ~b;
-	else 
+	else
 		state |= b;
 
 	// lcd-backlight lets us do varied brightness
@@ -101,6 +119,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 		data->led_states = state;
 		micropklt_write(client, buffer, 3);
 	}
+	
 	mutex_unlock(&data->lock);
 }
 
@@ -165,7 +184,7 @@ void micropklt_lcd_ctrl(int v)
 	char c8[]={0x40,0x10,0x00};
 	char c9[]={0x20,0x08};
 
-	
+
         data = micropklt_t;
         if (!data) return;
         client = data->client;
@@ -195,6 +214,40 @@ void micropklt_lcd_ctrl(int v)
 
 EXPORT_SYMBOL(micropklt_lcd_ctrl);
 
+void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *spi_table, size_t count)
+{
+	int i;
+	struct microp_klt *data;
+	struct i2c_client *client;
+	char val3[2];
+	uint16_t delay;
+	data = micropklt_t;
+	if (!data) return;
+	mdelay(0x32);
+	for(i = 0; i < count; i++) {
+		delay = spi_table[i].delay;
+		char c0[]={spicmd, spi_table[i].value1, spi_table[i].value2, spi_table[i].value3};
+		msleep(1);
+		micropklt_write(data->client, c0, ARRAY_SIZE(c0));
+		udelay(50);
+		if(delay)
+			msleep(delay);
+		  
+	}
+
+}
+
+void micropklt_lcd_precess_cmd(char* cmd, size_t count)
+{
+	struct microp_klt *data;
+	struct i2c_client *client;
+	data = micropklt_t;
+	if (!data) return;
+	msleep(1);
+	micropklt_write(data->client, cmd, count);
+	udelay(50);
+}
+
 static int micropklt_remove(struct i2c_client *client)
 {
 	struct microp_klt *data;
@@ -221,7 +274,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-LED chip driver at "
 	       "addr: 0x%02x\n", client->addr);
-
+	       
+	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		printk(KERN_ERR MODULE_NAME ": i2c bus not supported\n");
 		return -EINVAL;
@@ -251,17 +305,19 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	 *   060d
 	 */
 	supported = 0;
+	data->version = (buf[0] << 8) | buf[1];
 	switch (buf[0]) {
 	case 0x01:
 	case 0x02:
 	case 0x0a:
 	case 0x0b:
 		switch (buf[1])	{
+		case 0x88: /* rhod210 */
+		case 0x0e: /* topa100 */
+			init_spi_bma150(data);
 		case 0x01:
 		case 0x05:
 		case 0x81: /* diam500 */
-		case 0x88: /* rhod210 */
-		case 0x0e: /* topa100 */
 			supported = 1;
 			break;
 		}
@@ -290,7 +346,6 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		}
 		break;
 	}
-	data->version = (buf[0] << 8) | buf[1];
 
 	if (!supported) {
 		printk(KERN_WARNING MODULE_NAME ": This hardware is not yet supported: %04x\n", data->version);
@@ -364,14 +419,13 @@ fail:
 static int micropklt_write(struct i2c_client *client, const char *sendbuf, int len)
 {
 	int r;
-
 	r = i2c_master_send(client, sendbuf, len);
 	if (r < 0) {
 		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
 	} else {
-		D("  >>> 0x%02x, 0x%02x -> %02x %02x", client->addr,
+		D("  >>> 0x%08x, 0x%08x -> 0x%08x 0x%08x 0x%08x\n", client->addr,
 		         sendbuf[0], (len > 1 ? sendbuf[1] : 0), 
-		         (len > 2 ? sendbuf[2] : 0));
+		         (len > 2 ? sendbuf[2] : 0), (len > 3 ? sendbuf[3] : 0));
 	}
 	return r;
 }
@@ -418,7 +472,7 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 }
 
 static int micropklt_resume(struct i2c_client *client)
-{
+{ 
 	D("resuming device...");
 //	char cmd[]={0x20,0x48};
 //	send_command(cmd);

@@ -18,17 +18,11 @@
 #include <linux/err.h>
 #include <linux/hrtimer.h>
 #include <linux/timed_output.h>
+#include <mach/amss_para.h>
 
 #include <mach/msm_rpcrouter.h>
 
 #include "proc_comm_wince.h"
-
-#define PM_LIBPROG	  0x30000061
-#if (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
-#define PM_LIBVERS	  0xfb837d0b
-#else
-#define PM_LIBVERS	  0x10001
-#endif
 
 #define HTC_PROCEDURE_SET_VIB_ON_OFF	21
 #define PMIC_VIBRATOR_LEVEL	(3000)
@@ -48,7 +42,10 @@ static void set_pmic_vibrator(int on)
 	} req;
 
 	if (!vib_endpoint) {
-		vib_endpoint = msm_rpc_connect(PM_LIBPROG, PM_LIBVERS, 0);
+		vib_endpoint = msm_rpc_connect(
+		      amss_get_num_value(PM_LIBPROG), 
+		      amss_get_num_value(PM_LIBVERS), 
+		      0);
 		if (IS_ERR(vib_endpoint)) {
 			printk(KERN_ERR "init vib rpc failed!\n");
 			vib_endpoint = 0;

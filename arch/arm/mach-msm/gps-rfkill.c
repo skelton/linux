@@ -17,12 +17,10 @@
 #include <linux/delay.h>
 #include <linux/rfkill.h>
 #include <asm/mach-types.h>
+#include <mach/amss_para.h>
 
 #include "vogue_gps.h"
 #include "nmea.h"
-
-#define RPC_PDAPI_PROG          0x3000005b
-#define RPC_PDAPI_CB_PROG       0x3100005b
 
 struct rpc_ids {
 	uint32_t client_init;
@@ -35,6 +33,8 @@ struct rpc_ids {
 	uint32_t client_deact;
 	uint32_t get_position;
 	uint32_t end_session;
+	uint32_t pd_reg_msg4;
+	uint32_t pa_reg_msg4;
 } ids;
 
 struct rpc_ids ids_6120 = {
@@ -48,6 +48,8 @@ struct rpc_ids ids_6120 = {
 	.client_deact		= 0xa,
 	.get_position		= 0xb,
 	.end_session		= 0xc,
+	.pd_reg_msg4		= 0xf3f0ffff,
+	.pa_reg_msg4		= 0x07ffefe0,
 };
 struct rpc_ids ids_5200 = {
 	.client_init		= 3,
@@ -60,6 +62,8 @@ struct rpc_ids ids_5200 = {
 	.client_deact		= 0xb,
 	.get_position		= 0xc,
 	.end_session		= 0xd,
+	.pd_reg_msg4		= 0xf310ffff,
+	.pa_reg_msg4		= 0x003fefe0,
 };
 
 #define RPC_PDSM_ATL_PROG          0x3000001d
@@ -114,13 +118,11 @@ static int handle_pdsm_atl_rpc_call(struct msm_rpc_server *server,
 }
 
 static struct msm_rpc_server pdapi_rpc_server = {
-	.prog = RPC_PDAPI_CB_PROG,
 	.vers = 0,
 	.rpc_call = handle_pdapi_rpc_call,
 };
 
 static struct msm_rpc_server pdsm_atl_rpc_server = {
-	.prog = RPC_PDSM_ATL_CB_PROG,
 	.vers = 0,
 	.rpc_call = handle_pdsm_atl_rpc_call,
 };
@@ -139,6 +141,8 @@ static void gps_enable (void) {
 	} rep;
 
 	/* register CB */
+	pdapi_rpc_server.prog = amss_get_num_value(RPC_PDAPI_CB_PROG);
+	pdsm_atl_rpc_server.prog = amss_get_num_value(RPC_PDSM_ATL_CB_PROG);
 	msm_rpc_create_server(&pdapi_rpc_server);
 	msm_rpc_create_server(&pdsm_atl_rpc_server);
 
@@ -159,13 +163,7 @@ static void gps_enable (void) {
 	msg.msg[1] = cpu_to_be32 (0x0);
 	msg.msg[2] = cpu_to_be32 (0x0);
 	msg.msg[3] = cpu_to_be32 (0x0);
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
-	msg.msg[4] = cpu_to_be32 (0xf3f0ffff);
-#elif (CONFIG_MSM_AMSS_VERSION == 5200) || (CONFIG_MSM_AMSS_VERSION == 6150)
-	msg.msg[4] = cpu_to_be32 (0xf310ffff);
-#else
-#error "Unknown AMSS version"
-#endif
+	msg.msg[4] = cpu_to_be32 (ids.pd_reg_msg4);
 	msg.msg[5] = cpu_to_be32 (0xffffffff);
 	rc = msm_rpc_call_reply (ept, ids.client_pd_reg, &msg,
 			6*4 + sizeof (struct rpc_request_hdr),
@@ -209,13 +207,7 @@ static void gps_enable (void) {
 	msg.msg[1] = cpu_to_be32 (0x0);
 	msg.msg[2] = cpu_to_be32 (0x2);
 	msg.msg[3] = cpu_to_be32 (0x0);
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
-	msg.msg[4] = cpu_to_be32 (0x07ffefe0);
-#elif (CONFIG_MSM_AMSS_VERSION == 5200) || (CONFIG_MSM_AMSS_VERSION == 6150)
-	msg.msg[4] = cpu_to_be32 (0x003fefe0);
-#else
-#error "Unknown AMSS version"
-#endif
+	msg.msg[4] = cpu_to_be32 (ids.pa_reg_msg4);
 	msg.msg[5] = cpu_to_be32 (0xffffffff);
 	rc = msm_rpc_call (ept, CLIENT_PD_REG, &msg,
 			6*4 + sizeof (struct rpc_request_hdr),
@@ -290,7 +282,10 @@ static int gps_set_power(void *data, enum rfkill_state state)
 	switch (state) {
 	case RFKILL_STATE_ON:
 		if(!ept) {
-			ept = msm_rpc_connect (RPC_PDAPI_PROG, 0, MSM_RPC_UNINTERRUPTIBLE);
+			ept = msm_rpc_connect (
+					      amss_get_num_value(RPC_PDAPI_PROG), 
+					      0, 
+					      MSM_RPC_UNINTERRUPTIBLE);
 			if (!ept || IS_ERR (ept)) {
 				printk ("msm_rpc_connect failed (%d)\n", (int) ept);
 				return -1;

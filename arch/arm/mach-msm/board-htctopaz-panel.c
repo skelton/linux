@@ -15,7 +15,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/msm_fb.h>
-#include <mach/vreg.h>
+#include <linux/microp-klt.h>
 
 #include "board-htctopaz.h"
 #include "proc_comm_wince.h"
@@ -170,36 +170,6 @@ static struct mddi_table mddi_toshiba_init_table[] = {
 #endif
 };
 
-static struct mddi_table mddi_toshiba_panel_init_table[] = {
-	{ SRST,         0x00000003 }, /* FIFO/LCDC not reset */
-	{ PORT_ENB,     0x00000001 }, /* Enable sync. Port */
-	{ START,        0x00000000 }, /* To stop operation */
-	//{ START,        0x00000001 }, /* To start operation */
-	{ PORT,         0x00000004 }, /* Polarity of VS/HS/DE. */
-	{ CMN,          0x00000000 },
-	{ GAMMA,        0x00000000 }, /* No Gamma correction */
-	{ INTFLG,       0x00000000 }, /* VSYNC interrupt flag clear/status */
-	{ INTMSK,       0x00000000 }, /* VSYNC interrupt mask is off. */
-	{ MPLFBUF,      0x00000000 }, /* Select frame buffer's base address. */
-	{ HDE_LEFT,     0x00000000 }, /* The value of HDE_LEFT. */
-	{ VDE_TOP,      0x00000000 }, /* The value of VDE_TPO. */
-	{ PXL,          0x00000001 }, /* 1. RGB666 */
-	                              /* 2. Data is valid from 1st frame of beginning. */
-	{ HDE_START,    0x00000006 }, /* HDE_START= 14 PCLK */
-	{ HDE_SIZE,     0x0000009F }, /* HDE_SIZE=320 PCLK */
-	{ HSW,          0x00000004 }, /* HSW= 10 PCLK */
-	{ VSW,          0x00000001 }, /* VSW=2 HCYCLE */
-	{ VDE_START,    0x00000003 }, /* VDE_START=4 HCYCLE */
-	{ VDE_SIZE,     0x000001DF }, /* VDE_SIZE=480 HCYCLE */
-	{ WAKEUP,       0x000001e2 }, /* Wakeup position in VSYNC mode. */
-	{ WSYN_DLY,     0x00000000 }, /* Wakeup position in VSIN mode. */
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ CLKENB,       0x000025CB }, /* Clock enable register */
-
-	{ SSICTL,       0x00000170 }, /* SSI control register */
-	{ SSITIME,      0x00000250 }, /* SSI timing control register */
-	{ SSICTL,       0x00000172 }, /* SSI control register */
-};
 
 static struct mddi_table mddi_epson_init_table[] = {
 	{ SRST,         0x00000003 }, /* FIFO/LCDC not reset */
@@ -264,68 +234,142 @@ static struct mddi_table mddi_sharp_deinit_table[] = {
 	{ 1,            10         }, /* msleep 10 */
 };
 
-static struct mddi_table mddi_tpo_init_table[] = {
-	{ VCYCLE,       0x000001e5 },
-	{ HCYCLE,       0x000000ac },
-	{ REGENB,       0x00000001 }, /* Set 1 to enable to change the value of registers. */
-	{ 0,            20         }, /* udelay 20 */
-	{ GPIODATA,     0x00000004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ 0,            20         }, /* udelay 20 */
 
-	SPI_WRITE(0x08, 0x01)
-	{ 0,            500        }, /* udelay 500 */
-	SPI_WRITE(0x08, 0x00)
-	SPI_WRITE(0x02, 0x00)
-	SPI_WRITE(0x03, 0x04)
-	SPI_WRITE(0x04, 0x0e)
-	SPI_WRITE(0x09, 0x02)
-	SPI_WRITE(0x0b, 0x08)
-	SPI_WRITE(0x0c, 0x53)
-	SPI_WRITE(0x0d, 0x01)
-	SPI_WRITE(0x0e, 0xe0)
-	SPI_WRITE(0x0f, 0x01)
-	SPI_WRITE(0x10, 0x58)
-	SPI_WRITE(0x20, 0x1e)
-	SPI_WRITE(0x21, 0x0a)
-	SPI_WRITE(0x22, 0x0a)
-	SPI_WRITE(0x23, 0x1e)
-	SPI_WRITE(0x25, 0x32)
-	SPI_WRITE(0x26, 0x00)
-	SPI_WRITE(0x27, 0xac)
-	SPI_WRITE(0x29, 0x06)
-	SPI_WRITE(0x2a, 0xa4)
-	SPI_WRITE(0x2b, 0x45)
-	SPI_WRITE(0x2c, 0x45)
-	SPI_WRITE(0x2d, 0x15)
-	SPI_WRITE(0x2e, 0x5a)
-	SPI_WRITE(0x2f, 0xff)
-	SPI_WRITE(0x30, 0x6b)
-	SPI_WRITE(0x31, 0x0d)
-	SPI_WRITE(0x32, 0x48)
-	SPI_WRITE(0x33, 0x82)
-	SPI_WRITE(0x34, 0xbd)
-	SPI_WRITE(0x35, 0xe7)
-	SPI_WRITE(0x36, 0x18)
-	SPI_WRITE(0x37, 0x94)
-	SPI_WRITE(0x38, 0x01)
-	SPI_WRITE(0x39, 0x5d)
-	SPI_WRITE(0x3a, 0xae)
-	SPI_WRITE(0x3b, 0xff)
-	SPI_WRITE(0x07, 0x09)
-	{ 0,            10         }, /* udelay 10 */
-	{ START,        0x00000001 }, /* To start operation */
+
+static struct microp_spi_table spi_init_table[] = {
+	{0xc0,0x00,0x86},
+	{0xc0,0x01,0x00},
+	{0xc0,0x02,0x86},
+	{0xc0,0x03,0x00},
+	{0xc1,0x00,0x40},
+	{0xc2,0x00,0x21},
+	{0xc2,0x02,0x02},
+	{0xc7,0x00,0x91},
+	{0x35,0x00,0x02},
+	{0x44,0x00,0x00},
+	{0x44,0x01,0x4f},
+	{0xe0,0x00,0x01},
+	{0xe0,0x01,0x05},
+	{0xe0,0x02,0x1c},
+	{0xe0,0x03,0x33},
+	{0xe0,0x04,0x21},
+	{0xe0,0x05,0x35},
+	{0xe0,0x06,0x60},
+	{0xe0,0x07,0x33, 25},
+	{0xe0,0x08,0x24},
+	{0xe0,0x09,0x26},
+	{0xe0,0x0a,0x84},
+	{0xe0,0x0b,0x15},
+	{0xe0,0x0c,0x3a},
+	{0xe0,0x0d,0x4f},
+	{0xe0,0x0e,0x8c},
+	{0xe0,0x0f,0xaf},
+	{0xe0,0x10,0x4b},
+	{0xe0,0x11,0x4d},
+	{0xe1,0x00,0x01},
+	{0xe1,0x01,0x05},
+	{0xe1,0x02,0x1c},
+	{0xe1,0x03,0x33},
+	{0xe1,0x04,0x21},
+	{0xe1,0x05,0x35},
+	{0xe1,0x06,0x62},
+	{0xe1,0x07,0x33},
+	{0xe1,0x08,0x26},
+	{0xe1,0x09,0x26, 25},
+	{0xe1,0x0a,0x84},
+	{0xe1,0x0b,0x11},
+	{0xe1,0x0c,0x38},
+	{0xe1,0x0d,0x4d},
+	{0xe1,0x0e,0x8a},
+	{0xe1,0x0f,0xad},
+	{0xe1,0x10,0x49},
+	{0xe1,0x11,0x4d},
+	{0xe2,0x00,0x08},
+	{0xe2,0x01,0x19},
+	{0xe2,0x02,0x28},
+	{0xe2,0x03,0x3e},
+	{0xe2,0x04,0x1f},
+	{0xe2,0x05,0x34},
+	{0xe2,0x06,0x68},
+	{0xe2,0x07,0x43},
+	{0xe2,0x08,0x2b},
+	{0xe2,0x09,0x2a},
+	{0xe2,0x0a,0x88},
+	{0xe2,0x0b,0x19, 25},
+	{0xe2,0x0c,0x3c},
+	{0xe2,0x0d,0x52},
+	{0xe2,0x0e,0x8b},
+	{0xe2,0x0f,0xad},
+	{0xe2,0x10,0x4d},
+	{0xe2,0x11,0x4d},
+	{0xe3,0x00,0x08},
+	{0xe3,0x01,0x19},
+	{0xe3,0x02,0x28},
+	{0xe3,0x03,0x3e},
+	{0xe3,0x04,0x1f},
+	{0xe3,0x05,0x34},
+	{0xe3,0x06,0x68},
+	{0xe3,0x07,0x43},
+	{0xe3,0x08,0x2d},
+	{0xe3,0x09,0x2a},
+	{0xe3,0x0a,0x88},
+	{0xe3,0x0b,0x15},
+	{0xe3,0x0c,0x3a},
+	{0xe3,0x0d,0x50, 25},
+	{0xe3,0x0e,0x89},
+	{0xe3,0x0f,0xab},
+	{0xe3,0x10,0x4b},
+	{0xe3,0x11,0x4d},
+	{0xe4,0x00,0x7a},
+	{0xe4,0x01,0x76},
+	{0xe4,0x02,0x7d},
+	{0xe4,0x03,0x90},
+	{0xe4,0x04,0x3b},
+	{0xe4,0x05,0x40},
+	{0xe4,0x06,0x6a},
+	{0xe4,0x07,0x61},
+	{0xe4,0x08,0x29},
+	{0xe4,0x09,0x29},
+	{0xe4,0x0a,0x94},
+	{0xe4,0x0b,0x15},
+	{0xe4,0x0c,0x35},
+	{0xe4,0x0d,0x4f},
+	{0xe4,0x0e,0x9b},
+	{0xe4,0x0f,0xcc, 25},
+	{0xe4,0x10,0x4d},
+	{0xe4,0x11,0x4d},
+	{0xe5,0x00,0x7a},
+	{0xe5,0x01,0x76},
+	{0xe5,0x02,0x7d},
+	{0xe5,0x03,0x90},
+	{0xe5,0x04,0x3b},
+	{0xe5,0x05,0x40},
+	{0xe5,0x06,0x6c},
+	{0xe5,0x07,0x61},
+	{0xe5,0x08,0x2b},
+	{0xe5,0x09,0x29},
+	{0xe5,0x0a,0x94},
+	{0xe5,0x0b,0x11},
+	{0xe5,0x0c,0x33},
+	{0xe5,0x0d,0x4d},
+	{0xe5,0x0e,0x99},
+	{0xe5,0x0f,0xca},
+	{0xe5,0x10,0x4b},
+	{0xe5,0x11,0x4d, 25},
+	{0xf4,0x02,0x14},
+	{0xf1,0x00,0x0c, 25},
+	{0xb6,0x00,0x10},
 };
 
-static struct mddi_table mddi_tpo_deinit_table[] = {
-	SPI_WRITE(0x07, 0x19)
-	{ START,        0x00000000 }, /* To stop operation */
-	{ GPIODATA,     0x00040004 }, /* GPIO2 high */
-	{ GPIODIR,      0x00000004 }, /* GPIO2 out */
-	{ GPIODATA,     0x00040000 }, /* GPIO2 low */
-	{ 0,            5        }, /* usleep 5 */
+static struct microp_spi_table spi_deinit_table[] = {
+	{0x53,0x00,0x00},
+	{0x53,0x00,0x00, 25},
+	{0x28,0x00,0x00},
+	{0x10,0x00,0x00},
 };
 
+
+#define	spicmdreg	0x70;
 
 #define GPIOSEL_VWAKEINT (1U << 0)
 #define INTMASK_VWAKEOUT (1U << 0)
@@ -347,66 +391,133 @@ static void htcraphael_process_mddi_table(struct msm_mddi_client_data *client_da
 	}
 }
 
-static struct vreg *vreg_mddi_1v5;
-static struct vreg *vreg_lcm_2v85;
+
+extern void  micropklt_lcd_ctrl(int);
 
 static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_data,
 				    int on)
 {
 	printk("htcraphael_mddi_power_client(%d)\n", on);
 #if 0
- #warning htcraphael_mddi_power_client not yet implemented
-    unsigned id, on_off;
-	if(on) {
-		on_off = 0;
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm_wince(PCOM_VREG_PULLDOWN, &on_off, &id);
-		vreg_enable(vreg_mddi_1v5);
-		mdelay(5); // delay time >5ms and <10ms
-		gpio_set_value(V_VDDE2E_VDD2_GPIO, 1);
-		gpio_set_value(TROUT_GPIO_MDDI_32K_EN, 1);
-		msleep(3);
-		id = PM_VREG_PDOWN_AUX_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-		vreg_enable(vreg_lcm_2v85);
-		msleep(3);
-		gpio_set_value(MDDI_RST_N, 1);
-		msleep(10);
-	} else {
-		gpio_set_value(TROUT_GPIO_MDDI_32K_EN, 0);
-		gpio_set_value(MDDI_RST_N, 0);
-		msleep(10);
-		vreg_disable(vreg_lcm_2v85);
-		on_off = 1;
-		id = PM_VREG_PDOWN_AUX_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-		msleep(5);
-		gpio_set_value(V_VDDE2E_VDD2_GPIO, 0);
-		msleep(200);
-		vreg_disable(vreg_mddi_1v5);
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-	}
+#warning htcraphael_mddi_power_client not yet implemented
 #endif
+
+
+	return 0;
+
+	
 }
+
 
 
 static int htcraphael_mddi_epson_client_init(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
+  	printk(KERN_ERR "EPSON PANEL\n");
 	int panel_id;
-/* ORUX TODO
-	client_data->auto_hibernate(client_data, 0);
+
+/*	client_data->auto_hibernate(client_data, 0);
 	htcraphael_process_mddi_table(client_data, mddi_epson_init_table,
 				 ARRAY_SIZE(mddi_epson_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	if (panel_id > 1) {
+	if (panel_id < 3 || panel_id > 3) {
 		printk("unknown panel id (0x%08x) at mddi_enable\n", panel_id);
 		return -1;
 	}
+
 */
+	return 0;
+}
+
+extern int micropklt_lcd_precess_spi_table(uint32_t, struct microp_spi_table*, size_t);
+extern int micropklt_lcd_precess_cmd(char*, size_t);
+static int htctopaz_mddi_hitachi_panel_init(
+					     struct msm_mddi_bridge_platform_data *bridge_data,
+					      struct msm_mddi_client_data *client_data)
+{
+	struct msm_dex_command dex;
+	int ret;
+	char con[2];
+	client_data->auto_hibernate(client_data, 0);
+	mdelay(50);
+	
+	gpio_configure(57, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+	gpio_set_value(57, 0);
+	gpio_configure(58, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+	gpio_set_value(58, 0);
+
+	msleep(5);
+	dex.cmd=PCOM_PMIC_REG_ON;
+	dex.has_data=1;
+	dex.data=0x80;
+	msm_proc_comm_wince(&dex,0);
+	
+	msleep(5);
+	dex.data=0x2000;
+	msm_proc_comm_wince(&dex,0);
+	msleep(5);
+
+	gpio_configure(87, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+	gpio_set_value(87, 1);
+	msleep(10);
+	
+	
+	char c0[]={MICROP_KLT_ID_SPICTRL, 0x01};
+	micropklt_lcd_precess_cmd(c0, ARRAY_SIZE(c0));
+	msleep(10);
+	micropklt_lcd_precess_spi_table(MICROP_KLT_ID_SPILCMDDATA, spi_init_table, ARRAY_SIZE(spi_init_table));
+	msleep(20);
+	char c2[]={MICROP_KLT_ID_LCD_BRIGHTNESS, 0x90};
+	micropklt_lcd_precess_cmd(c2, ARRAY_SIZE(c2));
+	char c3[]={MICROP_KLT_ID_SPILCMDDATA, 0x11, 0x00, 0x00};
+	micropklt_lcd_precess_cmd(c3, ARRAY_SIZE(c3));
+	char c4[]={MICROP_KLT_ID_SPILCMDDATA, 0x29, 0x00, 0x00};
+	micropklt_lcd_precess_cmd(c4, ARRAY_SIZE(c4));
+	micropklt_lcd_precess_cmd(c2, ARRAY_SIZE(c2));
+	char c5[]={MICROP_KLT_ID_SPILCMDDATA, 0x53, 0x00, 0x2c};
+	micropklt_lcd_precess_cmd(c5, ARRAY_SIZE(c5));
+
+	client_data->auto_hibernate(client_data, 1);
+
+	return 0;
+}
+
+static int htctopaz_mddi_hitachi_panel_deinit(
+					     struct msm_mddi_bridge_platform_data *bridge_data,
+					      struct msm_mddi_client_data *client_data)
+{
+	int ret;
+	char con[2];
+	client_data->auto_hibernate(client_data, 0);
+	mdelay(2);
+	struct msm_dex_command dex;
+	
+	micropklt_lcd_precess_spi_table(MICROP_KLT_ID_SPILCMDDATA, spi_deinit_table, ARRAY_SIZE(spi_deinit_table));
+	char c1[]={MICROP_KLT_ID_SPICTRL, 0x00};
+	micropklt_lcd_precess_cmd(c1, ARRAY_SIZE(c1));
+
+	msleep(50);
+	gpio_configure(87, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+	gpio_set_value(87, 0);
+	msleep(10);
+
+	
+	dex.cmd=PCOM_PMIC_REG_OFF;
+	dex.has_data=1;
+	dex.data=0x2000;
+	msm_proc_comm_wince(&dex,0);
+	msleep(5);
+	dex.data=0x80;
+	msm_proc_comm_wince(&dex,0);
+
+	gpio_configure(57, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+	gpio_set_value(57, 1);
+	gpio_configure(58, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+	gpio_set_value(58, 1);
+
+	client_data->auto_hibernate(client_data, 1);
 
 	return 0;
 }
@@ -422,6 +533,8 @@ static int htcraphael_mddi_toshiba_client_init(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
+	printk(KERN_ERR "TOSHIBA PANEL\n");
+
 	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
@@ -448,42 +561,24 @@ static int htcraphael_mddi_panel_unblank(
 	struct msm_mddi_client_data *client_data)
 {
 
+	 printk(KERN_ERR "UNBLANK\n");
 	int panel_id, ret = 0;
-/* ORUX TODO	
-	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_toshiba_panel_init_table,
-		ARRAY_SIZE(mddi_toshiba_panel_init_table));
+	
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
+
 	switch(panel_id) {
-	 case 0:
-		printk("init sharp panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_sharp_init_table,
-					 ARRAY_SIZE(mddi_sharp_init_table));
-		break;
-	case 1:
-		printk("init tpo panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_tpo_init_table,
-					 ARRAY_SIZE(mddi_tpo_init_table));
-		break;
-	case 3:
-		printk("init hitachi panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_epson_init_table,
-					 ARRAY_SIZE(mddi_epson_init_table));
-		break;
-	default:
-		printk("unknown panel_id: %d\n", panel_id);
-		ret = -1;
+		case 0:
+			printk("unknown panel\n");
+			break;
+		case 3:
+			printk(KERN_ERR "init hitachi panel on toshiba client\n");
+			htctopaz_mddi_hitachi_panel_init(bridge_data,client_data);
+			break;
+		default:
+			printk("unknown panel_id: %d\n", panel_id);
 	};
-	//XXX: client_data->auto_hibernate(client_data, 1);
-	client_data->remote_write(client_data, GPIOSEL_VWAKEINT, GPIOSEL);
-	client_data->remote_write(client_data, INTMASK_VWAKEOUT, INTMASK);
-*/
 
-
-	return ret;
+	return 0;
 
 }
 
@@ -491,68 +586,26 @@ static int htcraphael_mddi_panel_blank(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
+  	printk(KERN_ERR "BLANK\n");
 	int panel_id, ret = 0;
-/* ORUX TODO
+
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	client_data->auto_hibernate(client_data, 0);
+
 	switch(panel_id) {
-	case 0:
-		printk("deinit sharp panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_sharp_deinit_table,
-					 ARRAY_SIZE(mddi_sharp_deinit_table));
-		break;
-	case 1:
-		printk("deinit tpo panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_tpo_deinit_table,
-					 ARRAY_SIZE(mddi_tpo_deinit_table));
-		break;
-	case 3:
-		printk("deinit epson panel\n");
-		htcraphael_process_mddi_table(client_data,
-					 mddi_epson_deinit_table,
-					 ARRAY_SIZE(mddi_epson_deinit_table));
-		break;
-	default:
-		printk("unknown panel_id: %d\n", panel_id);
-		ret = -1;
+		case 0:
+			printk("unknown panel\n");
+			break;
+		case 3:
+			printk(KERN_ERR "deinit hitachi panel on epson client\n");
+			htctopaz_mddi_hitachi_panel_deinit(bridge_data,client_data);
+			break;
+		default:
+			printk("unknown panel_id: %d\n", panel_id);
 	};
-	client_data->auto_hibernate(client_data, 1);
-	client_data->remote_write(client_data, 0, SYSCLKENA);
-	client_data->remote_write(client_data, 1, DPSUS);
-*/
-	return ret;
-}
 
-#if 0
-static struct led_classdev htcraphael_backlight_led = {
-	.name			= "lcd-backlight",
-	.brightness = htcraphael_DEFAULT_BACKLIGHT_BRIGHTNESS,
-	.brightness_set = htcraphael_brightness_set,
-};
-
-static int htcraphael_backlight_probe(struct platform_device *pdev)
-{
-	led_classdev_register(&pdev->dev, &htcraphael_backlight_led);
 	return 0;
-}
 
-static int htcraphael_backlight_remove(struct platform_device *pdev)
-{
-	led_classdev_unregister(&htcraphael_backlight_led);
-	return 0;
 }
-
-static struct platform_driver htcraphael_backlight_driver = {
-	.probe		= htcraphael_backlight_probe,
-	.remove		= htcraphael_backlight_remove,
-	.driver		= {
-		.name		= "htcraphael-backlight",
-		.owner		= THIS_MODULE,
-	},
-};
-#endif
 
 extern struct resource resources_msm_fb[];
 
@@ -567,6 +620,7 @@ struct msm_mddi_bridge_platform_data toshiba_client_data = {
 		.output_format = 0,
 	},
 };
+
 
 struct msm_mddi_bridge_platform_data epson_client_data = {
 	.init = htcraphael_mddi_epson_client_init,
@@ -626,18 +680,6 @@ int __init htctopaz_init_panel(void)
 		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
 		return 0;
 	}
-
-//	if (!machine_is_htcblackstone() && !machine_is_htcraphael() && !machine_is_htcraphael_cdma() && !machine_is_htcdiamond() && !machine_is_htcdiamond_cdma() && !machine_is_htckovsky()) {
-//		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
-//		return 0;
-//	}
-
-	vreg_mddi_1v5 = vreg_get(0, "gp2");
-	if (IS_ERR(vreg_mddi_1v5))
-		return PTR_ERR(vreg_mddi_1v5);
-	vreg_lcm_2v85 = vreg_get(0, "gp4");
-	if (IS_ERR(vreg_lcm_2v85))
-		return PTR_ERR(vreg_lcm_2v85);
 
 	gp_clk = clk_get(NULL, "gp_clk");
 	if (IS_ERR(gp_clk)) {

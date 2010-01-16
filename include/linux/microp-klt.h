@@ -13,6 +13,13 @@ enum microp_led_t {
 };
 #define MICROP_KLT_LEDS_OFF   0x00
 
+struct microp_spi_table {
+	uint16_t value1;
+	uint16_t value2;
+	uint16_t value3;
+	uint16_t delay;
+};
+
 /**
  * These behaviors are repeated approximately every 5 seconds
  * These cannot be combined
@@ -36,7 +43,10 @@ enum microp_led_t {
 #define MICROP_KLT_ID_LED_STATE         0x40 // Set LED behavior using above bitmasks
 #define MICROP_KLT_ID_LCD_BRIGHTNESS    0x22 // Set brightness of LCD backlight
 #define MICROP_KLT_ID_LIGHT_SENSOR	0x33 // Get light sensor's result
+#define MICROP_KLT_ID_SPICTRL		0x21 // SPI Controll Topaz
+#define MICROP_KLT_ID_SPILCMDDATA	0x70 // SPI Data Topaz
 
 extern int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values);
 extern int micropklt_set_lcd_state(int on);
 extern int micropklt_set_kbd_state(int on);
+

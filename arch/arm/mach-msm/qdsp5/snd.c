@@ -30,6 +30,7 @@
 #include <mach/msm_rpcrouter.h>
 #include <mach/htc_headset.h>
 #include <asm/mach-types.h>
+#include <mach/amss_para.h>
 
 struct snd_ctxt {
 	struct mutex lock;
@@ -42,21 +43,6 @@ static struct snd_ctxt the_snd;
 static int force_headset=0;
 module_param_named(force_headset, force_headset, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-#define RPC_SND_PROG	0x30000002
-
-#if CONFIG_MSM_AMSS_VERSION == 6210
-#define RPC_SND_VERS                    0x94756085 /* 2490720389 */
-#define SND_SET_DEVICE_PROC 2
-#define SND_SET_VOLUME_PROC 3
-#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225) ||  (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125) 
-#elif (CONFIG_MSM_AMSS_VERSION == 5200) || (CONFIG_MSM_AMSS_VERSION == 6150)
-#endif
-#define RPC_SND_VERS_6120			0xaa2b1a44 /* 2854951492 */
-#define SND_SET_DEVICE_PROC_6120		2
-#define SND_SET_VOLUME_PROC_6120		3
-#define RPC_SND_VERS_5200			0x0
-#define SND_SET_DEVICE_PROC_5200		1
-#define SND_SET_VOLUME_PROC_5200		2
 
 struct rpc_snd_set_device_args {
 	uint32_t device;
@@ -148,26 +134,10 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 		pr_err("No sound endpoint found, can't set snd_device");
 		return;
 	}
-	switch(__machine_arch_type) {
-		case MACH_TYPE_HTCTOPAZ:
-		case MACH_TYPE_HTCRHODIUM:
-			msm_rpc_call(snd->ept,
-				SND_SET_DEVICE_PROC_6120,
-				&dmsg, sizeof(dmsg), 5 * HZ);
-			break;
-		case MACH_TYPE_HTCRAPHAEL:
-		case MACH_TYPE_HTCDIAMOND_CDMA:
-		case MACH_TYPE_HTCDIAMOND:
-		case MACH_TYPE_HTCBLACKSTONE:
-		case MACH_TYPE_HTCRAPHAEL_CDMA:
-			msm_rpc_call(snd->ept,
-				SND_SET_DEVICE_PROC_5200,
-				&dmsg, sizeof(dmsg), 5 * HZ);
-			break;
-		default:
-			printk(KERN_ERR "Unsupported device for snd_set_device driver\n");
-			break;
-	}
+	msm_rpc_call(snd->ept,
+		amss_get_num_value(SND_SET_DEVICE_PROC),
+		&dmsg, sizeof(dmsg), 5 * HZ);
+
 }
 EXPORT_SYMBOL(snd_set_device);
 
@@ -218,27 +188,9 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		pr_info("snd_set_device %d %d %d\n", dev.device,
 						 dev.ear_mute, dev.mic_mute);
-		switch(__machine_arch_type) {
-			case MACH_TYPE_HTCTOPAZ:
-			case MACH_TYPE_HTCRHODIUM:
-				rc = msm_rpc_call(snd->ept,
-					SND_SET_DEVICE_PROC_6120,
-					&dmsg, sizeof(dmsg), 5 * HZ);
-				break;
-			case MACH_TYPE_HTCRAPHAEL:
-			case MACH_TYPE_HTCDIAMOND_CDMA:
-			case MACH_TYPE_HTCDIAMOND:
-			case MACH_TYPE_HTCBLACKSTONE:
-			case MACH_TYPE_HTCRAPHAEL_CDMA:
-				rc = msm_rpc_call(snd->ept,
-					SND_SET_DEVICE_PROC_5200,
-					&dmsg, sizeof(dmsg), 5 * HZ);
-				break;
-			default:
-				printk(KERN_ERR "Unsupported device for snd_set_device driver\n");
-				rc = -ENODEV;
-				break;
-		}
+		rc = msm_rpc_call(snd->ept,
+			amss_get_num_value(SND_SET_DEVICE_PROC),
+			&dmsg, sizeof(dmsg), 5 * HZ);
 
 		break;
 
@@ -285,29 +237,11 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		pr_info("snd_set_volume %d %d %d\n", vol.device,
 						vol.method, vol.volume);
 
-		switch(__machine_arch_type) {
-			case MACH_TYPE_HTCTOPAZ:
-			case MACH_TYPE_HTCRHODIUM:
-				rc = msm_rpc_call(snd->ept,
-					SND_SET_VOLUME_PROC_6120,
-					&vmsg, sizeof(vmsg), 5 * HZ);
-				break;
-			case MACH_TYPE_HTCRAPHAEL:
-			case MACH_TYPE_HTCDIAMOND_CDMA:
-			case MACH_TYPE_HTCDIAMOND:
-			case MACH_TYPE_HTCBLACKSTONE:
-			case MACH_TYPE_HTCRAPHAEL_CDMA:
-				rc = msm_rpc_call(snd->ept,
-					SND_SET_VOLUME_PROC_5200,
-					&vmsg, sizeof(vmsg), 5 * HZ);
-				break;
-			default:
-				printk(KERN_ERR "Unsupported device for snd_set_device driver\n");
-				rc = -ENODEV;
-				break;
-		}
-		break;
+		rc = msm_rpc_call(snd->ept,
+			amss_get_num_value(SND_SET_VOLUME_PROC),
+			&vmsg, sizeof(vmsg), 5 * HZ);
 
+					
 	case SND_GET_NUM_ENDPOINTS:
 		if (copy_to_user((void __user *)arg,
 				&snd->snd_epts->num, sizeof(unsigned))) {
@@ -348,25 +282,10 @@ int snd_ini() {
 	mutex_lock(&snd->lock);
 	if (snd->opened == 0) {
 		if (snd->ept == NULL) {
-			switch(__machine_arch_type) {
-				case MACH_TYPE_HTCTOPAZ:
-				case MACH_TYPE_HTCRHODIUM:
-					snd->ept = msm_rpc_connect(RPC_SND_PROG, RPC_SND_VERS_6120,
-								MSM_RPC_UNINTERRUPTIBLE);
-					break;
-				case MACH_TYPE_HTCRAPHAEL:
-				case MACH_TYPE_HTCDIAMOND_CDMA:
-				case MACH_TYPE_HTCDIAMOND:
-				case MACH_TYPE_HTCBLACKSTONE:
-				case MACH_TYPE_HTCRAPHAEL_CDMA:
-					snd->ept = msm_rpc_connect(RPC_SND_PROG, RPC_SND_VERS_5200,
-								MSM_RPC_UNINTERRUPTIBLE);
-					break;
-				default:
-					printk(KERN_ERR "Unsupported device for qdsp/snd driver\n");
-					return -1;
-					break;
-			}
+			snd->ept = msm_rpc_connect(
+						amss_get_num_value(RPC_SND_PROG), 
+						amss_get_num_value(RPC_SND_VERS),
+						MSM_RPC_UNINTERRUPTIBLE);
 			if (IS_ERR(snd->ept)) {
 				rc = PTR_ERR(snd->ept);
 				snd->ept = NULL;

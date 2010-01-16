@@ -190,6 +190,11 @@ static struct platform_device topaz_h2w = {
 };
 #endif
 
+static struct platform_device topaz_bt_rfkill = {
+	.name = "htcraphael_rfkill",
+	.id = -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
@@ -199,6 +204,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&blac_snd,
 	&topaz_h2w,
+	&topaz_bt_rfkill,
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif
