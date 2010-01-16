@@ -174,8 +174,10 @@ int msm_adsp_get(const char *name, struct msm_adsp_module **out,
 	int rc = 0;
 
 	module = find_adsp_module_by_name(&adsp_info, name);
-	if (!module)
+	if (!module) {
+		pr_err("adsp: cannot find module \n");
 		return -ENODEV;
+	}
 
 	mutex_lock(&module->lock);
 	pr_info("adsp: opening module %s\n", module->name);
@@ -822,7 +824,6 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	unsigned count;
 	int rc,i;
 	
-
 	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
 
 	switch(__machine_arch_type) {
@@ -847,11 +848,10 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	}
 	if (rc)
 		return rc;
-	adsp_info.send_irq += MSM_AD5_BASE;
-	adsp_info.read_ctrl += MSM_AD5_BASE;
-	adsp_info.write_ctrl += MSM_AD5_BASE;
+	adsp_info.send_irq += (uint32_t)MSM_AD5_BASE;
+	adsp_info.read_ctrl += (uint32_t)MSM_AD5_BASE;
+	adsp_info.write_ctrl += (uint32_t)MSM_AD5_BASE;
 	count = adsp_info.module_count;
-
 	adsp_modules = kzalloc(
 		(sizeof(struct msm_adsp_module) + sizeof(void *)) *
 		count, GFP_KERNEL);
@@ -937,11 +937,9 @@ static struct platform_driver msm_adsp_driver = {
 
 static int __init adsp_init(void)
 {
+	/*
 	int i;
 	unsigned *rpcchan;
-	char drivename[20];
-	
-	/*
 	if(!adsp_cid) {
 		printk("Searching for adsp_cid\n");
 		rpcchan=smem_alloc(SMEM_SMD_BASE_ID+0x2,0x4028);
@@ -956,9 +954,22 @@ static int __init adsp_init(void)
 		printk("Using adsp_cid=%08x\n", adsp_cid);
 	}
 	*/
-	amss_get_str_value(RPC_ADSP_RTOS_ATOM_PROG_VERS, drivename, sizeof(drivename));
-	msm_adsp_driver.driver.name = drivename;
-
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCTOPAZ:
+		case MACH_TYPE_HTCRHODIUM:
+		case MACH_TYPE_HTCRAPHAEL:
+		case MACH_TYPE_HTCDIAMOND:
+		case MACH_TYPE_HTCBLACKSTONE:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+			msm_adsp_driver.driver.name = "rs30000013:00000000";
+			break;
+		default:
+			msm_adsp_driver.driver.name = "rs30000013:e94e8f0c";
+			break;
+	}
+	
 	return platform_driver_register(&msm_adsp_driver);
 }
 
