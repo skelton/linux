@@ -34,6 +34,10 @@
 #define STATE_DISABLING 4 
 #define STATE_KILLED    5
 
+#define AUDMGR_PROG 	0x30000013
+#define AUDMGR_CB_PROG	0x31000013
+
+
 static void rpc_ack(struct msm_rpc_endpoint *ept, uint32_t xid)
 {
 	uint32_t rep[6];
@@ -210,7 +214,7 @@ int audmgr_open(struct audmgr *am)
 		return 0;
 
 	am->ept = msm_rpc_connect(
-				amss_get_num_value(AUDMGR_PROG), 
+				AUDMGR_PROG, 
 				amss_get_num_value(AUDMGR_VERS),
 				MSM_RPC_UNINTERRUPTIBLE);
 	init_waitqueue_head(&am->wait);
@@ -262,7 +266,7 @@ int audmgr_enable(struct audmgr *am, struct audmgr_config *cfg)
 	msg.args.client_data = cpu_to_be32(0x11223344);
 
 	msm_rpc_setup_req(&msg.hdr, 
-			  amss_get_num_value(AUDMGR_PROG), 
+			  AUDMGR_PROG, 
 			  amss_get_num_value(AUDMGR_VERS),
 			  AUDMGR_ENABLE_CLIENT);
 
@@ -291,7 +295,7 @@ int audmgr_disable(struct audmgr *am)
 		return 0;
 
 	msm_rpc_setup_req(&msg.hdr, 
-			  amss_get_num_value(AUDMGR_PROG), 
+			  AUDMGR_PROG, 
 			  amss_get_num_value(AUDMGR_VERS),
 			  AUDMGR_DISABLE_CLIENT);
 	msg.handle = cpu_to_be32(am->handle);

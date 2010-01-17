@@ -52,7 +52,11 @@ static inline void allow_suspend(void)
 #include <../smd_private.h>
 #include "adsp.h"
 
-#define INT_ADSP INT_ADSP_A11
+#define INT_ADSP 			INT_ADSP_A9_A11
+#define RPC_ADSP_RTOS_ATOM_PROG 	0x3000000a
+#define RPC_ADSP_RTOS_MTOA_PROG 	0x3000000b
+
+
 
 static unsigned adsp_cid=0xfadefade; 	// we must register this cid early in smd init
 					// don't know why it won't work if you register later.
@@ -91,7 +95,7 @@ static int rpc_adsp_rtos_app_to_modem(uint32_t cmd, uint32_t module,
 	struct rpc_reply_hdr *rpc_rsp;
 
 	msm_rpc_setup_req(&rpc_req.hdr,
-			  amss_get_num_value(RPC_ADSP_RTOS_ATOM_PROG),
+			  RPC_ADSP_RTOS_ATOM_PROG,
 			  amss_get_num_value(RPC_ADSP_RTOS_ATOM_VERS),
 			  amss_get_num_value(RPC_ADSP_RTOS_APP_TO_MODEM_PROC));
 
@@ -153,7 +157,7 @@ static struct msm_adsp_module *find_adsp_module_by_name(
 static int adsp_rpc_init(struct msm_adsp_module *adsp_module)
 {
 	adsp_module->rpc_client = msm_rpc_connect(
-		amss_get_num_value(RPC_ADSP_RTOS_ATOM_PROG),
+		RPC_ADSP_RTOS_ATOM_PROG,
 		amss_get_num_value(RPC_ADSP_RTOS_ATOM_VERS),
 		amss_get_num_value(MSM_RPC_UNINTERRUPTIBLE));
 
@@ -440,11 +444,10 @@ static void handle_adsp_rtos_mtoa_app(struct rpc_request_hdr *req)
 	uint32_t module_id =  0;
 	uint32_t image =  0;
 	
-	switch(__machine_arch_type) {
-		case MACH_TYPE_HTCTOPAZ:
-		case MACH_TYPE_HTCRHODIUM: {
-			struct rpc_adsp_rtos_modem_to_app_args_t_6120 *args =
-				(struct rpc_adsp_rtos_modem_to_app_args_t_6120 *)req;
+	switch(__amss_version) {
+		case 6125: {
+			struct rpc_adsp_rtos_modem_to_app_args_t_6125 *args =
+				(struct rpc_adsp_rtos_modem_to_app_args_t_6125 *)req;
 			event = be32_to_cpu(args->event);
 			proc_id = be32_to_cpu(args->proc_id);
 			module_id = be32_to_cpu(args->module);
@@ -461,6 +464,7 @@ static void handle_adsp_rtos_mtoa_app(struct rpc_request_hdr *req)
 			break;
 		}
 	}
+
 	struct msm_adsp_module *module;
 
 	pr_info("adsp: rpc event=%d, proc_id=%d, module=%d, image=%d\n",
@@ -555,7 +559,7 @@ static int adsp_rpc_thread(void *data)
 			goto bad_rpc;
 		if (req->rpc_vers != 2)
 			goto bad_rpc;
-		if (req->prog != amss_get_num_value(RPC_ADSP_RTOS_MTOA_PROG))
+		if (req->prog != RPC_ADSP_RTOS_MTOA_PROG)
 			goto bad_rpc;
 		if (req->vers != amss_get_num_value(RPC_ADSP_RTOS_MTOA_VERS))
 			goto bad_rpc;
@@ -826,19 +830,14 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	
 	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
 
-	switch(__machine_arch_type) {
-		case MACH_TYPE_HTCTOPAZ:
-		case MACH_TYPE_HTCRHODIUM:
-			rc = adsp_init_info_6120(&adsp_info);
-			break;
-		case MACH_TYPE_HTCRAPHAEL:
-		case MACH_TYPE_HTCDIAMOND:
-		case MACH_TYPE_HTCBLACKSTONE:
+	switch(__amss_version) {
+		case 5200:
 			rc = adsp_init_info_5200(&adsp_info);
 			break;
-		case MACH_TYPE_HTCRAPHAEL_CDMA:
-		case MACH_TYPE_HTCRAPHAEL_CDMA500:
-		case MACH_TYPE_HTCDIAMOND_CDMA:
+		case 6125:
+			rc = adsp_init_info_6120(&adsp_info);
+			break;
+		case 6150:
 			rc = adsp_init_info_6150(&adsp_info);
 			break;
 		default:
@@ -880,7 +879,7 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	rpc_cb_server_client->cid=adsp_cid;
 	
 	rc = msm_rpc_register_server(rpc_cb_server_client,
-				     amss_get_num_value(RPC_ADSP_RTOS_MTOA_PROG),
+				     RPC_ADSP_RTOS_MTOA_PROG,
 				     amss_get_num_value(RPC_ADSP_RTOS_MTOA_VERS));
 
 	if (rc) {
@@ -954,22 +953,24 @@ static int __init adsp_init(void)
 		printk("Using adsp_cid=%08x\n", adsp_cid);
 	}
 	*/
-	switch(__machine_arch_type) {
-		case MACH_TYPE_HTCTOPAZ:
-		case MACH_TYPE_HTCRHODIUM:
-		case MACH_TYPE_HTCRAPHAEL:
-		case MACH_TYPE_HTCDIAMOND:
-		case MACH_TYPE_HTCBLACKSTONE:
-		case MACH_TYPE_HTCRAPHAEL_CDMA:
-		case MACH_TYPE_HTCRAPHAEL_CDMA500:
-		case MACH_TYPE_HTCDIAMOND_CDMA:
+	switch(__amss_version) {
+		case 5200:
+		case 6125:
+		case 6150:
 			msm_adsp_driver.driver.name = "rs30000013:00000000";
 			break;
+		case 6210:
+			msm_adsp_driver.driver.name = "rs3000000a:20f17fd3";
+			break;
+		case 6220:
+			msm_adsp_driver.driver.name = "rs3000000a:71d1094b";
+			break;
 		default:
-			msm_adsp_driver.driver.name = "rs30000013:e94e8f0c";
+			printk(KERN_ERR "Unsupported device for adsp driver\n");
+			return -ENODEV;
 			break;
 	}
-	
+  
 	return platform_driver_register(&msm_adsp_driver);
 }
 

@@ -16,32 +16,29 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
+#include <linux/string.h>
+#include <linux/io.h>
 
-#include <asm/mach-types.h>
 #include <mach/amss_para.h>
+#include <mach/msm_iomap.h>
+
+unsigned int __amss_version = 0;
 
 // The struckt array with the AMSS default Values, it have to have the same order and size as the enum with AMSS IDs in the Heaader File!
 struct amss_value amss_def_para[] = {
 	{AUDMGR_PROG_VERS,0, "rs30000013:e94e8f0c"},  
-	{AUDMGR_PROG, 0x30000013, ""},  
 	{AUDMGR_VERS, 0xe94e8f0c, ""},  
 	{AUDMGR_CB_PROG_VERS,0, "rs31000013:21570ba7"},  
-	{AUDMGR_CB_PROG, 0x31000013, ""},  
 	{AUDMGR_CB_VERS, 0x21570ba7, ""},  
-	{TIME_REMOTE_MTOA_PROG, 0x3000005d, ""},  
 	{TIME_REMOTE_MTOA_VERS, 0, ""}, 
 	{RPC_TIME_REMOTE_MTOA_NULL, 0, ""}, 
 	{RPC_TIME_TOD_SET_APPS_BASES, 1, ""},  
-	{PM_LIBPROG, 0x30000061, ""},  
 	{PM_LIBVERS, 0x10001, ""},  
-	{RPC_SND_PROG, 0x30000002, ""},
 	{RPC_SND_VERS, 0x0, ""},  
 	{SND_SET_DEVICE_PROC, 1, ""},  
 	{SND_SET_VOLUME_PROC, 2, ""},  
 	{RPC_ADSP_RTOS_ATOM_PROG_VERS, 0, ""},
-	{RPC_ADSP_RTOS_ATOM_PROG, 0x3000000a, ""},
 	{RPC_ADSP_RTOS_ATOM_VERS, 0x0, ""},  
-	{RPC_ADSP_RTOS_MTOA_PROG, 0x3000000b, ""},
 	{RPC_ADSP_RTOS_MTOA_VERS, 0x0, ""},  
 	{RPC_ADSP_RTOS_ATOM_NULL_PROC, 0, ""},
 	{RPC_ADSP_RTOS_MTOA_NULL_PROC, 0, ""},
@@ -49,19 +46,17 @@ struct amss_value amss_def_para[] = {
 	{RPC_ADSP_RTOS_MODEM_TO_APP_PROC, 1, ""},
 	{RPC_DOG_KEEPALIVE_NULL, 0, ""},  
 	{RPC_DOG_KEEPALIVE_BEACON, 1, ""},  
-	{DOG_KEEPALIVE_PROG, 0x30000015, ""},
 	{DOG_KEEPALIVE_VERS, 0, ""},  
-	{RPC_PDAPI_PROG, 0x3000005b, ""},
-	{RPC_PDAPI_CB_PROG, 0x3100005b, ""},
 };
 
 
 // Now the version spezificly values
-struct amss_value amss_6120_para[] = {
+struct amss_value amss_6125_para[] = {
 	{AUDMGR_PROG_VERS,0, "rs30000013:00000000"},  
 	{AUDMGR_VERS, 0x0, ""},  
 	{AUDMGR_CB_PROG_VERS,0, "rs31000013:00000000"},  
 	{AUDMGR_CB_VERS, 0x00000000, ""},  
+	{PM_LIBVERS, 0x0, ""},  
 	{RPC_SND_VERS, 0xaa2b1a44, ""},  
 	{SND_SET_DEVICE_PROC, 2, ""},  
 	{SND_SET_VOLUME_PROC, 3, ""},  
@@ -119,8 +114,38 @@ struct amss_value amss_6150_para[] = {
 	{RPC_ADSP_RTOS_ATOM_PROG_VERS, 0, "rs3000000a:00000000"},
 };
 
-// Function to init of the struct and get the Values, Init in first call.
 
+// Get the short AMSS Version ( like 6120 )
+unsigned int get_amss_version(void)
+{
+	char amss_ver[16];
+	char amss_dump[16];
+	char *dot1, *dot2;
+	int len = 0;
+
+	// Dump AMMS version
+	*(unsigned int *) (amss_dump + 0x0) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x0);
+	*(unsigned int *) (amss_dump + 0x4) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x4);
+	*(unsigned int *) (amss_dump + 0x8) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x8);
+	*(unsigned int *) (amss_dump + 0xc) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0xc);
+	amss_dump[15] = '\0';
+	
+	dot1 = strchr(amss_dump, '.');
+	if(dot1 == NULL)
+		return 0;
+	len = (dot1-amss_dump);
+	strncpy(amss_ver, amss_dump, len);
+	dot1 = strchr(dot1+1, '.');
+	dot2 = strchr(dot1+1, '.');
+	strncpy(amss_ver+len, dot1+1, (dot2-dot1)-1);
+	len+= (int)(dot2-dot1)-1;
+	amss_ver[len] = '\0';
+ 	return  simple_strtoul(amss_ver, NULL, 10);
+}
+
+
+
+// Function to init of the struct and get the Values, Init in first call.
 int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 {
 	static struct amss_value *active_para = NULL;
@@ -128,28 +153,29 @@ int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 	static uint8_t init = 0, i;
 	uint32_t nbr_para = 0;
 	if(!init) { // First run, init the struct
-	  pr_err("INIT AMSS PARA!, size: %d\n", sizeof(amss_def_para));
-		// Initializes the default patameters
-		active_para = kmalloc(sizeof(amss_def_para), GFP_KERNEL);
-		memcpy(active_para, &amss_def_para, sizeof(amss_def_para));
+		__amss_version = get_amss_version();
+		pr_info("Init amss parameters, found AMSS: %d\n", __amss_version);
 		// Get the right struct
-		switch(__machine_arch_type) {
-			case MACH_TYPE_HTCTOPAZ:
-			case MACH_TYPE_HTCRHODIUM:
-				mach_para = amss_6120_para;
-				nbr_para = ARRAY_SIZE(amss_6120_para);
-				break;
-			case MACH_TYPE_HTCRAPHAEL:
-			case MACH_TYPE_HTCDIAMOND:
-			case MACH_TYPE_HTCBLACKSTONE:
+		switch(__amss_version) {
+			case 5200:
 				mach_para = amss_5200_para;
 				nbr_para = ARRAY_SIZE(amss_5200_para);
 				break;
-			case MACH_TYPE_HTCRAPHAEL_CDMA:
-			case MACH_TYPE_HTCRAPHAEL_CDMA500:
-			case MACH_TYPE_HTCDIAMOND_CDMA:
+			case 6125:
+				mach_para = amss_6125_para;
+				nbr_para = ARRAY_SIZE(amss_6125_para);
+				break;
+			case 6150:
 				mach_para = amss_6150_para;
 				nbr_para = ARRAY_SIZE(amss_6150_para);
+				break;
+			case 6210:
+				mach_para = amss_6210_para;
+				nbr_para = ARRAY_SIZE(amss_6210_para);
+				break;
+			case 6220:
+				mach_para = amss_6220_para;
+				nbr_para = ARRAY_SIZE(amss_6220_para);
 				break;
 			default:
 				printk(KERN_ERR "Unsupported device for adsp driver\n");
@@ -158,6 +184,9 @@ int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 				return -ENODEV;
 				break;
 		}
+		// Initializes the default patameters
+		active_para = kmalloc(sizeof(amss_def_para), GFP_KERNEL);
+		memcpy(active_para, &amss_def_para, sizeof(amss_def_para));
 		// Set the versionspezificly values		
 		for(i=0; i<nbr_para; i++) {
 			active_para[mach_para[i].id].numval = mach_para[i].numval;
@@ -177,7 +206,7 @@ int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 	
 	*numval = active_para[id].numval;
 	memcpy (strval, active_para[id].strval, size);
-	pr_info              ("AMSS ASK: %d   GET:  %x    :%s\n", id, *numval, strval);
+//	pr_info              ("AMSS ASK: %d   GET:  %x    :%s\n", id, *numval, strval);
 
 	return 0;
 	

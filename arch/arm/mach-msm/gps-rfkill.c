@@ -65,9 +65,11 @@ struct rpc_ids ids_5200 = {
 	.pd_reg_msg4		= 0xf310ffff,
 	.pa_reg_msg4		= 0x003fefe0,
 };
+#define RPC_PDAPI_PROG 	 	0x3000005b
+#define RPC_PDAPI_CB_PROG 	0x3100005b
 
-#define RPC_PDSM_ATL_PROG          0x3000001d
-#define RPC_PDSM_ATL_CB_PROG       0x3100001d
+#define RPC_PDSM_ATL_PROG	0x3000001d
+#define RPC_PDSM_ATL_CB_PROG	0x3100001d
 //#define L2_PROXY_REG            4
 
 /* TODO: replace with msm_rpc_call_reply() values */
@@ -141,8 +143,8 @@ static void gps_enable (void) {
 	} rep;
 
 	/* register CB */
-	pdapi_rpc_server.prog = amss_get_num_value(RPC_PDAPI_CB_PROG);
-	pdsm_atl_rpc_server.prog = amss_get_num_value(RPC_PDSM_ATL_CB_PROG);
+	pdapi_rpc_server.prog = RPC_PDAPI_CB_PROG;
+	pdsm_atl_rpc_server.prog = RPC_PDSM_ATL_CB_PROG;
 	msm_rpc_create_server(&pdapi_rpc_server);
 	msm_rpc_create_server(&pdsm_atl_rpc_server);
 
@@ -283,7 +285,7 @@ static int gps_set_power(void *data, enum rfkill_state state)
 	case RFKILL_STATE_ON:
 		if(!ept) {
 			ept = msm_rpc_connect (
-					      amss_get_num_value(RPC_PDAPI_PROG), 
+					      RPC_PDAPI_PROG, 
 					      0, 
 					      MSM_RPC_UNINTERRUPTIBLE);
 			if (!ept || IS_ERR (ept)) {

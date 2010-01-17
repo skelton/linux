@@ -19,6 +19,8 @@
 #include <mach/msm_rpcrouter.h>
 #include <mach/amss_para.h>
 
+#define DOG_KEEPALIVE_PROG	0x30000015
+
 /* dog_keepalive server definitions */
 
 
@@ -42,7 +44,7 @@ static struct msm_rpc_server rpc_server = {
 
 static int __init rpc_server_init(void)
 {
-	rpc_server.prog = amss_get_num_value(DOG_KEEPALIVE_PROG);
+	rpc_server.prog = DOG_KEEPALIVE_PROG;
 	rpc_server.vers = amss_get_num_value(DOG_KEEPALIVE_VERS);
 	return msm_rpc_create_server(&rpc_server);
 }

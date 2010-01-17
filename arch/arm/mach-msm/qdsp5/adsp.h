@@ -153,7 +153,7 @@ struct rpc_adsp_rtos_modem_to_app_args_t {
 	uint32_t image; /* RPC_QDSP_IMAGE_GAUDIO */
 };
 
-struct rpc_adsp_rtos_modem_to_app_args_t_6120 {
+struct rpc_adsp_rtos_modem_to_app_args_t_6125 {
 	struct rpc_request_hdr hdr;
 	uint32_t gotit; /* if 1, the next elements are present */
 	uint32_t event; /* e.g., RPC_ADSP_RTOS_CMD_REGISTER_APP */
