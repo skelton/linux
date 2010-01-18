@@ -203,6 +203,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_hw,
 	&msm_device_htc_battery,
 	&blac_snd,
+	&raphael_gps,
 	//&topaz_h2w,
 	&topaz_bt_rfkill,
 #ifdef CONFIG_SERIAL_MSM_HS
