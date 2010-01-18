@@ -159,7 +159,7 @@ static int adsp_rpc_init(struct msm_adsp_module *adsp_module)
 	adsp_module->rpc_client = msm_rpc_connect(
 		RPC_ADSP_RTOS_ATOM_PROG,
 		amss_get_num_value(RPC_ADSP_RTOS_ATOM_VERS),
-		amss_get_num_value(MSM_RPC_UNINTERRUPTIBLE));
+		MSM_RPC_UNINTERRUPTIBLE);
 
 	if (IS_ERR(adsp_module->rpc_client)) {
 		int rc = PTR_ERR(adsp_module->rpc_client);
@@ -949,7 +949,7 @@ static int __init adsp_init(void)
 	}
 	*/
 	if((AMMS_RANGE_5200) || (AMMS_RANGE_6125) || (AMMS_RANGE_6150)) {
-			msm_adsp_driver.driver.name = "rs30000013:00000000";
+			msm_adsp_driver.driver.name = "rs3000000a:00000000";
 	} else if (AMMS_RANGE_6210) {
 			msm_adsp_driver.driver.name = "rs3000000a:20f17fd3";
 	} else if (AMMS_RANGE_6220) {
