@@ -156,33 +156,26 @@ int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 		__amss_version = get_amss_version();
 		pr_info("Init amss parameters, found AMSS: %d\n", __amss_version);
 		// Get the right struct
-		switch(__amss_version) {
-			case 5200:
+		if(AMMS_RANGE_5200) {
 				mach_para = amss_5200_para;
 				nbr_para = ARRAY_SIZE(amss_5200_para);
-				break;
-			case 6125:
+		} else if (AMMS_RANGE_6125) {
 				mach_para = amss_6125_para;
 				nbr_para = ARRAY_SIZE(amss_6125_para);
-				break;
-			case 6150:
+		} else if (AMMS_RANGE_6150) {
 				mach_para = amss_6150_para;
 				nbr_para = ARRAY_SIZE(amss_6150_para);
-				break;
-			case 6210:
+		} else if (AMMS_RANGE_6210) {
 				mach_para = amss_6210_para;
 				nbr_para = ARRAY_SIZE(amss_6210_para);
-				break;
-			case 6220:
+		} else if (AMMS_RANGE_6220) {
 				mach_para = amss_6220_para;
 				nbr_para = ARRAY_SIZE(amss_6220_para);
-				break;
-			default:
+		} else {
 				printk(KERN_ERR "Unsupported device for adsp driver\n");
 				strval = "";
 				numval = 0;
 				return -ENODEV;
-				break;
 		}
 		// Initializes the default patameters
 		active_para = kmalloc(sizeof(amss_def_para), GFP_KERNEL);

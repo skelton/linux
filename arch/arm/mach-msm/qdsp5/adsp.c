@@ -444,25 +444,20 @@ static void handle_adsp_rtos_mtoa_app(struct rpc_request_hdr *req)
 	uint32_t module_id =  0;
 	uint32_t image =  0;
 	
-	switch(__amss_version) {
-		case 6125: {
-			struct rpc_adsp_rtos_modem_to_app_args_t_6125 *args =
-				(struct rpc_adsp_rtos_modem_to_app_args_t_6125 *)req;
-			event = be32_to_cpu(args->event);
-			proc_id = be32_to_cpu(args->proc_id);
-			module_id = be32_to_cpu(args->module);
-			image = be32_to_cpu(args->image);
-			break;
-		}
-		default: {
-			struct rpc_adsp_rtos_modem_to_app_args_t *args =
-				(struct rpc_adsp_rtos_modem_to_app_args_t *)req;
-			event = be32_to_cpu(args->event);
-			proc_id = be32_to_cpu(args->proc_id);
-			module_id = be32_to_cpu(args->module);
-			image = be32_to_cpu(args->image);
-			break;
-		}
+	if(AMMS_RANGE_6125) {
+		struct rpc_adsp_rtos_modem_to_app_args_t_6125 *args =
+			(struct rpc_adsp_rtos_modem_to_app_args_t_6125 *)req;
+		event = be32_to_cpu(args->event);
+		proc_id = be32_to_cpu(args->proc_id);
+		module_id = be32_to_cpu(args->module);
+		image = be32_to_cpu(args->image);
+	} else {
+		struct rpc_adsp_rtos_modem_to_app_args_t *args =
+			(struct rpc_adsp_rtos_modem_to_app_args_t *)req;
+		event = be32_to_cpu(args->event);
+		proc_id = be32_to_cpu(args->proc_id);
+		module_id = be32_to_cpu(args->module);
+		image = be32_to_cpu(args->image);
 	}
 
 	struct msm_adsp_module *module;
@@ -953,22 +948,15 @@ static int __init adsp_init(void)
 		printk("Using adsp_cid=%08x\n", adsp_cid);
 	}
 	*/
-	switch(__amss_version) {
-		case 5200:
-		case 6125:
-		case 6150:
+	if((AMMS_RANGE_5200) || (AMMS_RANGE_6125) || (AMMS_RANGE_6150)) {
 			msm_adsp_driver.driver.name = "rs30000013:00000000";
-			break;
-		case 6210:
+	} else if (AMMS_RANGE_6210) {
 			msm_adsp_driver.driver.name = "rs3000000a:20f17fd3";
-			break;
-		case 6220:
+	} else if (AMMS_RANGE_6220) {
 			msm_adsp_driver.driver.name = "rs3000000a:71d1094b";
-			break;
-		default:
+	} else {
 			printk(KERN_ERR "Unsupported device for adsp driver\n");
 			return -ENODEV;
-			break;
 	}
   
 	return platform_driver_register(&msm_adsp_driver);
