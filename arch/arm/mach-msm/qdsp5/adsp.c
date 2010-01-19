@@ -38,13 +38,16 @@
 #include <mach/amss_para.h>
 
 static struct wake_lock adsp_wake_lock;
+static struct wake_lock adsp_wake_lock9;
 static inline void prevent_suspend(void)
 {
 	wake_lock(&adsp_wake_lock);
+	wake_lock(&adsp_wake_lock9);
 }
 static inline void allow_suspend(void)
 {
 	wake_unlock(&adsp_wake_lock);
+	wake_unlock(&adsp_wake_lock9);
 }
 
 #include <linux/io.h>
@@ -52,7 +55,8 @@ static inline void allow_suspend(void)
 #include <../smd_private.h>
 #include "adsp.h"
 
-#define INT_ADSP 			INT_ADSP_A9_A11
+#define INT_ADSP 			INT_ADSP_A11
+#define INT_ADSP_A9 			INT_ADSP_A9_A11
 #define RPC_ADSP_RTOS_ATOM_PROG 	0x3000000a
 #define RPC_ADSP_RTOS_MTOA_PROG 	0x3000000b
 
@@ -191,6 +195,7 @@ int msm_adsp_get(const char *name, struct msm_adsp_module **out,
 	mutex_lock(&adsp_open_lock);
 	if (adsp_open_count++ == 0) {
 		enable_irq(INT_ADSP);
+		enable_irq(INT_ADSP_A9);
 		prevent_suspend();
 	}
 	mutex_unlock(&adsp_open_lock);
@@ -223,6 +228,7 @@ done:
 	mutex_lock(&adsp_open_lock);
 	if (rc && --adsp_open_count == 0) {
 		disable_irq(INT_ADSP);
+		disable_irq(INT_ADSP_A9);
 		allow_suspend();
 	}
 	if (rc && --module->open_count == 0 && module->clk)
@@ -261,6 +267,7 @@ void msm_adsp_put(struct msm_adsp_module *module)
 		module->rpc_client = 0;
 		if (--adsp_open_count == 0) {
 			disable_irq(INT_ADSP);
+			disable_irq(INT_ADSP_A9);
 			allow_suspend();
 			pr_info("adsp: disable interrupt\n");
 		}
@@ -824,6 +831,7 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	int rc,i;
 	
 	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
+	wake_lock_init(&adsp_wake_lock9, WAKE_LOCK_SUSPEND, "adsp9");
 
 	switch(__amss_version) {
 		case 5200:
@@ -861,6 +869,12 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto fail_request_irq;
 	disable_irq(INT_ADSP);
+	
+	rc = request_irq(INT_ADSP_A9, adsp_irq_handler, IRQF_TRIGGER_RISING,
+			 "adsp9", 0);
+	if (rc < 0)
+		goto fail_request_irq;
+	disable_irq(INT_ADSP_A9);
 
 	rpc_cb_server_client = msm_rpc_open();
 	if (IS_ERR(rpc_cb_server_client)) {
@@ -917,6 +931,8 @@ fail_rpc_register:
 fail_rpc_open:
 	enable_irq(INT_ADSP);
 	free_irq(INT_ADSP, 0);
+	enable_irq(INT_ADSP_A9);
+	free_irq(INT_ADSP_A9, 0);
 fail_request_irq:
 	kfree(adsp_modules);
 	return rc;
