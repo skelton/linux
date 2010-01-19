@@ -129,16 +129,16 @@ static struct snd_endpoint snd_endpoints_list[] = {
 };
 #undef SND
 
-static struct msm_snd_endpoints blac_snd_endpoints = {
+static struct msm_snd_endpoints topaz_snd_endpoints = {
         .endpoints = snd_endpoints_list,
         .num = ARRAY_SIZE(snd_endpoints_list),
 };
 
-static struct platform_device blac_snd = {
+static struct platform_device topaz_snd = {
 	.name = "msm_snd",
 	.id = -1,
 	.dev	= {
-		.platform_data = &blac_snd_endpoints,
+		.platform_data = &topaz_snd_endpoints,
 	},
 };
 
@@ -151,24 +151,24 @@ static struct platform_device raphael_gps = {
 static void h2w_config_cpld(int route);
 static void h2w_init_cpld(void);
 static struct h2w_platform_data topaz_h2w_data = {
-	.cable_in1              = TOPA100_GPIO_CABLE_IN1,
-	.cable_in2              = TOPA100_GPIO_CABLE_IN2,
-	.h2w_clk                = TOPA100_GPIO_H2W_CLK,
-	.h2w_data               = TOPA100_GPIO_H2W_DATA,
+	.cable_in1              = TOPA100_CABLE_IN1,
+	.cable_in2              = TOPA100_CABLE_IN2,
+	.h2w_clk                = TOPA100_H2W_CLK,
+	.h2w_data               = TOPA100_H2W_DATA,
 	.debug_uart             = H2W_UART3,
-	.config_cpld            = h2w_config_cpld,
+	//.config_cpld            = h2w_config_cpld,
 	.init_cpld              = h2w_init_cpld,
-	.headset_mic_35mm       = TOPA100_GPIO_AUD_HSMIC_DET_N,
+	.headset_mic_35mm       = TOPA100_AUD_HSMIC_DET_N,
 };
 
 static void h2w_config_cpld(int route)
 {
 	switch (route) {
 		case H2W_UART3:
-			gpio_set_value(0, 1);
+			//gpio_set_value(0, 1); 	/*TODO wrong GPIO*/
 			break;
 		case H2W_GPIO:
-			gpio_set_value(0, 0);
+			//gpio_set_value(0, 0); 	/*TODO wrong GPIO*/
 			break;
 	}
 }
@@ -176,7 +176,7 @@ static void h2w_config_cpld(int route)
 
 static void h2w_init_cpld(void)
 {
-	h2w_config_cpld(H2W_UART3);
+	//h2w_config_cpld(H2W_UART3);
 	gpio_set_value(topaz_h2w_data.h2w_clk, 0);
 	gpio_set_value(topaz_h2w_data.h2w_data, 0);
 }
@@ -202,9 +202,11 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_rtc,
 	&msm_device_htc_hw,
 	&msm_device_htc_battery,
-	&blac_snd,
-	&raphael_gps,
-	//&topaz_h2w,
+	&topaz_snd,		
+	//&raphael_gps,		/*TODO crashing software/device*/
+#ifdef CONFIG_HTC_HEADSET
+	//&topaz_h2w,		/*TODO we need working sound as first*/
+#endif
 	&topaz_bt_rfkill,
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
@@ -239,7 +241,7 @@ static void htcraphael_reset(void)
 	printk(KERN_INFO "%s: Soft reset done.\n", __func__);
 }
 
-static void blac_set_vibrate(uint32_t val)
+static void topaz_set_vibrate(uint32_t val)
 {
 	struct msm_dex_command vibra;
 
@@ -256,13 +258,13 @@ static void blac_set_vibrate(uint32_t val)
 }
 
 static htc_hw_pdata_t msm_htc_hw_pdata = {
-	.set_vibrate = blac_set_vibrate,
+	.set_vibrate = topaz_set_vibrate,
 	.battery_smem_offset = 0xfc140,
 	.battery_smem_field_size = 4,
 };
 
 static smem_batt_t msm_battery_pdata = {
-	.gpio_battery_detect = TOPA100_BAT_IRQ,
+	.gpio_battery_detect = TOPA100_BAT_IN,
 	.gpio_charger_enable = TOPA100_CHARGE_EN_N,
 	.gpio_charger_current_select = TOPA100_USB_AC_PWR,
 	.smem_offset = 0xfc140,
@@ -301,9 +303,9 @@ static void __init halibut_init(void)
 
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
-		blac_set_vibrate(1);
+		topaz_set_vibrate(1);
 		mdelay(150);
-		blac_set_vibrate(0);
+		topaz_set_vibrate(0);
 		mdelay(75);
 	}
 }
