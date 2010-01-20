@@ -38,16 +38,13 @@
 #include <mach/amss_para.h>
 
 static struct wake_lock adsp_wake_lock;
-static struct wake_lock adsp_wake_lock9;
 static inline void prevent_suspend(void)
 {
 	wake_lock(&adsp_wake_lock);
-	wake_lock(&adsp_wake_lock9);
 }
 static inline void allow_suspend(void)
 {
 	wake_unlock(&adsp_wake_lock);
-	wake_unlock(&adsp_wake_lock9);
 }
 
 #include <linux/io.h>
@@ -55,8 +52,7 @@ static inline void allow_suspend(void)
 #include <../smd_private.h>
 #include "adsp.h"
 
-#define INT_ADSP 			INT_ADSP_A11
-#define INT_ADSP_A9 			INT_ADSP_A9_A11
+uint32_t int_adsp = 0;
 #define RPC_ADSP_RTOS_ATOM_PROG 	0x3000000a
 #define RPC_ADSP_RTOS_MTOA_PROG 	0x3000000b
 
@@ -194,8 +190,7 @@ int msm_adsp_get(const char *name, struct msm_adsp_module **out,
 
 	mutex_lock(&adsp_open_lock);
 	if (adsp_open_count++ == 0) {
-		enable_irq(INT_ADSP);
-		enable_irq(INT_ADSP_A9);
+		enable_irq(int_adsp);
 		prevent_suspend();
 	}
 	mutex_unlock(&adsp_open_lock);
@@ -227,8 +222,7 @@ int msm_adsp_get(const char *name, struct msm_adsp_module **out,
 done:
 	mutex_lock(&adsp_open_lock);
 	if (rc && --adsp_open_count == 0) {
-		disable_irq(INT_ADSP);
-		disable_irq(INT_ADSP_A9);
+		disable_irq(int_adsp);
 		allow_suspend();
 	}
 	if (rc && --module->open_count == 0 && module->clk)
@@ -266,8 +260,7 @@ void msm_adsp_put(struct msm_adsp_module *module)
 		msm_rpc_close(module->rpc_client);
 		module->rpc_client = 0;
 		if (--adsp_open_count == 0) {
-			disable_irq(INT_ADSP);
-			disable_irq(INT_ADSP_A9);
+			disable_irq(int_adsp);
 			allow_suspend();
 			pr_info("adsp: disable interrupt\n");
 		}
@@ -451,20 +444,25 @@ static void handle_adsp_rtos_mtoa_app(struct rpc_request_hdr *req)
 	uint32_t module_id =  0;
 	uint32_t image =  0;
 	
-	if(AMMS_RANGE_6125) {
-		struct rpc_adsp_rtos_modem_to_app_args_t_6125 *args =
-			(struct rpc_adsp_rtos_modem_to_app_args_t_6125 *)req;
-		event = be32_to_cpu(args->event);
-		proc_id = be32_to_cpu(args->proc_id);
-		module_id = be32_to_cpu(args->module);
-		image = be32_to_cpu(args->image);
-	} else {
-		struct rpc_adsp_rtos_modem_to_app_args_t *args =
-			(struct rpc_adsp_rtos_modem_to_app_args_t *)req;
-		event = be32_to_cpu(args->event);
-		proc_id = be32_to_cpu(args->proc_id);
-		module_id = be32_to_cpu(args->module);
-		image = be32_to_cpu(args->image);
+	switch(__amss_version) {
+		case 6125: {
+			struct rpc_adsp_rtos_modem_to_app_args_t_6125 *args =
+				(struct rpc_adsp_rtos_modem_to_app_args_t_6125 *)req;
+			event = be32_to_cpu(args->event);
+			proc_id = be32_to_cpu(args->proc_id);
+			module_id = be32_to_cpu(args->module);
+			image = be32_to_cpu(args->image);
+			break;
+		}
+		default: {
+			struct rpc_adsp_rtos_modem_to_app_args_t *args =
+				(struct rpc_adsp_rtos_modem_to_app_args_t *)req;
+			event = be32_to_cpu(args->event);
+			proc_id = be32_to_cpu(args->proc_id);
+			module_id = be32_to_cpu(args->module);
+			image = be32_to_cpu(args->image);
+			break;
+		}
 	}
 
 	struct msm_adsp_module *module;
@@ -831,17 +829,31 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	int rc,i;
 	
 	wake_lock_init(&adsp_wake_lock, WAKE_LOCK_SUSPEND, "adsp");
-	wake_lock_init(&adsp_wake_lock9, WAKE_LOCK_SUSPEND, "adsp9");
 
 	switch(__amss_version) {
-		case 5200:
+		case 5225:
 			rc = adsp_init_info_5200(&adsp_info);
+			int_adsp = INT_ADSP_A11;
 			break;
 		case 6125:
 			rc = adsp_init_info_6120(&adsp_info);
+			int_adsp = INT_ADSP_A9_A11;
 			break;
 		case 6150:
 			rc = adsp_init_info_6150(&adsp_info);
+			int_adsp = INT_ADSP_A11;
+			break;
+		case 6210:
+			rc = adsp_init_info_6210(&adsp_info);
+			int_adsp = INT_ADSP_A9_A11;
+			break;
+		case 6220:
+			rc = adsp_init_info_6220(&adsp_info);
+			int_adsp = INT_ADSP_A9_A11;
+			break;
+		case 6225:
+			rc = adsp_init_info_6225(&adsp_info);
+			int_adsp = INT_ADSP_A9_A11;
 			break;
 		default:
 			printk(KERN_ERR "Unsupported device for adsp driver\n");
@@ -864,18 +876,12 @@ static int msm_adsp_probe(struct platform_device *pdev)
 
 	spin_lock_init(&adsp_cmd_lock);
 
-	rc = request_irq(INT_ADSP, adsp_irq_handler, IRQF_TRIGGER_RISING,
+	rc = request_irq(int_adsp, adsp_irq_handler, IRQF_TRIGGER_RISING,
 			 "adsp", 0);
 	if (rc < 0)
 		goto fail_request_irq;
-	disable_irq(INT_ADSP);
+	disable_irq(int_adsp);
 	
-	rc = request_irq(INT_ADSP_A9, adsp_irq_handler, IRQF_TRIGGER_RISING,
-			 "adsp9", 0);
-	if (rc < 0)
-		goto fail_request_irq;
-	disable_irq(INT_ADSP_A9);
-
 	rpc_cb_server_client = msm_rpc_open();
 	if (IS_ERR(rpc_cb_server_client)) {
 		rpc_cb_server_client = NULL;
@@ -929,10 +935,8 @@ fail_rpc_register:
 	msm_rpc_close(rpc_cb_server_client);
 	rpc_cb_server_client = NULL;
 fail_rpc_open:
-	enable_irq(INT_ADSP);
-	free_irq(INT_ADSP, 0);
-	enable_irq(INT_ADSP_A9);
-	free_irq(INT_ADSP_A9, 0);
+	enable_irq(int_adsp);
+	free_irq(int_adsp, 0);
 fail_request_irq:
 	kfree(adsp_modules);
 	return rc;
@@ -964,15 +968,23 @@ static int __init adsp_init(void)
 		printk("Using adsp_cid=%08x\n", adsp_cid);
 	}
 	*/
-	if((AMMS_RANGE_5200) || (AMMS_RANGE_6125) || (AMMS_RANGE_6150)) {
+	switch(__amss_version) {
+		case 5225:
+		case 6125:
+		case 6150:
 			msm_adsp_driver.driver.name = "rs3000000a:00000000";
-	} else if (AMMS_RANGE_6210) {
+			break;
+		case 6210:
 			msm_adsp_driver.driver.name = "rs3000000a:20f17fd3";
-	} else if (AMMS_RANGE_6220) {
+			break;
+		case 6220:
+		case 6225:
 			msm_adsp_driver.driver.name = "rs3000000a:71d1094b";
-	} else {
+			break;
+		default:
 			printk(KERN_ERR "Unsupported device for adsp driver\n");
 			return -ENODEV;
+			break;
 	}
   
 	return platform_driver_register(&msm_adsp_driver);

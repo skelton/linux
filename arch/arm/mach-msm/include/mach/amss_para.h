@@ -17,12 +17,6 @@
 
 extern unsigned int __amss_version;
 
-#define AMMS_RANGE_5200	__amss_version>=5200 && __amss_version<=5230
-#define AMMS_RANGE_6125	__amss_version>=6110 && __amss_version<=6130
-#define AMMS_RANGE_6150	__amss_version>=6140 && __amss_version<=6160
-#define AMMS_RANGE_6210	__amss_version>=6200 && __amss_version<=6214
-#define AMMS_RANGE_6220	__amss_version>=6215 && __amss_version<=6230
-
 struct amss_value {
 	int id;
 	uint32_t numval;

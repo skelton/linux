@@ -53,9 +53,9 @@ struct amss_value amss_def_para[] = {
 // Now the version spezificly values
 struct amss_value amss_6125_para[] = {
 	{AUDMGR_PROG_VERS,0, "rs30000013:00000000"},  
-	{AUDMGR_VERS, 0x12345678, ""},  /* TODO: Disabled with wrong version, Sould be 0x0, Kills Topaz Call */
+	{AUDMGR_VERS, 0x12345678, ""},  /* TODO: Disabled with wrong version, Sould be 0x0, Kills Topaz Call */  
 	{AUDMGR_CB_PROG_VERS,0, "rs31000013:00000000"},  
-	{AUDMGR_CB_VERS, 0x0, ""},  
+	{AUDMGR_CB_VERS, 0x00000000, ""},  
 	{PM_LIBVERS, 0x0, ""},  
 	{RPC_SND_VERS, 0xaa2b1a44, ""},  
 	{SND_SET_DEVICE_PROC, 2, ""},  
@@ -94,8 +94,18 @@ struct amss_value amss_6220_para[] = {
 	{DOG_KEEPALIVE_VERS, 0x731fa727, ""},  
 };
 
+struct amss_value amss_6225_para[] = {
+	{TIME_REMOTE_MTOA_VERS, 0x731fa727, ""},  
+	{RPC_TIME_TOD_SET_APPS_BASES, 2, ""},  
+	{PM_LIBVERS, 0xfb837d0b, ""},  
+	{RPC_ADSP_RTOS_ATOM_PROG_VERS, 0, "rs3000000a:71d1094b"},
+	{RPC_ADSP_RTOS_ATOM_VERS, 0x71d1094b, ""},  
+	{RPC_ADSP_RTOS_MTOA_VERS, 0xee3a9966, ""},  
+	{RPC_DOG_KEEPALIVE_BEACON, 2, ""},  
+	{DOG_KEEPALIVE_VERS, 0x731fa727, ""},  
+};
 
-struct amss_value amss_5200_para[] = {
+struct amss_value amss_5225_para[] = {
 	{AUDMGR_PROG_VERS,0, "rs30000013:00000000"},  
 	{AUDMGR_VERS, 0x0, ""},  
 	{AUDMGR_CB_PROG_VERS,0, "rs31000013:5fa922a9"},  
@@ -156,26 +166,37 @@ int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 		__amss_version = get_amss_version();
 		pr_info("Init amss parameters, found AMSS: %d\n", __amss_version);
 		// Get the right struct
-		if(AMMS_RANGE_5200) {
-				mach_para = amss_5200_para;
-				nbr_para = ARRAY_SIZE(amss_5200_para);
-		} else if (AMMS_RANGE_6125) {
+		switch(__amss_version) {
+			case 5225:
+				mach_para = amss_5225_para;
+				nbr_para = ARRAY_SIZE(amss_5225_para);
+				break;
+			case 6125:
 				mach_para = amss_6125_para;
 				nbr_para = ARRAY_SIZE(amss_6125_para);
-		} else if (AMMS_RANGE_6150) {
+				break;
+			case 6150:
 				mach_para = amss_6150_para;
 				nbr_para = ARRAY_SIZE(amss_6150_para);
-		} else if (AMMS_RANGE_6210) {
+				break;
+			case 6210:
 				mach_para = amss_6210_para;
 				nbr_para = ARRAY_SIZE(amss_6210_para);
-		} else if (AMMS_RANGE_6220) {
+				break;
+			case 6220:
 				mach_para = amss_6220_para;
 				nbr_para = ARRAY_SIZE(amss_6220_para);
-		} else {
+				break;
+			case 6225:
+				mach_para = amss_6220_para;
+				nbr_para = ARRAY_SIZE(amss_6220_para);
+				break;
+			default:
 				printk(KERN_ERR "Unsupported device for adsp driver\n");
 				strval = "";
 				numval = 0;
 				return -ENODEV;
+				break;
 		}
 		// Initializes the default patameters
 		active_para = kmalloc(sizeof(amss_def_para), GFP_KERNEL);
