@@ -845,7 +845,7 @@ static int msm_adsp_probe(struct platform_device *pdev)
 			break;
 		case 6210:
 			rc = adsp_init_info_6210(&adsp_info);
-			int_adsp = INT_ADSP_A9_A11;
+			int_adsp = INT_ADSP_A11;
 			break;
 		case 6220:
 			rc = adsp_init_info_6220(&adsp_info);

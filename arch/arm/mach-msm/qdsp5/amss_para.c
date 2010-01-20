@@ -79,31 +79,30 @@ struct amss_value amss_6210_para[] = {
 	{RPC_ADSP_RTOS_ATOM_PROG_VERS, 0, "rs3000000a:20f17fd3"},
 	{RPC_ADSP_RTOS_ATOM_VERS, 0x20f17fd3, ""},  
 	{RPC_ADSP_RTOS_MTOA_VERS, 0x75babbd6, ""},  
+	{RPC_ADSP_RTOS_APP_TO_MODEM_PROC, 2, ""},
+	{RPC_ADSP_RTOS_MODEM_TO_APP_PROC, 2, ""},
 	{RPC_DOG_KEEPALIVE_BEACON, 1, ""},  
 	{DOG_KEEPALIVE_VERS, 0, ""},  
 };
 
 struct amss_value amss_6220_para[] = {
-	{TIME_REMOTE_MTOA_VERS, 0x731fa727, ""},  
+	{AUDMGR_PROG_VERS,0, "rs30000013:94e8f0c"},  
+	{AUDMGR_VERS, 0xe94e8f0c, ""},  
+	{AUDMGR_CB_PROG_VERS,0, "rs31000013:21570ba7"},  
+	{AUDMGR_CB_VERS, 0x21570ba7, ""},  
+	{TIME_REMOTE_MTOA_VERS, 0x9202a8e4, ""},  
 	{RPC_TIME_TOD_SET_APPS_BASES, 2, ""},  
 	{PM_LIBVERS, 0xfb837d0b, ""},  
+	{RPC_SND_VERS, 0xaa2b1a44, ""},  
 	{RPC_ADSP_RTOS_ATOM_PROG_VERS, 0, "rs3000000a:71d1094b"},
 	{RPC_ADSP_RTOS_ATOM_VERS, 0x71d1094b, ""},  
 	{RPC_ADSP_RTOS_MTOA_VERS, 0xee3a9966, ""},  
+	{RPC_ADSP_RTOS_APP_TO_MODEM_PROC, 2, ""},
+	{RPC_ADSP_RTOS_MODEM_TO_APP_PROC, 2, ""},
 	{RPC_DOG_KEEPALIVE_BEACON, 2, ""},  
 	{DOG_KEEPALIVE_VERS, 0x731fa727, ""},  
 };
 
-struct amss_value amss_6225_para[] = {
-	{TIME_REMOTE_MTOA_VERS, 0x731fa727, ""},  
-	{RPC_TIME_TOD_SET_APPS_BASES, 2, ""},  
-	{PM_LIBVERS, 0xfb837d0b, ""},  
-	{RPC_ADSP_RTOS_ATOM_PROG_VERS, 0, "rs3000000a:71d1094b"},
-	{RPC_ADSP_RTOS_ATOM_VERS, 0x71d1094b, ""},  
-	{RPC_ADSP_RTOS_MTOA_VERS, 0xee3a9966, ""},  
-	{RPC_DOG_KEEPALIVE_BEACON, 2, ""},  
-	{DOG_KEEPALIVE_VERS, 0x731fa727, ""},  
-};
 
 struct amss_value amss_5225_para[] = {
 	{AUDMGR_PROG_VERS,0, "rs30000013:00000000"},  
@@ -200,12 +199,9 @@ int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 				nbr_para = ARRAY_SIZE(amss_6210_para);
 				break;
 			case 6220:
+			case 6225:
 				mach_para = amss_6220_para;
 				nbr_para = ARRAY_SIZE(amss_6220_para);
-				break;
-			case 6225:
-				mach_para = amss_6225_para;
-				nbr_para = ARRAY_SIZE(amss_6225_para);
 				break;
 			default:
 				printk(KERN_ERR "Unsupported device for adsp driver\n");
