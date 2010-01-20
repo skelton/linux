@@ -128,8 +128,8 @@ struct amss_value amss_6150_para[] = {
 // Get the short AMSS Version ( like 6120 )
 unsigned int get_amss_version(void)
 {
-	char amss_ver[16];
-	char amss_dump[16];
+	char amss_ver[20];
+	char amss_dump[20];
 	char *dot1, *dot2;
 	int len = 0;
 
@@ -138,19 +138,35 @@ unsigned int get_amss_version(void)
 	*(unsigned int *) (amss_dump + 0x4) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x4);
 	*(unsigned int *) (amss_dump + 0x8) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x8);
 	*(unsigned int *) (amss_dump + 0xc) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0xc);
-	amss_dump[15] = '\0';
+	*(unsigned int *) (amss_dump + 0x10) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x10);
+	amss_dump[19] = '\0';
 	
 	dot1 = strchr(amss_dump, '.');
-	if(dot1 == NULL)
-		return 0;
-	len = (dot1-amss_dump);
-	strncpy(amss_ver, amss_dump, len);
-	dot1 = strchr(dot1+1, '.');
-	dot2 = strchr(dot1+1, '.');
-	strncpy(amss_ver+len, dot1+1, (dot2-dot1)-1);
-	len+= (int)(dot2-dot1)-1;
-	amss_ver[len] = '\0';
- 	return  simple_strtoul(amss_ver, NULL, 10);
+	if(dot1 == NULL) {	// CDMA
+		dot1 = strchr(amss_dump, '-');
+		if(dot1 == NULL)
+			return 0;
+		dot1 = strchr(dot1+1, '-');
+		if(dot1 == NULL)
+			return 0;
+		strncpy(amss_ver, dot1+1, 4);
+		amss_ver[4] = '\0';
+		return  simple_strtoul(amss_ver, NULL, 10);
+	}
+	else { // GSM
+		len = (dot1-amss_dump);
+		strncpy(amss_ver, amss_dump, len);
+		dot1 = strchr(dot1+1, '.');
+		if(dot1 == NULL)
+			return 0;
+		dot2 = strchr(dot1+1, '.');
+		if(dot2 == NULL)
+			return 0;
+		strncpy(amss_ver+len, dot1+1, (dot2-dot1)-1);
+		len+= (int)(dot2-dot1)-1;
+		amss_ver[len] = '\0';
+		return  simple_strtoul(amss_ver, NULL, 10);
+	}
 }
 
 
