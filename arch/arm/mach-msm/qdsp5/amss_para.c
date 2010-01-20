@@ -188,8 +188,8 @@ int amss_get_value(int id, uint32_t *numval, char* strval, size_t size)
 				nbr_para = ARRAY_SIZE(amss_6220_para);
 				break;
 			case 6225:
-				mach_para = amss_6220_para;
-				nbr_para = ARRAY_SIZE(amss_6220_para);
+				mach_para = amss_6225_para;
+				nbr_para = ARRAY_SIZE(amss_6225_para);
 				break;
 			default:
 				printk(KERN_ERR "Unsupported device for adsp driver\n");
