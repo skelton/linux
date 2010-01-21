@@ -196,7 +196,7 @@ static int gsensor_read_acceleration(short *buf)
 
 	msleep(10);
 
-	if (micropklt_t->version <= 0x615) {
+	if (micropklt_t->version <= 0x615 || micropklt_t->version == 0x0a0e) {
 		/*
 		 * Note the data is a 10bit signed value from the chip.
 		*/
@@ -423,6 +423,7 @@ static struct miscdevice spi_bma_device = {
 };
 
 int init_spi_bma150(struct microp_klt *data) {
+	pr_info("%s: init_spi_bma150\n", __func__);
 	int ret;
 	ret = misc_register(&spi_bma_device);
 	if (ret < 0) {
