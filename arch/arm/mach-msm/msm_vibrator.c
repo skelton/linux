@@ -25,7 +25,8 @@
 #include "proc_comm_wince.h"
 
 #define HTC_PROCEDURE_SET_VIB_ON_OFF	21
-#define PMIC_VIBRATOR_LEVEL	(3000)
+#define PMIC_VIBRATOR_LEVEL		(3000)
+#define PM_LIBPROG 			0x30000061
 
 static struct work_struct vibrator_work;
 static struct hrtimer vibe_timer;
@@ -43,7 +44,7 @@ static void set_pmic_vibrator(int on)
 
 	if (!vib_endpoint) {
 		vib_endpoint = msm_rpc_connect(
-		      amss_get_num_value(PM_LIBPROG), 
+		      PM_LIBPROG, 
 		      amss_get_num_value(PM_LIBVERS), 
 		      0);
 		if (IS_ERR(vib_endpoint)) {

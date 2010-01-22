@@ -499,6 +499,12 @@ vogue_gps_read (struct file *file, char __user * buf,
     int ret;
     struct gps_state user_state;
 
+    if (!state->state) {
+	pr_err("GPS not enabled!\n");
+	return -EINVAL;
+
+    }
+
     if (len < sizeof (struct gps_state))
         return -EINVAL;
 
@@ -523,6 +529,52 @@ vogue_gps_read (struct file *file, char __user * buf,
 
     return sizeof (struct gps_state);
 }
+
+/* A small userland ctrl to enable and disable GPS */
+static ssize_t vogue_gps_write(struct file *filp, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	struct msm_rpc_endpoint	*ept;
+	int rc = 0;
+	void *k_buffer;
+	int cmd;
+
+	ept = (struct msm_rpc_endpoint *) filp->private_data;
+
+	k_buffer = kmalloc(count, GFP_KERNEL);
+	if (!k_buffer)
+		return -ENOMEM;
+
+	if (copy_from_user(k_buffer, buf, count)) {
+		rc = -EFAULT;
+		goto write_out_free;
+	}
+	cmd = simple_strtoul(k_buffer, NULL, 10);
+	switch(cmd) {
+		case 0:
+			pr_info("vogue_gps: GPS DISABLE\n");
+			gps_disable ();
+			state->state = GPS_STATE_OFF;
+			break;
+		case 1:
+			pr_info("vogue_gps: GPS ENABLE\n");
+			if (!state->state)
+			{
+				state->state = GPS_STATE_ON;
+				gps_enable ();
+			}
+			break;
+		default:
+			pr_err("vogue_gps: Unknown command!\n");
+			break;
+	
+	}
+	rc = count;
+write_out_free:
+	kfree(k_buffer);
+	return rc;
+}
+
 
 /* Support polling.  select() is your friend */
 static unsigned int
@@ -645,6 +697,7 @@ vogue_gps_release (struct inode *inode, struct file *file)
 static struct file_operations vogue_gps_fops = {
     .open = vogue_gps_open,
     .release = vogue_gps_release,
+    .write = vogue_gps_write,
     .read = vogue_gps_read,
     .unlocked_ioctl = vogue_gps_ioctl,
     .poll = vogue_gps_poll,
@@ -672,6 +725,7 @@ vogue_gps_probe (struct platform_device *pdev)
     state->misc.name = "vogue_gps";
     state->misc.minor = MISC_DYNAMIC_MINOR;
     state->misc.fops = &vogue_gps_fops;
+    state->state = GPS_STATE_OFF;
     ret = misc_register (&state->misc);
     if (ret)
     {
@@ -700,4 +754,4 @@ gps_init (void)
     return platform_driver_register (&raphael_gps_driver);
 }
 
-module_init (gps_init);
+late_initcall (gps_init);

@@ -20,6 +20,7 @@
 #include <mach/amss_para.h>
 
 /* time_remote_mtoa server definitions. */
+#define TIME_REMOTE_MTOA_PROG 0x3000005d
 
 
 struct rpc_time_tod_set_apps_bases_args {
@@ -53,7 +54,7 @@ static struct msm_rpc_server rpc_server = {
 
 static int __init rpc_server_init(void)
 {
-	rpc_server.prog = amss_get_num_value(TIME_REMOTE_MTOA_PROG);
+	rpc_server.prog = TIME_REMOTE_MTOA_PROG;
 	rpc_server.vers = amss_get_num_value(TIME_REMOTE_MTOA_VERS);
 	
 	return msm_rpc_create_server(&rpc_server);

@@ -261,7 +261,7 @@ static struct adsp_module_info module_info[] = {
 	QDSP_MODULE(VDEC_LP_MODE),
 };
 
-int adsp_init_info(struct adsp_info *info)
+int adsp_init_info_6210(struct adsp_info *info)
 {
 	info->send_irq =   0x00c00200;
 	info->read_ctrl =  0x00400038;

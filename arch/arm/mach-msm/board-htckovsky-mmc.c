@@ -28,7 +28,8 @@
 
 #define DEBUG_SDSLOT_VDD 1
 
-extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat);
+extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
+			unsigned int stat_irq, unsigned long stat_irq_flags);
 
 
 /* This struct holds the device-specific numbers and tables */
@@ -200,7 +201,6 @@ static unsigned int htcraphael_sdslot_status(struct device *dev)
 
 static struct mmc_platform_data htcraphael_sdslot_data = {
 	.ocr_mask	= MMC_VDD_28_29,
-	.status_irq	= -1, /* Redefined in _init function */
 	.status		= htcraphael_sdslot_status,
 //	.translate_vdd	= htcraphael_sdslot_switchvdd,
 };
@@ -401,16 +401,16 @@ int __init htcraphael_init_mmc(void)
 		return PTR_ERR(vreg_wifi_2);
 
 	if (!opt_disable_wifi)
-		msm_add_sdcc(1, &htcraphael_wifi_data);
+		msm_add_sdcc(1, &htcraphael_wifi_data, 0, 0);
 	else
 		printk(KERN_INFO "htcraphael: WiFi device disabled\n");
 
 	if (!opt_disable_sdcard)
 	{
-		htcraphael_sdslot_data.status_irq = MSM_GPIO_TO_INT(htcraphael_mmc_pdata.sdcard_status_gpio);
-		set_irq_wake(htcraphael_sdslot_data.status_irq, 1);
-		gpio_configure(htcraphael_mmc_pdata.sdcard_status_gpio, IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
-		msm_add_sdcc(htcraphael_mmc_pdata.sdcard_device_id, &htcraphael_sdslot_data);
+		set_irq_wake(MSM_GPIO_TO_INT(htcraphael_mmc_pdata.sdcard_status_gpio), 1);
+		msm_add_sdcc(htcraphael_mmc_pdata.sdcard_device_id, &htcraphael_sdslot_data,
+			MSM_GPIO_TO_INT(htcraphael_mmc_pdata.sdcard_status_gpio),
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
 	} else
 		printk(KERN_INFO "htcraphael: SD-Card interface disabled\n");
 	return 0;

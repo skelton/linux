@@ -32,6 +32,9 @@
 #include <asm/mach-types.h>
 #include <mach/amss_para.h>
 
+#define RPC_SND_PROG	0x30000002
+
+
 struct snd_ctxt {
 	struct mutex lock;
 	int opened;
@@ -283,7 +286,7 @@ int snd_ini() {
 	if (snd->opened == 0) {
 		if (snd->ept == NULL) {
 			snd->ept = msm_rpc_connect(
-						amss_get_num_value(RPC_SND_PROG), 
+						RPC_SND_PROG, 
 						amss_get_num_value(RPC_SND_VERS),
 						MSM_RPC_UNINTERRUPTIBLE);
 			if (IS_ERR(snd->ept)) {

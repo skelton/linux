@@ -153,7 +153,7 @@ struct rpc_adsp_rtos_modem_to_app_args_t {
 	uint32_t image; /* RPC_QDSP_IMAGE_GAUDIO */
 };
 
-struct rpc_adsp_rtos_modem_to_app_args_t_6120 {
+struct rpc_adsp_rtos_modem_to_app_args_t_6125 {
 	struct rpc_request_hdr hdr;
 	uint32_t gotit; /* if 1, the next elements are present */
 	uint32_t event; /* e.g., RPC_ADSP_RTOS_CMD_REGISTER_APP */
@@ -200,6 +200,9 @@ extern void msm_adsp_publish_cdevs(struct msm_adsp_module *, unsigned);
 extern int adsp_init_info_5200(struct adsp_info *info);
 extern int adsp_init_info_6120(struct adsp_info *info);
 extern int adsp_init_info_6150(struct adsp_info *info);
+extern int adsp_init_info_6210(struct adsp_info *info);
+extern int adsp_init_info_6220(struct adsp_info *info);
+extern int adsp_init_info_6225(struct adsp_info *info);
 extern struct msm_adsp_module *find_adsp_module_by_id(struct adsp_info *info,
 						      uint32_t id);
 
