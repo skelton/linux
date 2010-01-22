@@ -21,6 +21,7 @@
 
 #include <mach/amss_para.h>
 #include <mach/msm_iomap.h>
+#include <asm/mach-types.h>
 
 unsigned int __amss_version = 0;
 
@@ -131,6 +132,12 @@ unsigned int get_amss_version(void)
 	char amss_dump[20];
 	char *dot1, *dot2;
 	int len = 0;
+
+	/* Detection doesn't work on 'old' CDMA, there's no
+	 * version string to be found anywhere in SHARED_RAM_BASE
+	 */
+	if (machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500())
+		return 6150;
 
 	// Dump AMMS version
 	*(unsigned int *) (amss_dump + 0x0) = readl(MSM_SHARED_RAM_BASE + 0xfc030 + 0x0);
