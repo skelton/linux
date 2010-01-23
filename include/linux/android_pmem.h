@@ -76,5 +76,6 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 int pmem_remap(struct pmem_region *region, struct file *file,
 	       unsigned operation);
 
+int is_pmem_file(struct file *file);
 #endif //_ANDROID_PPP_H_
 
