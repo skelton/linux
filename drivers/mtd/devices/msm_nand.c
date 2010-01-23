@@ -35,7 +35,7 @@
 
 #define SUPPORT_WRONG_ECC_CONFIG 1
 
-#define VERBOSE 1
+#define VERBOSE 0
 
 struct msm_nand_chip {
 	struct device *dev;
@@ -665,7 +665,7 @@ err_dma_map_oobbuf_failed:
 
 	ops->retlen = mtd->writesize * pages_read;
 	ops->oobretlen = ops->ooblen - oob_len;
-	if (err)
+	if (err && ops->datbuf && ops->len)
 		pr_err("msm_nand_read_oob %llx %x %x failed %d, corrected %d\n",
 		       from, ops->datbuf ? ops->len : 0, ops->ooblen, err,
 		       total_ecc_errors);
