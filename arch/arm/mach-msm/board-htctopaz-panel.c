@@ -437,6 +437,8 @@ static int htctopaz_mddi_hitachi_panel_init(
 					     struct msm_mddi_bridge_platform_data *bridge_data,
 					      struct msm_mddi_client_data *client_data)
 {
+	if(machine_is_htcrhodium())
+		return 0;
 	struct msm_dex_command dex;
 	int ret;
 	char con[2];
@@ -488,6 +490,8 @@ static int htctopaz_mddi_hitachi_panel_deinit(
 					     struct msm_mddi_bridge_platform_data *bridge_data,
 					      struct msm_mddi_client_data *client_data)
 {
+	if(machine_is_htcrhodium())
+		return 0;
 	int ret;
 	char con[2];
 	client_data->auto_hibernate(client_data, 0);
@@ -535,6 +539,8 @@ static int htcraphael_mddi_toshiba_client_init(
 {
 	printk(KERN_ERR "TOSHIBA PANEL\n");
 
+	if(machine_is_htcrhodium())
+		return 0;
 	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
@@ -564,6 +570,8 @@ static int htcraphael_mddi_panel_unblank(
 	 printk(KERN_ERR "UNBLANK\n");
 	int panel_id, ret = 0;
 	
+	if(machine_is_htcrhodium())
+		return 0;
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 
 	switch(panel_id) {
@@ -586,6 +594,8 @@ static int htcraphael_mddi_panel_blank(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
+	if(machine_is_htcrhodium())
+		return 0;
   	printk(KERN_ERR "BLANK\n");
 	int panel_id, ret = 0;
 
@@ -676,7 +686,7 @@ int __init htctopaz_init_panel(void)
 	int rc;
 	
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
-	if(!machine_is_htctopaz() ) {
+	if(!machine_is_htctopaz() && !machine_is_htcrhodium()) {
 		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
 		return 0;
 	}

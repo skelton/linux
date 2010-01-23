@@ -153,7 +153,8 @@ struct ktermios {
 #define  B2000000 0010013
 #define  B2500000 0010014
 #define  B3000000 0010015
-#define  B3500000 0010016
+//#define  B3500000 0010016
+#define B3686400 0010016
 #define  B4000000 0010017
 #define CIBAUD	  002003600000		/* input baud rate */
 #define CMSPAR    010000000000		/* mark or space (stick) parity */

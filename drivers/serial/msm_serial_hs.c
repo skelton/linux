@@ -44,7 +44,6 @@
 #include <linux/dmapool.h>
 #include <linux/wait.h>
 #include <linux/wakelock.h>
-#include <linux/delay.h>
 
 #include <asm/atomic.h>
 #include <asm/irq.h>
@@ -55,6 +54,8 @@
 #include <mach/msm_serial_hs.h>
 
 #include "msm_serial_hs_hwreg.h"
+
+#define SERIAL_FOR_BTIPS
 
 enum flush_reason {
 	FLUSH_NONE,
@@ -125,6 +126,7 @@ struct msm_hs_port {
 	enum msm_hs_clk_states_e clk_state;
 
 	struct msm_hs_wakeup wakeup;
+
 };
 
 #define MSM_UARTDM_BURST_SIZE 16   /* DM burst size (in bytes) */
@@ -558,6 +560,7 @@ static void msm_hs_submit_tx_locked(struct uart_port *uport)
 		tx_count = left;
 
 	src_addr = tx->dma_base + tx_buf->tail;
+	
 	dma_sync_single_for_device(uport->dev, src_addr, tx_count,
 				   DMA_TO_DEVICE);
 
@@ -914,14 +917,6 @@ static irqreturn_t msm_hs_isr(int irq, void *dev)
 
 	isr_status = msm_hs_read(uport, UARTDM_MISR_ADDR);
 
-#if 0
-	printk(KERN_DEBUG "msm_hs_isr: MISR=%08x ISR=%08x SR=%08x\n",
-		msm_hs_read(uport, UARTDM_MISR_ADDR),
-		msm_hs_read(uport, UARTDM_ISR_ADDR),
-		msm_hs_read(uport, UARTDM_SR_ADDR));
-//	msleep(500);
-#endif
-
 	/* Uart RX starting */
 	if (isr_status & UARTDM_ISR_RXLEV_BMSK) {
 		wake_lock(&rx->wake_lock);  /* hold wakelock while rx dma */
@@ -1022,6 +1017,31 @@ void msm_hs_request_clock_on(struct uart_port *uport) {
 	spin_unlock_irqrestore(&uport->lock, flags);
 }
 
+static int msm_uartdm_ioctl(struct uart_port *uport, unsigned int cmd, unsigned long arg)
+{
+#ifdef SERIAL_FOR_BTIPS	//for btips
+
+
+	switch (cmd) {
+		case 0x8001:
+			msm_hs_request_clock_on(uport);
+			break;
+			
+		case 0x8002:
+			msm_hs_request_clock_off(uport);
+			break;
+			
+		default:
+			return -ENOIOCTLCMD;
+	}
+	
+	return 0;
+	
+#else
+	return -ENOIOCTLCMD;
+#endif
+}
+
 static irqreturn_t msm_hs_wakeup_isr(int irq, void *dev)
 {
 	unsigned int wakeup = 0;
@@ -1115,8 +1135,6 @@ static int msm_hs_startup(struct uart_port *uport)
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_STALE_INT);
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_CTS);
 	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_LOW);
-	/* Just to be sure */
-	msm_hs_write(uport, UARTDM_CR_ADDR, CLEAR_TX_READY);
 	/* Turn on Uart Receiver */
 	msm_hs_write(uport, UARTDM_CR_ADDR, UARTDM_CR_RX_EN_BMSK);
 
@@ -1128,7 +1146,6 @@ static int msm_hs_startup(struct uart_port *uport)
 	tx->dma_in_flight = 0;
 
 	tx->xfer.complete_func = msm_hs_dmov_tx_callback;
-	tx->xfer.execute_func = NULL;
 
 	tx->command_ptr->cmd = CMD_LC |
 	    CMD_DST_CRCI(msm_uport->dma_tx_crci) | CMD_MODE_BOX;
@@ -1144,7 +1161,6 @@ static int msm_hs_startup(struct uart_port *uport)
 
 	/* Turn on Uart Receive */
 	rx->xfer.complete_func = msm_hs_dmov_rx_callback;
-	rx->xfer.execute_func = NULL;
 
 	rx->command_ptr->cmd = CMD_LC |
 	    CMD_SRC_CRCI(msm_uport->dma_rx_crci) | CMD_MODE_BOX;
@@ -1158,9 +1174,6 @@ static int msm_hs_startup(struct uart_port *uport)
 	msm_uport->imr_reg |= UARTDM_ISR_RXSTALE_BMSK;
 	/* Enable reading the current CTS, no harm even if CTS is ignored */
 	msm_uport->imr_reg |= UARTDM_ISR_CURRENT_CTS_BMSK;
-	/* Enable TXLEV */
-	msm_uport->imr_reg |= UARTDM_ISR_TXLEV_BMSK;
-	msm_hs_write(uport, UARTDM_IMR_ADDR, msm_uport->imr_reg);
 
 	msm_hs_write(uport, UARTDM_TFWR_ADDR, 0);  /* TXLEV on empty TX fifo */
 
@@ -1271,7 +1284,7 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	if (unlikely(!uport->membase))
 		return -ENOMEM;
 
-	uport->irq = platform_get_irq(pdev, 1);
+	uport->irq = platform_get_irq(pdev, 1/*0*/);
 	if (unlikely(uport->irq < 0))
 		return -ENXIO;
 	if (unlikely(set_irq_wake(uport->irq, 1)))
@@ -1289,6 +1302,7 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 			return -ENXIO;
 		if (unlikely(set_irq_wake(msm_uport->wakeup.irq, 1)))
 			return -ENXIO;
+		
 	}
 
 	resource = platform_get_resource_byname(pdev, IORESOURCE_DMA,
@@ -1326,7 +1340,11 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	hrtimer_init(&msm_uport->clk_off_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL);
 	msm_uport->clk_off_timer.function = msm_hs_clk_off_retry;
+	#ifdef SERIAL_FOR_BTIPS	//for btips
+	msm_uport->clk_off_delay = ktime_set(0, 10000000);  /* 1ms --> 10ms */
+	#else
 	msm_uport->clk_off_delay = ktime_set(0, 1000000);  /* 1ms */
+	#endif
 
 	uport->line = pdev->id;
 	return uart_add_one_port(&msm_hs_driver, uport);
@@ -1436,6 +1454,7 @@ static struct uart_ops msm_hs_ops = {
 	.pm = msm_hs_pm,
 	.type = msm_hs_type,
 	.config_port = msm_hs_config_port,
+	.ioctl = msm_uartdm_ioctl,
 	.release_port = msm_hs_release_port,
 	.request_port = msm_hs_request_port,
 };
