@@ -676,7 +676,7 @@ int __init htctopaz_init_panel(void)
 	int rc;
 	
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
-	if(!machine_is_htctopaz() && ! machine_is_htcrhodium()) {
+	if(!machine_is_htctopaz() ) {
 		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
 		return 0;
 	}
