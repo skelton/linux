@@ -274,12 +274,10 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 
 #ifdef CONFIG_ANDROID_PMEM
 	if (!get_pmem_file(img->memory_id, start, &vstart, len, filep)) {
-		printk("Got a pmem get_img\n");
 		return 0;
 	} else if (!get_msm_hw3d_file(img->memory_id, HW3D_REGION_ID(img->offset),
 				HW3D_REGION_OFFSET(img->offset), start, len,
 				filep)) {
-		printk("Got a hw3D get_img\n");
 		img->offset=HW3D_REGION_OFFSET(img->offset);
 		return ret;
 	}
@@ -291,7 +289,6 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 	}
 
 	if (MAJOR(file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
-		printk("Got a FB get_img\n");
 		*start = info->fix.smem_start;
 		*len = info->fix.smem_len;
 	} else {
