@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
 #include <linux/wakelock.h>
+#include <linux/io.h>
 #include <asm/gpio.h>
 #include <mach/board.h>
 #include <asm/mach-types.h>
@@ -304,7 +305,9 @@ int htc_cable_status_update(int status)
 		htc_batt_info.rep.charging_source=CHARGER_USB;
 	mutex_unlock(&htc_batt_info.lock);
 
-	msm_hsusb_set_vbus_state(1);
+	if(readl(MSM_SHARED_RAM_BASE+0xfc00c))
+		source=CHARGER_USB;
+	msm_hsusb_set_vbus_state(source==CHARGER_USB);
 	if (source == CHARGER_USB) {
 		wake_lock(&vbus_wake_lock);
 	} else {
