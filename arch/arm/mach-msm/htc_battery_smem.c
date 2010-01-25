@@ -689,6 +689,7 @@ static int htc_battery_probe(struct platform_device *pdev)
 	htc_cable_status_update(htc_batt_info.rep.charging_source);
 	battery_charging_ctrl(htc_batt_info.rep.charging_enabled ?
 			      ENABLE_SLOW_CHG : DISABLE);
+	htc_battery_set_charging(2);
 
 	htc_batt_info.update_time = jiffies;
 	kernel_thread(htc_battery_thread, NULL, CLONE_KERNEL);
