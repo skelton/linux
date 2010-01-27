@@ -58,7 +58,7 @@ struct smd_channel {
 
 	char name[32];
 	struct platform_device pdev;
-	short * open;
+	volatile short * open;
 
 	struct smd_7500_buffer *buf_7500;
 };
