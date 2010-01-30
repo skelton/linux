@@ -37,8 +37,8 @@ struct smd_half_channel {
 struct smd_channel {
 	volatile struct smd_half_channel *send;
 	volatile struct smd_half_channel *recv;
-	unsigned char *send_buf;
-	unsigned char *recv_buf;
+	volatile unsigned char *send_buf;
+	volatile unsigned char *recv_buf;
 	unsigned buf_size;
 	struct list_head ch_list;
 
@@ -58,7 +58,7 @@ struct smd_channel {
 
 	char name[32];
 	struct platform_device pdev;
-	short * open;
+	volatile short * open;
 
 	struct smd_7500_buffer *buf_7500;
 };

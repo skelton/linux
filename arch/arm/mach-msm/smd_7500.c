@@ -41,12 +41,12 @@ extern void *smem_alloc(unsigned id, unsigned size);
 
 struct smd_7500_buffer {
 	unsigned short send_size;
-	unsigned short *send_head;
-	unsigned short *send_tail;
+	volatile unsigned short *send_head;
+	volatile unsigned short *send_tail;
 
 	unsigned short recv_size;
-	unsigned short *recv_head;
-	unsigned short *recv_tail;
+	volatile unsigned short *recv_head;
+	volatile unsigned short *recv_tail;
 };
 
 static inline void notify_other_smd(int ch)

@@ -63,3 +63,5 @@ obj-$(CONFIG_MSM_SMEM_BATTCHG) += htc_battery_smem.o
 obj-$(CONFIG_RFKILL) += board-htcraphael-rfkill.o
 
 obj-$(CONFIG_HTC_FB_CONSOLE) += htc_fb_console.o
+obj-$(CONFIG_TOUCHSCREEN_TSSC_MANAGER)       += htc_tp_cal.o
+
