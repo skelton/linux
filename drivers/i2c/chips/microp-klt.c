@@ -650,6 +650,7 @@ static int micropklt_dbg_effects_get(void *dat, u64 *val) {
 			break;
 		default:
 			*val=0;
+			break;
 	}
 
 	return 0;
@@ -685,7 +686,7 @@ static int micropklt_dbg_effects_set(void *dat, u64 val)
 			break;
 		case 6:
 			//Vertical
-			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_ROTATE);
+			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_VERTICAL);
 			break;
 	}
 	return 0;
