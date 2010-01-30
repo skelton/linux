@@ -614,12 +614,6 @@ void fiq(void *data,void *regs) {
 
 static int __init msm_pm_init(void)
 {
-	struct early_suspend early_suspend;
-	early_suspend.suspend=msm_early_suspend;
-	early_suspend.resume=msm_late_resume;
-	early_suspend.level=48;
-	register_early_suspend(&early_suspend);
-
 	pm_power_off = msm_pm_power_off;
 	arm_pm_restart = msm_pm_restart;
 	msm_pm_max_sleep_time = 0;
@@ -645,3 +639,12 @@ static int __init msm_pm_init(void)
 }
 
 __initcall(msm_pm_init);
+
+static int msm_set_arm9(void) {
+	struct early_suspend early_suspend;
+	early_suspend.suspend=msm_early_suspend;
+	early_suspend.resume=msm_late_resume;
+	early_suspend.level=48;
+	register_early_suspend(&early_suspend);
+}	
+late_initcall(msm_set_arm9);
