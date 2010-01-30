@@ -30,9 +30,6 @@
 #include "../../../arch/arm/mach-msm/proc_comm_wince.h"
 
 
-static int micropklt_read(struct i2c_client *, unsigned, char *, int);
-static int micropklt_write(struct i2c_client *, const char *, int);
-extern int init_spi_bma150(struct microp_klt*);
 
 
 void micropklt_lcd_ctrl(int v);
@@ -54,6 +51,9 @@ static struct microp_klt {
 	unsigned short version;
 	struct led_classdev leds[MICROP_KLT_LED_CNT];
 } *micropklt_t = 0;
+static int micropklt_read(struct i2c_client *, unsigned, char *, int);
+static int micropklt_write(struct i2c_client *, const char *, int);
+extern int init_spi_bma150(struct microp_klt*);
 
 static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
                                          enum led_brightness brightness)
@@ -61,7 +61,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 	struct microp_klt *data;
 	struct i2c_client *client;
 	char buffer[4] = { 0, 0, 0, 0 };
-	int idx, b, state, i;
+	int idx, b, state;
 
 
 	
@@ -173,16 +173,15 @@ void micropklt_lcd_ctrl(int v)
 	struct i2c_client *client;
 
 	// for power up
-	char c1[]={0x20,0x48};
-	char c2[]={0x20,0x0c};
-        char c3[]={0x23,0,0};
-	char c4[]={0x22,0x0};
-	char c6[]={0x22,0x60};
+	char c1[]={MICROP_I2C_WCMD_MISC,0x48};
+	char c2[]={MICROP_I2C_WCMD_MISC,0x0c};
+        char c3[]={MICROP_I2C_WCMD_AUTO_BL_CTL,0,0};
 
 	// for power down
-	char c7[]={0x20,0x4c};
-	char c8[]={0x40,0x10,0x00};
-	char c9[]={0x20,0x08};
+	char c7[]={MICROP_I2C_WCMD_MISC,0x4c};
+	char c8[]={MICROP_KLT_ID_LED_STATE,0x10,0x00};
+	char c9[]={MICROP_I2C_WCMD_MISC,0x08};
+	printk("Something used micropklt_lcd_ctrl. This function should no longer be used.\n");
 
 
         data = micropklt_t;
@@ -218,8 +217,6 @@ void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *s
 {
 	int i;
 	struct microp_klt *data;
-	struct i2c_client *client;
-	char val3[2];
 	uint16_t delay;
 	data = micropklt_t;
 	if (!data) return;
@@ -240,7 +237,6 @@ void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *s
 void micropklt_lcd_precess_cmd(char* cmd, size_t count)
 {
 	struct microp_klt *data;
-	struct i2c_client *client;
 	data = micropklt_t;
 	if (!data) return;
 	msleep(1);
@@ -527,7 +523,6 @@ static int micropklt_dbg_leds_set(void *dat, u64 val)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	unsigned state;
 	char buffer[4] = { 0, 0, 0, 0 };
 	int r;
 
@@ -561,7 +556,6 @@ static int micropklt_dbg_light_set(void *data, u64 val)
 static int micropklt_dbg_light_get(void *dat, u64 *val) {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	char buffer[4] = { 0, 0, 0, 0 };
 	int r;
 	unsigned long long d;
 
@@ -582,31 +576,15 @@ DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_light_fops,
 		micropklt_dbg_light_get,
 		micropklt_dbg_light_set, "%llu\n");
 
-static int micropklt_dbg_lcd_brightness_get(void *dat, u64 *val) {
-	struct microp_klt *data;
-	struct i2c_client *client;
-	char buffer[4] = { 0, 0, 0, 0 };
-	int r;
-	unsigned long long d;
-
-	data = micropklt_t;
-	if (!data) return -EAGAIN;
-	client = data->client;
-
-	mutex_lock(&data->lock);
-
-	r = micropklt_read(client, 0x32, &d, 4);//brightness level ?
-	*val=(d&0xff00);
-
-	mutex_unlock(&data->lock);
-	return r;
+static int micropklt_dbg_auto_bl_get(void *dat, u64 *val) {
+	*val=0;
+	return 0;
 }
 
-static int micropklt_dbg_lcd_brightness_set(void *dat, u64 val)
+static int micropklt_dbg_auto_bl_set(void *dat, u64 val)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	unsigned state;
 	char buffer[4] = { 0, 0, 0, 0 };
 	int r;
 
@@ -615,18 +593,18 @@ static int micropklt_dbg_lcd_brightness_set(void *dat, u64 val)
 	client = data->client;
 
 	mutex_lock(&data->lock);
-		buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
-		buffer[1] = 0xff & val;
-		buffer[2] = 0xff & (val >> 8);
+		buffer[0] = MICROP_I2C_WCMD_AUTO_BL_CTL;
+		buffer[1] = 0x2;
+		buffer[2] = val;
 	r = micropklt_write(client, buffer, 3);
 	mutex_unlock(&data->lock);
 	return 0;
 }
 
 
-DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_lcd_brightness_fops,
-		micropklt_dbg_lcd_brightness_get,
-		micropklt_dbg_lcd_brightness_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_auto_bl_fops,
+		micropklt_dbg_auto_bl_get,
+		micropklt_dbg_auto_bl_set, "%llu\n");
 
 static int micropklt_dbg_sleep_get(void *dat, u64 *val) {
 	*val=sleep_state;
@@ -644,6 +622,80 @@ DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_sleep_fops,
 		micropklt_dbg_sleep_get,
 		micropklt_dbg_sleep_set, "%llu\n");
 
+static int micropklt_dbg_effects_get(void *dat, u64 *val) {
+	switch( (micropklt_t->led_states&0x1f00)>>8) {
+		case 1:
+			//Ring
+			*val=1;
+			break;
+		case 2:
+			//Blink
+			*val=2;
+			break;
+		case 4:
+			//Breathe
+			*val=3;
+			break;
+		case 5:
+			//Fade
+			*val=4;
+			break;
+		case 8:
+			//Rotate
+			*val=5;
+			break;
+		case 0x10:
+			//Vertical
+			*val=6;
+			break;
+		default:
+			*val=0;
+	}
+
+	return 0;
+}
+
+static int micropklt_dbg_effects_set(void *dat, u64 val)
+{
+	switch(val) {
+		default:
+		case 0:
+			//Clear
+			micropklt_set_led_states(0x1f00, 0);
+			break;
+		case 1:
+			//Ring
+			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_RING);
+			break;
+		case 2:
+			//Blink
+			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_BLINK);
+			break;
+		case 3:
+			//Breathe
+			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_BREATHE);
+			break;
+		case 4:
+			//Fade
+			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_FADE);
+			break;
+		case 5:
+			//Rotate
+			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_ROTATE);
+			break;
+		case 6:
+			//Vertical
+			micropklt_set_led_states(0x1f00, MICROP_KLT_SYSLED_ROTATE);
+			break;
+	}
+	return 0;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_effects_fops,
+		micropklt_dbg_effects_get,
+		micropklt_dbg_effects_set, "%llu\n");
+
 static int __init micropklt_dbg_init(void)
 {
 	struct dentry *dent;
@@ -652,14 +704,16 @@ static int __init micropklt_dbg_init(void)
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 
-	debugfs_create_file("leds", 0644, dent, NULL,
+	debugfs_create_file("leds", 0444, dent, NULL,
 			&micropklt_dbg_leds_fops);
-	debugfs_create_file("light", 0644, dent, NULL,
+	debugfs_create_file("light", 0444, dent, NULL,
 			&micropklt_dbg_light_fops);
-	debugfs_create_file("lcd_brightness", 0644, dent, NULL,
-			&micropklt_dbg_lcd_brightness_fops);
-	debugfs_create_file("sleep_leds", 0644, dent, NULL,
+	debugfs_create_file("auto_backlight", 0666, dent, NULL,
+			&micropklt_dbg_auto_bl_fops);
+	debugfs_create_file("sleep_leds", 0666, dent, NULL,
 			&micropklt_dbg_sleep_fops);
+	debugfs_create_file("effects", 0666, dent, NULL,
+			&micropklt_dbg_effects_fops);
 
 	return 0;
 }

@@ -46,6 +46,21 @@ struct microp_spi_table {
 #define MICROP_KLT_ID_SPICTRL		0x21 // SPI Controll Topaz
 #define MICROP_KLT_ID_SPILCMDDATA	0x70 // SPI Data Topaz
 
+
+//Mahimahi's constants names
+#define MICROP_I2C_WCMD_MISC				0x20
+#define MICROP_I2C_WCMD_SPI_EN				0x21
+#define MICROP_I2C_WCMD_AUTO_BL_CTL			0x23
+#define MICROP_I2C_RCMD_SPI_BL_STATUS			0x24
+#define MICROP_I2C_RCMD_VERSION				0x30
+#define MICROP_I2C_WCMD_LCM_REGISTER			0x70
+
+#define IRQ_GSENSOR	(1<<10)
+#define IRQ_LSENSOR  	(1<<9)
+#define IRQ_REMOTEKEY	(1<<7)
+#define IRQ_HEADSETIN	(1<<2)
+#define IRQ_SDCARD	(1<<0)
+
 extern int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values);
 extern int micropklt_set_lcd_state(int on);
 extern int micropklt_set_kbd_state(int on);
