@@ -162,11 +162,11 @@ static int raphnavi_keymap[] =
 				| (1 << MICROP_KLT_LED_END) \
 				| (1 << MICROP_KLT_LED_SEND) \
 				| (1 << MICROP_KLT_LED_ACTION) \
-				| MICROP_KLT_SYSLED_RING \
+				/*| MICROP_KLT_SYSLED_RING \
 				| MICROP_KLT_SYSLED_BLINK \
 				| MICROP_KLT_SYSLED_BREATHE \
 				| MICROP_KLT_SYSLED_ROTATE \
-				| MICROP_KLT_SYSLED_VERTICAL )
+				| MICROP_KLT_SYSLED_VERTICAL*/ )
 
 
 struct raphnavi {
