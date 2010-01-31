@@ -459,6 +459,7 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 //	char cmd[]={0x20,0x08};
 //	send_command(cmd);
 //	micropklt_lcd_ctrl(4);
+	if(sleep_state==-1)
 	if(micropklt_t)
 		old_state=micropklt_t->led_states;
 	else
@@ -697,6 +698,81 @@ DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_effects_fops,
 		micropklt_dbg_effects_get,
 		micropklt_dbg_effects_set, "%llu\n");
 
+static int micropklt_dbg_sl_eff_get(void *dat, u64 *val) {
+	switch( (sleep_state&0x1f00)>>8) {
+		case 1:
+			//Ring
+			*val=1;
+			break;
+		case 2:
+			//Blink
+			*val=2;
+			break;
+		case 4:
+			//Breathe
+			*val=3;
+			break;
+		case 5:
+			//Fade
+			*val=4;
+			break;
+		case 8:
+			//Rotate
+			*val=5;
+			break;
+		case 0x10:
+			//Vertical
+			*val=6;
+			break;
+		default:
+			*val=0;
+			break;
+	}
+
+	return 0;
+}
+
+static int micropklt_dbg_sl_eff_set(void *dat, u64 val)
+{
+	switch(val) {
+		default:
+		case 0:
+			//Clear
+			sleep_state=0;
+			break;
+		case 1:
+			//Ring
+			sleep_state=MICROP_KLT_SYSLED_RING;
+			break;
+		case 2:
+			//Blink
+			sleep_state=MICROP_KLT_SYSLED_BLINK;
+			break;
+		case 3:
+			//Breathe
+			sleep_state=MICROP_KLT_SYSLED_BREATHE;
+			break;
+		case 4:
+			//Fade
+			sleep_state=MICROP_KLT_SYSLED_FADE;
+			break;
+		case 5:
+			//Rotate
+			sleep_state=MICROP_KLT_SYSLED_ROTATE;
+			break;
+		case 6:
+			//Vertical
+			sleep_state=MICROP_KLT_SYSLED_VERTICAL;
+			break;
+	}
+	return 0;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_sl_eff_fops,
+		micropklt_dbg_sl_eff_get,
+		micropklt_dbg_sl_eff_set, "%llu\n");
+
 static int micropklt_dbg_gpi_get(void *dat, u64 *val) {
 
 	struct microp_klt *data;
@@ -741,6 +817,8 @@ static int __init micropklt_dbg_init(void)
 			&micropklt_dbg_auto_bl_fops);
 	debugfs_create_file("sleep_leds", 0666, dent, NULL,
 			&micropklt_dbg_sleep_fops);
+	debugfs_create_file("sleep_effects", 0666, dent, NULL,
+			&micropklt_dbg_sl_eff_fops);
 	debugfs_create_file("effects", 0666, dent, NULL,
 			&micropklt_dbg_effects_fops);
 
