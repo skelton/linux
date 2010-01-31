@@ -567,24 +567,6 @@ static int msm_pm_read_proc(char *page, char **start, off_t off,
 #endif
 
 
-static void msm_early_suspend(struct early_suspend *h) {
-	printk("Sending arm9_low_speed 2\n");
-	struct msm_dex_command dex;
-	dex.cmd = PCOM_ARM9_LOW_SPEED;
-	dex.has_data = 1;
-	dex.data = 2;
-	msm_proc_comm_wince(&dex, 0);
-}
-
-static void msm_late_resume(struct early_suspend *h) {
-	printk("Sending arm9_low_speed 7\n");
-	struct msm_dex_command dex;
-	dex.cmd = PCOM_ARM9_LOW_SPEED;
-	dex.has_data = 1;
-	dex.data = 7;
-	msm_proc_comm_wince(&dex, 0);
-}
-
 void msm_pm_set_max_sleep_time(int64_t max_sleep_time_ns)
 {
 	int64_t max_sleep_time_bs = max_sleep_time_ns;
@@ -640,11 +622,31 @@ static int __init msm_pm_init(void)
 
 __initcall(msm_pm_init);
 
+
+static struct early_suspend early_suspend;
+static void msm_early_suspend(struct early_suspend *h) {
+	printk("Sending arm9_low_speed 2\n");
+	struct msm_dex_command dex;
+	dex.cmd = PCOM_ARM9_LOW_SPEED;
+	dex.has_data = 1;
+	dex.data = 2;
+	msm_proc_comm_wince(&dex, 0);
+}
+
+static void msm_late_resume(struct early_suspend *h) {
+	printk("Sending arm9_low_speed 7\n");
+	struct msm_dex_command dex;
+	dex.cmd = PCOM_ARM9_LOW_SPEED;
+	dex.has_data = 1;
+	dex.data = 7;
+	msm_proc_comm_wince(&dex, 0);
+}
+
 static int msm_set_arm9(void) {
-	struct early_suspend early_suspend;
 	early_suspend.suspend=msm_early_suspend;
 	early_suspend.resume=msm_late_resume;
 	early_suspend.level=48;
 	register_early_suspend(&early_suspend);
+	return 0;
 }	
 late_initcall(msm_set_arm9);
