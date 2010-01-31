@@ -54,6 +54,7 @@ struct microp_spi_table {
 #define MICROP_I2C_RCMD_SPI_BL_STATUS			0x24
 #define MICROP_I2C_RCMD_VERSION				0x30
 #define MICROP_I2C_WCMD_LCM_REGISTER			0x70
+#define MICROP_I2C_RCMD_GPI_STATUS			0x83
 
 #define IRQ_GSENSOR	(1<<10)
 #define IRQ_LSENSOR  	(1<<9)

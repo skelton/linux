@@ -697,6 +697,34 @@ DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_effects_fops,
 		micropklt_dbg_effects_get,
 		micropklt_dbg_effects_set, "%llu\n");
 
+static int micropklt_dbg_gpi_get(void *dat, u64 *val) {
+
+	struct microp_klt *data;
+	struct i2c_client *client;
+	int r;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+
+	r = micropklt_read(client, MICROP_I2C_RCMD_GPI_STATUS, val, 2);
+
+	mutex_unlock(&data->lock);
+	return 0;
+}
+
+static int micropklt_dbg_gpi_set(void *dat, u64 val)
+{
+	return -EPERM;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_gpi_fops,
+		micropklt_dbg_gpi_get,
+		micropklt_dbg_gpi_set, "%llu\n");
+
 static int __init micropklt_dbg_init(void)
 {
 	struct dentry *dent;
@@ -715,6 +743,9 @@ static int __init micropklt_dbg_init(void)
 			&micropklt_dbg_sleep_fops);
 	debugfs_create_file("effects", 0666, dent, NULL,
 			&micropklt_dbg_effects_fops);
+
+	debugfs_create_file("gpi", 0444, dent, NULL,
+			&micropklt_dbg_gpi_fops);
 
 	return 0;
 }
