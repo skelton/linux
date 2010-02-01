@@ -282,6 +282,10 @@ int htc_cable_status_update(int status)
 		return 0;
 	
 	mutex_lock(&htc_batt_info.lock);
+	if(status==CHARGER_BATTERY && readl(MSM_SHARED_RAM_BASE+0xfc00c))
+		status=CHARGER_USB;
+	if(fake_charger)
+		status=CHARGER_USB;
 	switch(status) {
 	case CHARGER_BATTERY:
 		BATT("cable NOT PRESENT\n");
@@ -301,12 +305,8 @@ int htc_cable_status_update(int status)
 		rc = -EINVAL;
 	}
 	source = htc_batt_info.rep.charging_source;
-	if(fake_charger)
-		htc_batt_info.rep.charging_source=CHARGER_USB;
 	mutex_unlock(&htc_batt_info.lock);
 
-	if(readl(MSM_SHARED_RAM_BASE+0xfc00c))
-		source=CHARGER_USB;
 	msm_hsusb_set_vbus_state(source==CHARGER_USB);
 	if (source == CHARGER_USB) {
 		wake_lock(&vbus_wake_lock);
