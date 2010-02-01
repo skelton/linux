@@ -50,7 +50,7 @@ static struct gpio_keys_button topaz_button_table[] = {
 
 static struct gpio_keys_button rhodium_button_table[] = {
 	/*KEY                   GPIO    ACTIVE_LOW DESCRIPTION          type            wakeup  debounce*/
-	{PWRK,                  83,             0, "Power button",      EV_KEY,         1,      0},
+	{PWRK,                  83,             1, "Power button",      EV_KEY,         1,      0},
 };
 
 static struct gpio_keys_platform_data gpio_keys_data;
