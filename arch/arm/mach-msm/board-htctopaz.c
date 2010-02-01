@@ -195,6 +195,11 @@ static struct platform_device topaz_bt_rfkill = {
 	.id = -1,
 };
 
+static struct platform_device touchscreen = {
+	.name		= "tssc-manager",
+	.id		= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
@@ -208,6 +213,7 @@ static struct platform_device *devices[] __initdata = {
 	//&topaz_h2w,		/*TODO we need working sound as first*/
 #endif
 	&topaz_bt_rfkill,
+	&touchscreen,
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif

@@ -172,6 +172,10 @@ static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
 
+static struct platform_device touchscreen = {
+	.name		= "tssc-manager",
+	.id		= -1,
+};
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
@@ -182,6 +186,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&blac_snd,
 	&rhodium_keypad_device,
+	&touchscreen,
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif

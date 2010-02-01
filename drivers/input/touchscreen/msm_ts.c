@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/delay.h>
+#include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_fb.h>
@@ -354,6 +355,11 @@ static int __init msm_ts_init(void)
 {
 	int err;
 
+	if(!machine_is_htcblackstone()) {
+		printk("\"Old\" touchscreen driver called for a non-blackstone device\n");
+		printk("If you really want that, edit the msm_ts.c file and delete this check\n");
+		return 0;
+	}
 	printk(KERN_INFO "msm_ts: initing\n");
 
 	/* We depend on a framebuffer for painting calibration dots */
