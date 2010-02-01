@@ -360,7 +360,7 @@ int trout_wifi_power(int on)
 		if (rc)
 			return rc;
 
-		if(machine_is_htcrhodium() || machine_is_htctopaz()) {
+		if(machine_is_htctopaz()) {
 			rc = vreg_enable(vreg_wifi_3);
 			if (rc)
 				return rc;

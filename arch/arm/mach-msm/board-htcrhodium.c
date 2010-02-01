@@ -123,6 +123,11 @@ static void usb_phy_reset(void)
 	mdelay(3);
 }
 
+static struct platform_device raphael_rfkill = {
+	.name = "htcraphael_rfkill",
+	.id = -1,
+};
+
 static struct i2c_board_info i2c_devices[] = {
 	{
 		// LED & Backlight controller
@@ -168,10 +173,9 @@ static struct platform_device blac_snd = {
 	},
 };
 
-static struct platform_device raphael_gps = {
-    .name       = "raphael_gps",
+static struct platform_device rhodium_gps = {
+    .name       = "gps_rfkill",
 };
-
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
@@ -182,9 +186,11 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&blac_snd,
 	&rhodium_keypad_device,
+	&raphael_rfkill,
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif
+	//&rhodium_gps,
 };
 
 extern struct sys_timer msm_timer;
@@ -253,9 +259,9 @@ static htc_hw_pdata_t msm_htc_hw_pdata = {
 };
 
 static smem_batt_t msm_battery_pdata = {
-	.gpio_battery_detect = TOPA100_BAT_IRQ,
-	.gpio_charger_enable = TOPA100_CHARGE_EN_N,
-	.gpio_charger_current_select = TOPA100_USB_AC_PWR,
+	.gpio_battery_detect = RHODIUM_BAT_IRQ,
+	.gpio_charger_enable = RHODIUM_CHARGE_EN_N,
+	.gpio_charger_current_select = RHODIUM_USB_AC_PWR,
 	.smem_offset = 0xfc140,
 	.smem_field_size = 4,
 };
