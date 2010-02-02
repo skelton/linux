@@ -160,8 +160,6 @@ enum {
 	DEBUG_BATT	= 1<<0,
 	DEBUG_CABLE	= 1<<1,
 };
-static int fake_charger=0;
-module_param_named(fake, fake_charger, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static int debug_mask=0;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
