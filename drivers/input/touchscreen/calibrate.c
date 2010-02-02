@@ -30,18 +30,18 @@
 //  Point 3 - (119, 159)
 //  Point 4 - (15, 298)
 //  Point 5 - (223, 298)
-#define TP_CALIBRATION_POINT1_X 15
-#define TP_CALIBRATION_POINT1_Y 20
-#define TP_CALIBRATION_POINT2_X 223
-#define TP_CALIBRATION_POINT2_Y 20
-#define TP_CALIBRATION_POINT3_X 15
-#define TP_CALIBRATION_POINT3_Y 298
-#define TP_CALIBRATION_POINT4_X 223
-#define TP_CALIBRATION_POINT4_Y 298
-#define TP_CALIBRATION_POINT5_X 119
-#define TP_CALIBRATION_POINT5_Y 159
-#define CALIBRATION_X_RANGE 780
-#define CALIBRATION_Y_RANGE 820
+#define TP_CALIBRATION_POINT1_X 128
+#define TP_CALIBRATION_POINT1_Y 128
+#define TP_CALIBRATION_POINT2_X 1903
+#define TP_CALIBRATION_POINT2_Y 128
+#define TP_CALIBRATION_POINT3_X 128
+#define TP_CALIBRATION_POINT3_Y 1907
+#define TP_CALIBRATION_POINT4_X 1903
+#define TP_CALIBRATION_POINT4_Y 1907
+#define TP_CALIBRATION_POINT5_X 1024
+#define TP_CALIBRATION_POINT5_Y 1024
+#define CALIBRATION_X_RANGE 1560
+#define CALIBRATION_Y_RANGE 1640
 #define CALIBRATION_ERROR 30//15//10
 
 // Flag to decide wheather current TP need to do adjustment or not.
@@ -271,7 +271,7 @@ void calibration_calculate_varialbes(void)
 			result = 1;
 		}
 	}
-    	if(1)
+	if(0)
     	{
     	    printk("mfg_mode=factory2\n");
     	    
