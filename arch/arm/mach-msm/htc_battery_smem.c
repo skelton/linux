@@ -156,6 +156,15 @@ static struct power_supply htc_power_supplies[] = {
 static int fake_charger=0;
 module_param_named(fake, fake_charger, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
+enum {
+	DEBUG_BATT	= 1<<0,
+	DEBUG_CABLE	= 1<<1,
+};
+static int fake_charger=0;
+module_param_named(fake, fake_charger, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
+static int debug_mask=0;
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 /* -------------------------------------------------------------------------- */
 
@@ -215,17 +224,20 @@ static int battery_charging_ctrl(batt_ctl_t ctl)
 
 	switch (ctl) {
 	case DISABLE:
-		BATT("charger OFF\n");
+		if(debug_mask&DEBUG_CABLE)
+			BATT("charger OFF\n");
 		/* 0 for enable; 1 disable */
 		result = gpio_direction_output(htc_batt_info.resources->gpio_charger_enable, 1);
 		break;
 	case ENABLE_SLOW_CHG:
-		BATT("charger ON (SLOW)\n");
+		if(debug_mask&DEBUG_CABLE)
+			BATT("charger ON (SLOW)\n");
 		result = gpio_direction_output(htc_batt_info.resources->gpio_charger_current_select, 0);
 		result = gpio_direction_output(htc_batt_info.resources->gpio_charger_enable, 0);
 		break;
 	case ENABLE_FAST_CHG:
-		BATT("charger ON (FAST)\n");
+		if(debug_mask&DEBUG_CABLE)
+			BATT("charger ON (FAST)\n");
 		result = gpio_direction_output(htc_batt_info.resources->gpio_charger_current_select, 1);
 		result = gpio_direction_output(htc_batt_info.resources->gpio_charger_enable, 0);
 		break;
@@ -288,15 +300,18 @@ int htc_cable_status_update(int status)
 		status=CHARGER_USB;
 	switch(status) {
 	case CHARGER_BATTERY:
-		BATT("cable NOT PRESENT\n");
+		if(debug_mask&DEBUG_CABLE)
+			BATT("cable NOT PRESENT\n");
 		htc_batt_info.rep.charging_source = CHARGER_BATTERY;
 		break;
 	case CHARGER_USB:
-		BATT("cable USB\n");
+		if(debug_mask&DEBUG_CABLE)
+			BATT("cable USB\n");
 		htc_batt_info.rep.charging_source = CHARGER_USB;
 		break;
 	case CHARGER_AC:
-		BATT("cable AC\n");
+		if(debug_mask&DEBUG_CABLE)
+			BATT("cable AC\n");
 		htc_batt_info.rep.charging_source = CHARGER_AC;
 		break;
 	default:
@@ -415,15 +430,16 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		capacity=5;
 	buffer->level = capacity;
 	
-	if (htc_batt_info.resources->smem_field_size == 4) {
-		BATT("%p: %08x %08x %08x %08x %08x  v=%4d c=%3d\n", values_32,
-			values_32[0], values_32[1], values_32[2], values_32[3], values_32[4],
-			v, capacity);
-	} else {
-		BATT("%p: %04x %04x %04x %04x %04x  v=%4d c=%3d\n", values_16,
-			values_16[0], values_16[1], values_16[2], values_16[3], values_16[4],
-			v, capacity);
-	}
+	if(debug_mask&DEBUG_BATT)
+		if (htc_batt_info.resources->smem_field_size == 4) {
+			BATT("%p: %08x %08x %08x %08x %08x  v=%4d c=%3d\n", values_32,
+				values_32[0], values_32[1], values_32[2], values_32[3], values_32[4],
+				v, capacity);
+		} else {
+			BATT("%p: %04x %04x %04x %04x %04x  v=%4d c=%3d\n", values_16,
+				values_16[0], values_16[1], values_16[2], values_16[3], values_16[4],
+				v, capacity);
+		}
 
 	if (gpio_get_value(htc_batt_info.resources->gpio_charger_enable) == 0) {
 		buffer->charging_enabled = 1;
