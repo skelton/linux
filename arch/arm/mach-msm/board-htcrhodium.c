@@ -177,6 +177,11 @@ static struct platform_device rhodium_gps = {
     .name       = "gps_rfkill",
 };
 
+static struct platform_device touchscreen = {
+	.name		= "tssc-manager",
+	.id		= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
@@ -186,6 +191,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&blac_snd,
 	&rhodium_keypad_device,
+	&touchscreen,
 	&raphael_rfkill,
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,

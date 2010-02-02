@@ -218,6 +218,11 @@ static struct platform_device raphael_h2w = {
 };
 #endif
 
+static struct platform_device touchscreen = {
+	.name		= "tssc-manager",
+	.id		= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&raphael_keypad_device,
 	&raphael_rfkill,
@@ -235,6 +240,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&raphael_snd,
 	//&raphael_gps,
+	&touchscreen,
 #ifdef CONFIG_HTC_HEADSET
 	&raphael_h2w,
 #endif

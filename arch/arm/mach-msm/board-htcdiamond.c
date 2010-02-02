@@ -301,6 +301,11 @@ static struct platform_device diamond_h2w = {
 };
 #endif
 
+static struct platform_device touchscreen = {
+	.name		= "tssc-manager",
+	.id		= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&diamond_pwr_sink,
 	&raphael_rfkill,
@@ -318,6 +323,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&raphael_snd,
 	&raphael_gps,// disable until it works
+	&touchscreen,
 #ifdef CONFIG_HTC_HEADSET
 	&diamond_h2w,
 #endif
