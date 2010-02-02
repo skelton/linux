@@ -112,6 +112,12 @@
 #define TTY_PARANOIA_CHECK 1
 #define CHECK_TTY_COUNT 1
 
+#define USE_TTY_SPECIFIC_WORKQUEUE
+
+#ifdef USE_TTY_SPECIFIC_WORKQUEUE
+static struct workqueue_struct *tty_specific_workqueue;
+#endif
+
 struct ktermios tty_std_termios = {	/* for the benefit of tty drivers  */
 	.c_iflag = ICRNL | IXON,
 	.c_oflag = OPOST | ONLCR,
@@ -340,6 +346,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_struct *tty, size_t size)
 	p->char_buf_ptr = (char *)(p->data);
 	p->flag_buf_ptr = (unsigned char *)p->char_buf_ptr + size;
 	tty->buf.memory_used += size;
+
 	return p;
 }
 
@@ -360,8 +367,9 @@ static void tty_buffer_free(struct tty_struct *tty, struct tty_buffer *b)
 	tty->buf.memory_used -= b->size;
 	WARN_ON(tty->buf.memory_used < 0);
 
-	if (b->size >= 512)
+	if (b->size >= 512) {
 		kfree(b);
+	}
 	else {
 		b->next = tty->buf.free;
 		tty->buf.free = b;
@@ -588,7 +596,11 @@ void tty_schedule_flip(struct tty_struct *tty)
 	if (tty->buf.tail != NULL)
 		tty->buf.tail->commit = tty->buf.tail->used;
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
+	#ifdef USE_TTY_SPECIFIC_WORKQUEUE
+	queue_delayed_work(tty_specific_workqueue, &tty->buf.work, 1);
+	#else
 	schedule_delayed_work(&tty->buf.work, 1);
+	#endif
 }
 EXPORT_SYMBOL(tty_schedule_flip);
 
@@ -3267,7 +3279,11 @@ static void flush_to_ldisc(struct work_struct *work)
 			if (test_bit(TTY_FLUSHPENDING, &tty->flags))
 				break;
 			if (!tty->receive_room) {
+				#ifdef USE_TTY_SPECIFIC_WORKQUEUE
+				queue_delayed_work(tty_specific_workqueue, &tty->buf.work, 1);
+				#else
 				schedule_delayed_work(&tty->buf.work, 1);
+				#endif
 				break;
 			}
 			if (count > tty->receive_room)
@@ -3320,7 +3336,11 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 	if (tty->low_latency)
 		flush_to_ldisc(&tty->buf.work.work);
 	else
+		#ifdef USE_TTY_SPECIFIC_WORKQUEUE
+		queue_delayed_work(tty_specific_workqueue, &tty->buf.work, 1);
+		#else
 		schedule_delayed_work(&tty->buf.work, 1);
+		#endif
 }
 
 EXPORT_SYMBOL(tty_flip_buffer_push);
@@ -3722,6 +3742,11 @@ static int __init tty_init(void)
 
 	vty_init();
 #endif
+
+	#ifdef USE_TTY_SPECIFIC_WORKQUEUE
+	tty_specific_workqueue = create_workqueue("tty_wq");
+	#endif
+
 	return 0;
 }
 module_init(tty_init);
