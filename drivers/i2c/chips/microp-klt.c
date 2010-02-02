@@ -24,6 +24,7 @@
 #include <asm/uaccess.h>
 #include <linux/unistd.h>
 
+#include <linux/bma150.h>
 #include <linux/microp-klt.h>
 
 #include <asm/mach-types.h>
@@ -44,16 +45,10 @@ int micropklt_set_lcd_state(int on);
 #endif
 #define GP_NS_REG (0x005c)
 
-static struct microp_klt {
-	struct i2c_client *client;
-	struct mutex lock;
-	u16 led_states;
-	unsigned short version;
-	struct led_classdev leds[MICROP_KLT_LED_CNT];
-} *micropklt_t = 0;
 static int micropklt_read(struct i2c_client *, unsigned, char *, int);
 static int micropklt_write(struct i2c_client *, const char *, int);
-extern int init_spi_bma150(struct microp_klt*);
+
+extern int bma150_probe(struct microp_klt*);
 
 static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
                                          enum led_brightness brightness)
@@ -310,7 +305,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		switch (buf[1])	{
 		case 0x88: /* rhod210 */
 		case 0x0e: /* topa100 */
-			init_spi_bma150(data);
+			bma150_probe(data);
 		case 0x01:
 		case 0x05:
 		case 0x81: /* diam500 */
