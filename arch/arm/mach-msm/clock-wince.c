@@ -34,6 +34,15 @@ static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
 static LIST_HEAD(clocks);
 
+enum {
+	DEBUG_UNKNOWN_ID	= 1<<0,
+	DEBUG_UNKNOWN_FREQ	= 1<<1,
+	DEBUG_MDNS		= 1<<2,
+	DEBUG_UNKNOWN_CMD	= 1<<3,
+};
+static int debug_mask=0;
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 #if 1
 #define D(x...) printk(KERN_DEBUG "clock-wince: " x)
 #else
@@ -216,7 +225,8 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 	params = msm_clk_get_params(id);
 	offset = params.offset;
 
-	D("set mdns: %u, %lu; bitidx=%u, offset=%x, ns=%x\n", id, freq, 
+	if(debug_mask&DEBUG_MDNS)
+		D("set mdns: %u, %lu; bitidx=%u, offset=%x, ns=%x\n", id, freq, 
 	  params.idx, params.offset, params.ns_only);
 
 	if (!params.offset)
@@ -244,7 +254,8 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
 				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
 //				msleep(5);
-				D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id, 
+				if(debug_mask&DEBUG_MDNS)
+					D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id, 
 				  msm_clock_freq_parameters[n].freq,
 				  msm_clock_freq_parameters[n].calc_freq,
 				  msm_clock_freq_parameters[n].ns&7,
@@ -261,7 +272,7 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 	if (params.idx > 0)
 		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
 
-	if (!found) {
+	if (!found && debug_mask&DEBUG_UNKNOWN_FREQ) {
 		printk(KERN_WARNING "clock-wince: FIXME! set_sdcc_host_clock could not "
 		       "find suitable parameter for freq %lu\n", freq);
 	}
@@ -366,8 +377,9 @@ static int pc_clk_enable(uint32_t id)
 		writel((readl(MSM_CLK_CTL_BASE + params.offset) &0xfffff000) | params.ns_only, MSM_CLK_CTL_BASE + params.offset);
 		return 0;
 	}
-	printk(KERN_WARNING "%s: FIXME! enabling a clock that doesn't have an ena bit "
-	       "or ns-only offset: %u\n", __func__, id);
+	if(debug_mask&DEBUG_UNKNOWN_ID)
+		printk(KERN_WARNING "%s: FIXME! enabling a clock that doesn't have an ena bit "
+		       "or ns-only offset: %u\n", __func__, id);
 
 	return 0;
 }
@@ -386,8 +398,9 @@ static void pc_clk_disable(uint32_t id)
 	{
 		writel(readl(MSM_CLK_CTL_BASE + params.offset) & 0xfffff000, MSM_CLK_CTL_BASE + params.offset);
 	} else {
-		printk(KERN_WARNING "%s: FIXME! disabling a clock that doesn't have an "
-		       "ena bit: %u\n", __func__, id);
+		if(debug_mask&DEBUG_UNKNOWN_ID)
+			printk(KERN_WARNING "%s: FIXME! disabling a clock that doesn't have an "
+			       "ena bit: %u\n", __func__, id);
 	}
 }
 
@@ -396,7 +409,8 @@ static int pc_clk_set_rate(uint32_t id, unsigned long rate)
 	int retval;
 	retval = 0;
 
-	D("%s: id=%u rate=%lu\n", __func__, id, rate);
+	if(DEBUG_MDNS)
+		D("%s: id=%u rate=%lu\n", __func__, id, rate);
 
 	retval = set_mdns_host_clock(id, rate);
 
@@ -407,7 +421,7 @@ static int pc_clk_set_min_rate(uint32_t id, unsigned long rate)
 {
 	if (id < NR_CLKS)
 	 min_clk_rate[id]=rate;
-	else 
+	else if(debug_mask&DEBUG_UNKNOWN_ID)
 	 printk(KERN_WARNING " FIXME! clk_set_min_rate not implemented; %u:%lu NR_CLKS=%d\n", id, rate, NR_CLKS);
 
 	return 0;
@@ -417,7 +431,7 @@ static int pc_clk_set_max_rate(uint32_t id, unsigned long rate)
 {
 	if (id < NR_CLKS)
 	 max_clk_rate[id]=rate;
-	else
+	else if(debug_mask&DEBUG_UNKNOWN_ID)
 	 printk(KERN_WARNING " FIXME! clk_set_min_rate not implemented; %u:%lu NR_CLKS=%d\n", id, rate, NR_CLKS);
 
 	return 0;
@@ -452,7 +466,8 @@ static unsigned long pc_clk_get_rate(uint32_t id)
 
 		default:
 			//TODO: support all clocks
-			printk("%s: unknown clock: id=%u\n", __func__, id);
+			if(debug_mask&DEBUG_UNKNOWN_ID)
+				printk("%s: unknown clock: id=%u\n", __func__, id);
 			rate = 0;
 	}
 
@@ -461,7 +476,8 @@ static unsigned long pc_clk_get_rate(uint32_t id)
 
 static int pc_clk_set_flags(uint32_t id, unsigned long flags)
 {
-	printk(KERN_WARNING "%s not implemented for clock: id=%u, flags=%lu\n", __func__, id, flags);
+	if(debug_mask&DEBUG_UNKNOWN_CMD)
+		printk(KERN_WARNING "%s not implemented for clock: id=%u, flags=%lu\n", __func__, id, flags);
 	return 0;
 }
 
@@ -482,7 +498,8 @@ static int pc_clk_is_enabled(uint32_t id)
 
 static int pc_pll_request(unsigned id, unsigned on)
 {
-	printk(KERN_WARNING "%s not implemented for PLL=%u\n", __func__, id);
+	if(debug_mask&DEBUG_UNKNOWN_CMD)
+		printk(KERN_WARNING "%s not implemented for PLL=%u\n", __func__, id);
 
 	return 0;
 }
