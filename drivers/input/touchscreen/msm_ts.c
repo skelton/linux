@@ -354,12 +354,13 @@ static irqreturn_t msm_ts_interrupt(int irq, void *dev)
 static int __init msm_ts_init(void)
 {
 	int err;
-
+#if defined CONFIG_TOUCHSCREEN_TSSC_MANAGER 
 	if(!machine_is_htcblackstone()) {
 		printk("\"Old\" touchscreen driver called for a non-blackstone device\n");
 		printk("If you really want that, edit the msm_ts.c file and delete this check\n");
 		return 0;
 	}
+#endif
 	printk(KERN_INFO "msm_ts: initing\n");
 
 	/* We depend on a framebuffer for painting calibration dots */
