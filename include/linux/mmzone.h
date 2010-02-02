@@ -984,7 +984,7 @@ void sparse_init(void);
 #endif
 
 #ifndef early_pfn_valid
-#define early_pfn_valid(pfn)	(1)
+#define early_pfn_valid(pfn)	pfn_valid(pfn)
 #endif
 
 void memory_present(int nid, unsigned long start, unsigned long end);
