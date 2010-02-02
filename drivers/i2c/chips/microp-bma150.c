@@ -752,8 +752,8 @@ void __exit bma150_exit(void)
 	i2c_del_driver(&bma150_driver);
 }
 
-MODULE_AUTHOR("Job Bolle");
-MODULE_DESCRIPTION("Kionix BMA150 driver");
+MODULE_AUTHOR("Markinus");
+MODULE_DESCRIPTION("Kionix BMA150 driver over Microp");
 MODULE_LICENSE("GPL");
 
 module_init(bma150_init);
