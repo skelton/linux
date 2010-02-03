@@ -199,7 +199,7 @@ static int gsensor_read_acceleration(short *buf)
 
 	msleep(10);
 
-	if (micropklt_t->version <= 0x615 || micropklt_t->version == 0x0a0e || micropklt_t->version == 0x0a88) {
+	if (micropklt_t->version <= 0x615 || micropklt_t->version == 0x0a0e || micropklt_t->version == 0x0a88 || micropklt_t->version == 0x0b0e) {
 		/*
 		 * Note the data is a 10bit signed value from the chip.
 		*/
