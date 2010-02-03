@@ -320,8 +320,8 @@ int htc_cable_status_update(int status)
 	source = htc_batt_info.rep.charging_source;
 	mutex_unlock(&htc_batt_info.lock);
 
-	msm_hsusb_set_vbus_state(source==CHARGER_USB);
-	if (source == CHARGER_USB) {
+	msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
+	if ((source == CHARGER_USB) || (source==CHARGER_AC)) {
 		wake_lock(&vbus_wake_lock);
 	} else {
 		/* give userspace some time to see the uevent and update
@@ -363,7 +363,6 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 {
 	int i, capacity, v;
 	int *battery_table;
-	unsigned int dex_test;
 
 	volatile unsigned int *values_32 = NULL;
 	volatile unsigned short *values_16 = NULL;
@@ -428,7 +427,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		capacity=5;
 	buffer->level = capacity;
 	
-	if(debug_mask&DEBUG_BATT)
+	if(debug_mask&DEBUG_BATT) {
 		if (htc_batt_info.resources->smem_field_size == 4) {
 			BATT("%p: %08x %08x %08x %08x %08x  v=%4d c=%3d\n", values_32,
 				values_32[0], values_32[1], values_32[2], values_32[3], values_32[4],
@@ -438,6 +437,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 				values_16[0], values_16[1], values_16[2], values_16[3], values_16[4],
 				v, capacity);
 		}
+	}
 
 	if (gpio_get_value(htc_batt_info.resources->gpio_charger_enable) == 0) {
 		buffer->charging_enabled = 1;
