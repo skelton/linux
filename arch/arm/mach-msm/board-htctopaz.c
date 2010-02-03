@@ -317,8 +317,6 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
-//from pmem.c
-extern int use_extra_bank;
 static void __init htctopaz_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
@@ -327,17 +325,14 @@ static void __init htctopaz_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (107 * 1024 * 1024);
 
-	if(use_extra_bank) {
-		mi->nr_banks++;
-		mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
-		mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
-		mi->bank[1].size = (128 * 1024 * 1024)-51*1024*1024;//See pmem.c for the 51 value
-	}
+	mi->nr_banks++;
+	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
+	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
+	mi->bank[1].size = (128 * 1024 * 1024)-51*1024*1024;//See pmem.c for the 51 value
 
 	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
 	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
-	if (mi->nr_banks > 1)
-		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
+	printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
 static void htctopaz_device_specific_fixes(void)

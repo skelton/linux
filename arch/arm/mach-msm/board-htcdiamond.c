@@ -448,7 +448,6 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
-extern int use_extra_bank;	/* From pmem.c */
 static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
@@ -456,16 +455,24 @@ static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (107 * 1024 * 1024); // Why 107? See board-htcdiamond.h
-	if(use_extra_bank) {
-		mi->nr_banks++;
-		mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
-		mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
-		mi->bank[1].size = 128*1024*1024-(51*1024*1024);
-	}
 	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
 	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
-	if (mi->nr_banks > 1)
-		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
+}
+
+static void __init htcdiamond_cdma_fixup(struct machine_desc *desc, struct tag *tags,
+                                    char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks = 1;
+	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
+	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
+	mi->bank[0].size = (107 * 1024 * 1024);
+	mi->nr_banks++;
+	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
+	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
+	mi->bank[1].size = 128*1024*1024-(51*1024*1024);//Why 51MB ? See pmem.c
+	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
+	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
+	printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
 /* Already implemented for the Raphael board, to facilitate differences between GSM/CDMA */
@@ -495,7 +502,7 @@ MACHINE_START(HTCDIAMOND, "HTC Diamond GSM phone (aka HTC Touch Diamond)")
 MACHINE_END
 
 MACHINE_START(HTCDIAMOND_CDMA, "HTC Diamond CDMA phone (aka HTC Touch Diamond)")
-	.fixup 		= htcdiamond_fixup,
+	.fixup 		= htcdiamond_cdma_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,
