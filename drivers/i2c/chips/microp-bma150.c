@@ -744,7 +744,6 @@ int __init bma150_init(void)
 	int ret = i2c_add_driver(&bma150_driver);
 	return ret;
 }
-EXPORT_SYMBOL(bma150_init);
 
 void __exit bma150_exit(void)
 {
