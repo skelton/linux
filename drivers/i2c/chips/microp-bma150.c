@@ -740,19 +740,19 @@ static struct i2c_driver bma150_driver = {
 
 int __init bma150_init(void)
 {
-	printk(KERN_INFO MODULE_NAME ": Registering Kionix BMA150 driver\n");
+	printk(KERN_INFO MODULE_NAME ": Registering Bosch BMA150 driver\n");
 	int ret = i2c_add_driver(&bma150_driver);
 	return ret;
 }
 
 void __exit bma150_exit(void)
 {
-	printk(KERN_INFO MODULE_NAME ": Unregistered Kionix BMA150 driver\n");
+	printk(KERN_INFO MODULE_NAME ": Unregistered Bosch BMA150 driver\n");
 	i2c_del_driver(&bma150_driver);
 }
 
 MODULE_AUTHOR("Markinus");
-MODULE_DESCRIPTION("Kionix BMA150 driver over Microp");
+MODULE_DESCRIPTION("Bosch BMA150 driver over Microp");
 MODULE_LICENSE("GPL");
 
 module_init(bma150_init);
