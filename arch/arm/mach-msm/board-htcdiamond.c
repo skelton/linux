@@ -61,8 +61,6 @@
 static int halibut_ffa;
 module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-static int banks=1;
-module_param(banks, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static int adb=1;
 module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -450,6 +448,7 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
+extern int use_extra_bank;	/* From pmem.c */
 static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
@@ -457,13 +456,11 @@ static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (107 * 1024 * 1024); // Why 107? See board-htcdiamond.h
-	/* TODO: detect whether a 2nd memory bank is actually present, not all devices have it */
-	// for now use a kernel parameter
-	if(banks==2) {
+	if(use_extra_bank) {
 		mi->nr_banks++;
 		mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
 		mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
-		mi->bank[1].size = (128 * 1024 * 1024);
+		mi->bank[1].size = 128*1024*1024-(51*1024*1024);
 	}
 	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
 	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
