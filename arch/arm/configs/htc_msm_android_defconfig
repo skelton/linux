@@ -743,7 +743,7 @@ CONFIG_DUMMY=y
 # CONFIG_WLAN_PRE80211 is not set
 # CONFIG_WLAN_80211 is not set
 # CONFIG_IWLWIFI_LEDS is not set
-CONFIG_BCM4329=y
+CONFIG_BCM4329=m
 CONFIG_BCM4329_FW_PATH="/system/etc/firmware/fw_bcm4329.bin"
 CONFIG_BCM4329_NVRAM_PATH="/proc/calibration"
 # CONFIG_WAN is not set
