@@ -65,6 +65,7 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	si_meminfo(&si);
 	si_swapinfo(&si);
 	other_free+=si.freeswap;
+	other_free*=4;
 	if(lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if(lowmem_minfree_size < array_size)
