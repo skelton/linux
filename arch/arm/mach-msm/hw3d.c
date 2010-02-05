@@ -282,8 +282,6 @@ static void locked_hw3d_revoke(struct hw3d_info *info)
 bool is_msm_hw3d_file(struct file *file)
 {
 	struct hw3d_info *info = hw3d_info;
-	if(!file || !file->f_dentry || !file->f_dentry->d_inode)
-		return 0;
 	if (MAJOR(file->f_dentry->d_inode->i_rdev) == MISC_MAJOR &&
 	    (is_master(info, file) || is_client(info, file)))
 		return 1;
