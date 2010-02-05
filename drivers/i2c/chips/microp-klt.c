@@ -813,7 +813,7 @@ static int micropklt_dbg_color_led_set(void *dat, u64 val)
 	client = data->client;
 
 	mutex_lock(&data->lock);
-		buffer[0] = 0x51;
+		buffer[0] = 0x50;
 		buffer[1] = 0x00;//time ?
 		buffer[2] = val&0xff;
 		buffer[3] = (val>>8)&0xff;
