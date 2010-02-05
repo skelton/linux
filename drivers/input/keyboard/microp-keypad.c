@@ -387,7 +387,7 @@ static void microp_keypad_work(struct work_struct *work)
 	
 	do
 	{
-		if (machine_is_htckovsky()) {
+		if (machine_is_htckovsky() || machine_is_htcrhodium()) {
 			micropksc_read_scancode_kovsky(&key, &isdown, &clamshell);
 		} else {
 			micropksc_read_scancode(&key, &isdown);
@@ -409,7 +409,7 @@ static void microp_keypad_work(struct work_struct *work)
 #endif
 			}
 		}
-		if (machine_is_htckovsky()) {
+		if (machine_is_htckovsky() || machine_is_htcrhodium()) {
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
 			printk(KERN_WARNING "%s: clamshell is %s\n", __func__,
 						!clamshell ? "closed" : "open");
@@ -627,6 +627,10 @@ static int microp_keypad_probe(struct platform_device *pdev)
 
 		INIT_DELAYED_WORK(&data->clamshell_work, microp_keypad_clamshell_work);
 		schedule_work(&data->clamshell_work.work);
+	}
+	if(machine_is_htcrhodium() || machine_is_htckovsky()) {
+		set_bit(EV_SW, input->evbit);
+		input_set_capability(input, EV_SW, SW_LID);
 	}
 	//TODO: turn this off; on keypress, turn it on, with timeout delay after last keypress to turn it off
 	if ( pdata->backlight_gpio > 0 )

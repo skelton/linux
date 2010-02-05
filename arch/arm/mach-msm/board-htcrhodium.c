@@ -65,10 +65,11 @@ static struct resource rhodium_keypad_resources[] = {
 };
 
 static struct microp_keypad_platform_data rhodium_keypad_data = {
+	/*
 	.clamshell = {
 		.gpio = RHODIUM_KB_SLIDER_IRQ,
 		.irq = MSM_GPIO_TO_INT(RHODIUM_KB_SLIDER_IRQ),
-	},
+	},*/
 	.backlight_gpio = RHODIUM_BKL_PWR,
 };
 
