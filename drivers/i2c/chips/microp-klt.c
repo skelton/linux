@@ -796,6 +796,39 @@ DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_gpi_fops,
 		micropklt_dbg_gpi_get,
 		micropklt_dbg_gpi_set, "%llu\n");
 
+static int micropklt_dbg_color_led_get(void *dat, u64 *val) {
+	*val=0;
+	return 0;
+}
+
+static int micropklt_dbg_color_led_set(void *dat, u64 val)
+{
+	struct microp_klt *data;
+	struct i2c_client *client;
+	char buffer[5] = { 0, 0, 0, 0, 0 };
+	int r;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+		buffer[0] = 0x51;
+		buffer[1] = 0x00;//time ?
+		buffer[2] = val&0xff;
+		buffer[3] = (val>>8)&0xff;
+		buffer[4] = (val>>16)&0xff;
+	r = micropklt_write(client, buffer, 5);
+	mutex_unlock(&data->lock);
+	return 0;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_color_led_fops,
+		micropklt_dbg_color_led_get,
+		micropklt_dbg_color_led_set, "%llu\n");
+
+
 static int __init micropklt_dbg_init(void)
 {
 	struct dentry *dent;
@@ -816,6 +849,8 @@ static int __init micropklt_dbg_init(void)
 			&micropklt_dbg_sl_eff_fops);
 	debugfs_create_file("effects", 0666, dent, NULL,
 			&micropklt_dbg_effects_fops);
+	debugfs_create_file("color_led", 0666, dent, NULL,
+			&micropklt_dbg_color_led_fops);
 
 	debugfs_create_file("gpi", 0444, dent, NULL,
 			&micropklt_dbg_gpi_fops);
