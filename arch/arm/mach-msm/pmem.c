@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/android_pmem.h>
 #include <mach/board_htc.h>
@@ -104,6 +105,38 @@ static struct platform_device ram_console_device = {
 	.resource       = ram_console_resource,
 };
 
+/* Eclair hw3d */
+static struct resource resources_hw3d[] = {
+	{
+		.start  = 0xA0000000,
+		.end    = 0xA00fffff,
+		.flags  = IORESOURCE_MEM,
+		.name   = "regs",
+	},
+	{
+		.flags  = IORESOURCE_MEM,
+		.name   = "smi",
+	},
+	{
+		.flags  = IORESOURCE_MEM,
+		.name   = "ebi",
+	},
+	{
+		.start  = INT_GRAPHICS,
+		.end    = INT_GRAPHICS,
+		.flags  = IORESOURCE_IRQ,
+		.name   = "gfx",
+	},
+};
+
+static struct platform_device hw3d_device = {
+	.name		= "msm_hw3d",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(resources_hw3d),
+	.resource	= resources_hw3d,
+};
+
+
 void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 {
 	if (setting->pmem_size) {
@@ -128,6 +161,18 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 		pmem_gpu1_pdata.start = setting->pmem_gpu1_start;
 		pmem_gpu1_pdata.size = setting->pmem_gpu1_size;
 		platform_device_register(&pmem_gpu1_device);
+	}
+
+	/* Eclair hw3d */
+	if (setting->pmem_gpu0_size || setting->pmem_gpu1_size) {
+		struct resource *res;
+		res=platform_get_resource_byname(&hw3d_device, IORESOURCE_MEM, "smi");
+		res->start=setting->pmem_gpu0_start;
+		res->end=setting->pmem_gpu0_start+setting->pmem_gpu0_size-1;
+		res=platform_get_resource_byname(&hw3d_device, IORESOURCE_MEM, "ebi");
+		res->start=setting->pmem_gpu1_start;
+		res->end=setting->pmem_gpu1_start+setting->pmem_gpu1_size-1;
+		platform_device_register(&hw3d_device);
 	}
 
 	if (setting->pmem_camera_size) {
@@ -172,7 +217,7 @@ struct resource resources_msm_fb[]={
 	pmem_setting.name## _size = size;
 
 
-static void __init msm_pmem_init() {
+static int __init msm_pmem_init() {
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCDIAMOND:
 			//SMI 64 + EBI 128
@@ -226,11 +271,13 @@ static void __init msm_pmem_init() {
 	}
 	//GPU0 must be in SMI1
 	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+0x100000;//1MB for wince SPL
-	pmem_setting.pmem_gpu0_size=0x800000;
+	pmem_setting.pmem_gpu0_size=0x700000;
 	resources_msm_fb[0].start=pmem_setting.fb_start;
 	resources_msm_fb[0].end=pmem_setting.fb_start+pmem_setting.fb_size;
 	resources_msm_fb[0].flags=IORESOURCE_MEM;
 	msm_add_mem_devices(&pmem_setting);
+
+	return 0;
 }
 module_init(msm_pmem_init);
 

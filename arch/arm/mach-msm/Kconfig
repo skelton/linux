@@ -397,13 +397,21 @@ config MSM_CPU_FREQ_ONDEMAND_MIN
 
 endif # MSM_CPU_FREQ_ONDEMAND
 
-config MSM_HW3D
+choice
+prompt "MSM Hardware 3D Register Driver"
+config MSM_HW3D_DONUT
 	depends on ANDROID_PMEM
-	tristate "MSM Hardware 3D Register Driver"
-	default y
+	bool "Android 1.6 (Cupcake or Donut)"
 	help
 	  Provides access to registers needed by the userspace OpenGL|ES
-	  library.
+	  library for Cupcake and Donut.
+config MSM_HW3D
+	depends on ANDROID_PMEM
+	bool "Android 2.0+ (Eclair)"
+	help
+	  Provides access to registers needed by the userspace OpenGL|ES
+	  library for Eclair.
+endchoice
 
 config MSM_ADSP
 	tristate "MSM ADSP driver"
