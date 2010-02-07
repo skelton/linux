@@ -26,6 +26,7 @@
 #include <linux/android_pmem.h>
 #endif
 #include <linux/major.h>
+#include <linux/msm_hw3d.h>
 
 #include <mach/msm_iomap.h>
 #include <mach/msm_fb.h>
@@ -272,31 +273,45 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 	unsigned long vstart;
 
 #ifdef CONFIG_ANDROID_PMEM
-	if (!get_pmem_file(img->memory_id, start, &vstart, len, filep))
+	if (!get_pmem_file(img->memory_id, start, &vstart, len, filep)) {
+		printk("Got a pmem get_img\n");
 		return 0;
+	} else if (!get_msm_hw3d_file(img->memory_id, HW3D_REGION_ID(img->offset),
+				HW3D_REGION_OFFSET(img->offset), start, len,
+				filep)) {
+		printk("Got a hw3D get_img\n");
+		img->offset=HW3D_REGION_OFFSET(img->offset);
+		return ret;
+	}
 #endif
 
 	file = fget_light(img->memory_id, &put_needed);
-	if (file == NULL)
+	if (file == NULL) {
 		return -1;
+	}
 
 	if (MAJOR(file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
+		printk("Got a FB get_img\n");
 		*start = info->fix.smem_start;
 		*len = info->fix.smem_len;
-	} else
+	} else {
 		ret = -1;
+		printk("Got an unknown get_img\n");
+	}
 	fput_light(file, put_needed);
 
 	return ret;
 }
 
-void put_img(struct file *src_file, struct file *dst_file)
-{
+void put_img(struct file *file) {
 #ifdef CONFIG_ANDROID_PMEM
-	if (src_file)
-		put_pmem_file(src_file);
-	if (dst_file)
-		put_pmem_file(dst_file);
+	if (file) {
+		if(is_pmem_file(file)) {
+			put_pmem_file(file);
+		} else if(is_msm_hw3d_file(file)) {
+			put_msm_hw3d_file(file);
+		}
+	}
 #endif
 }
 
@@ -376,13 +391,15 @@ int mdp_blit(struct mdp_device *mdp_dev, struct fb_info *fb,
 	if (ret)
 		goto err_wait_failed;
 end:
-	put_img(src_file, dst_file);
+	put_img(src_file);
+	put_img(dst_file);
 	mutex_unlock(&mdp_mutex);
 	return 0;
 err_bad_blit:
 	disable_mdp_irq(mdp, DL0_ROI_DONE);
 err_wait_failed:
-	put_img(src_file, dst_file);
+	put_img(src_file);
+	put_img(dst_file);
 	mutex_unlock(&mdp_mutex);
 	return ret;
 }
