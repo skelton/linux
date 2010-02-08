@@ -318,6 +318,9 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		case 0x02:
 			supported = 1;
 			break;
+		case 0x0a: /* raph300 */
+			supported = 1;
+			break;
 		}
 		break;
 	case 0x81:
