@@ -240,6 +240,10 @@ static int __init msm_pmem_init() {
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 		case MACH_TYPE_HTCBLACKSTONE:
+			//GPU1 must be in EBI bank 1, Isn't working on Topaz and Rhod
+			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
+			pmem_setting.pmem_gpu1_size=0x800000;
+
 		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
 			//SMI 32 + EBI 2*128
@@ -250,10 +254,6 @@ static int __init msm_pmem_init() {
 			CALC_PMEM(pmem_camera, fb, 1024*1024);//1MB
 			//Total 51MB
 			
-			//GPU1 must be in EBI bank 1
-			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
-			pmem_setting.pmem_gpu1_size=0x800000;
-
 			pmem_setting.ram_console_start=0x8e0000;
 			pmem_setting.ram_console_size=0x20000;
 			break;

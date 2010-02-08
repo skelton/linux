@@ -22,11 +22,14 @@
 #include <linux/wait.h>
 #include <linux/clk.h>
 #include <linux/file.h>
-#ifdef CONFIG_ANDROID_PMEM
+#if defined(CONFIG_ANDROID_PMEM)
 #include <linux/android_pmem.h>
 #endif
 #include <linux/major.h>
+#if defined(CONFIG_MSM_HW3D)
 #include <linux/msm_hw3d.h>
+#endif
+
 
 #include <mach/msm_iomap.h>
 #include <mach/msm_fb.h>
@@ -270,9 +273,10 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 {
 	int put_needed, ret = 0;
 	struct file *file;
+
+#if defined(CONFIG_ANDROID_PMEM) && defined(CONFIG_MSM_HW3D)
 	unsigned long vstart;
 
-#ifdef CONFIG_ANDROID_PMEM
 	if (!get_pmem_file(img->memory_id, start, &vstart, len, filep)) {
 		return 0;
 	} else if (!get_msm_hw3d_file(img->memory_id, HW3D_REGION_ID(img->offset),
@@ -301,7 +305,7 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 }
 
 void put_img(struct file *file) {
-#ifdef CONFIG_ANDROID_PMEM
+#if defined(CONFIG_ANDROID_PMEM) && defined(CONFIG_MSM_HW3D)
 	if (file) {
 		if(is_pmem_file(file)) {
 			put_pmem_file(file);
