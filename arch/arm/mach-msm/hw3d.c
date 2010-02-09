@@ -39,6 +39,7 @@
 #include <linux/wait.h>
 #include <linux/wakelock.h>
 #include <asm/io.h>
+#include <asm/mach-types.h>
 
 #include <mach/board.h>
 
@@ -789,6 +790,9 @@ static struct platform_driver msm_hw3d_driver = {
 
 static int __init hw3d_init(void)
 {
+  	if(machine_is_htctopaz() || machine_is_htcrhodium()) 
+		return 0;
+
 	return platform_driver_register(&msm_hw3d_driver);
 }
 

@@ -29,6 +29,7 @@
 #include <linux/clk.h>
 #include <linux/android_pmem.h>
 #include <mach/board.h>
+#include <asm/mach-types.h>
 
 static DEFINE_SPINLOCK(hw3d_lock);
 static DECLARE_WAIT_QUEUE_HEAD(hw3d_queue);
@@ -187,6 +188,9 @@ static struct android_pmem_platform_data pmem_data = {
 static int __init hw3d_init(void)
 {
 	int ret;
+	if(machine_is_htctopaz() || machine_is_htcrhodium()) 
+		return 0;
+
 
 	grp_clk = clk_get(NULL, "grp_clk");
 	if (IS_ERR(grp_clk))
