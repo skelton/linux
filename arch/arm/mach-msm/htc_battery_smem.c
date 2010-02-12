@@ -340,10 +340,17 @@ int htc_cable_status_update(int status)
 
 static int battery_table_4[] = {
 	0,      0,
-	0xd70,  0,
-	0xe10,  10,
-	0xe40,  25,
-	0xe50,  35,
+	0xe11,	0,
+	0xe1e,	5,
+	0xe3c,	10,
+	0xe7e,	20,
+	0xe97,	30,
+	0xeab,	40,
+	0xec1,	50,
+	0xed5,	60,
+	0xf0c,	70,
+	0xf43,	80,
+	0xf93,	90,
 	0xfcb,  100,
 	0x1000, 100,
 	0,	0
@@ -382,11 +389,12 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 
 	if (htc_batt_info.resources->smem_field_size == 4) {
 		values_32 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
-		v = values_32[2] + (values_32[4] / 7) - (values_32[3] / 28);
+		// FIXME: Adding factors to make these numbers come out sane, but they're not being calculated correctly.
+		v = (values_32[2] * 9 / 7) + (values_32[4] / 7) - (values_32[3] / 28);
 		battery_table = battery_table_4;
 		buffer->batt_id = values_32[0];
-		buffer->batt_temp = values_32[1];
-		buffer->batt_vol = values_32[2];
+		buffer->batt_temp = values_32[1] / 10;
+		buffer->batt_vol = values_32[2] * 9 / 7;
 		buffer->batt_current = values_32[3];
 	} else if (htc_batt_info.resources->smem_field_size == 2) {
 		values_16 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
