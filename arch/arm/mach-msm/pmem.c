@@ -163,6 +163,7 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 		platform_device_register(&pmem_gpu1_device);
 	}
 
+#if defined(CONFIG_MSM_HW3D)
 	/* Eclair hw3d */
 	if (setting->pmem_gpu0_size || setting->pmem_gpu1_size) {
 		struct resource *res;
@@ -174,7 +175,7 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 		res->end=setting->pmem_gpu1_start+setting->pmem_gpu1_size-1;
 		platform_device_register(&hw3d_device);
 	}
-
+#endif
 	if (setting->pmem_camera_size) {
 		pmem_camera_pdata.start = setting->pmem_camera_start;
 		pmem_camera_pdata.size = setting->pmem_camera_size;
@@ -240,10 +241,6 @@ static int __init msm_pmem_init() {
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 		case MACH_TYPE_HTCBLACKSTONE:
-			//GPU1 must be in EBI bank 1, Isn't working on Topaz and Rhod
-			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
-			pmem_setting.pmem_gpu1_size=0x800000;
-
 		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
 			//SMI 32 + EBI 2*128
@@ -253,6 +250,10 @@ static int __init msm_pmem_init() {
 			CALC_PMEM(fb, pmem_adsp, 2*1024*1024);//2MB
 			CALC_PMEM(pmem_camera, fb, 1024*1024);//1MB
 			//Total 51MB
+
+			//GPU1 must be in EBI bank 1, Isn't working on Topaz and Rhod
+			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
+			pmem_setting.pmem_gpu1_size=0x800000;
 			
 			pmem_setting.ram_console_start=0x8e0000;
 			pmem_setting.ram_console_size=0x20000;
