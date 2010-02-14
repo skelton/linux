@@ -31,6 +31,11 @@
 #include <mach/htc_headset.h>
 #include <asm/mach-types.h>
 #include <mach/amss_para.h>
+#include <linux/dma-mapping.h>
+
+#include <asm/ioctls.h>
+#include <mach/msm_adsp.h>
+#include <mach/msm_iomap.h>
 
 #define RPC_SND_PROG	0x30000002
 
@@ -114,11 +119,52 @@ static int get_endpoint(struct snd_ctxt *snd, unsigned long arg)
 
 int turn_mic_bias_on(int on);
 
+void snd_set_adie_parameters (int device) {
+	int UpdateAudioMethod = 0;
+	int UpdateForceADIEAwake = 0;
+	uint32_t setval = 2;
+	uint32_t adie;  
+	switch(device) {
+		case 0:		// Phone
+			UpdateAudioMethod = 1;
+		break;
+		case 1:		// Normal
+			UpdateAudioMethod = 1;
+		break;
+		case 2:		// Headset
+		break;
+		
+		case 3:		// BT Headset
+		break;
+		
+		case 11:	// FM
+			UpdateAudioMethod = 1;
+			UpdateForceADIEAwake = 1;
+		break;
+		default:
+		break;
+	}
+	setval += (UpdateAudioMethod*4 + UpdateForceADIEAwake*8);
+
+	adie = readl(MSM_SHARED_RAM_BASE + 0xfc0d0);
+	if(adie != setval) {
+		pr_info("snd_set_adie_parameters: Set adie to %u\n", setval);
+		writel(setval, MSM_SHARED_RAM_BASE + 0xfc0d0);
+	}
+	
+
+}
+
 void snd_set_device(int device,int ear_mute, int mic_mute) {
 	struct snd_ctxt *snd = &the_snd;
 	struct snd_set_device_msg dmsg;
 	if(force_headset && (force_headset==2 || headset_plugged()))
 		device=2;
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCTOPAZ:
+			snd_set_adie_parameters(device);
+			break;
+	}
 	dmsg.args.device = cpu_to_be32(device);
 	dmsg.args.ear_mute = cpu_to_be32(ear_mute);
 	dmsg.args.mic_mute = cpu_to_be32(mic_mute);
@@ -172,6 +218,11 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if(force_headset && (force_headset==2 || headset_plugged()))
 			dev.device=2;
 
+		switch(__machine_arch_type) {
+			case MACH_TYPE_HTCTOPAZ:
+				snd_set_adie_parameters(dev.device);
+				break;
+		}
 		dev.mic_mute=SND_MUTE_UNMUTED;
 		dmsg.args.device = cpu_to_be32(dev.device);
 		dmsg.args.ear_mute = cpu_to_be32(dev.ear_mute);
