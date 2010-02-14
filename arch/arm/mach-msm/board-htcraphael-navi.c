@@ -67,6 +67,9 @@ module_param_named(inversion, inversion, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static int wake=3;
 module_param_named(wake, wake, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
+static int alt_keymap=0;
+module_param_named(alt_keymap, alt_keymap, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 static struct early_suspend early_suspend;
 
 struct raphnavi_info {
@@ -689,6 +692,16 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	register_early_suspend(&early_suspend);
 
 #endif
+	switch(alt_keymap) {
+		default:
+		case 0:
+			//Default keymap.
+			break;
+		case 1:
+			//Set enter key as home key
+			raphnavi_keymap[18]=KEY_HOME;
+			break;
+	};
 
 	schedule_work(&navi->work.work);
 
