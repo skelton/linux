@@ -47,6 +47,7 @@ int micropklt_set_lcd_state(int on);
 
 static int micropklt_read(struct i2c_client *, unsigned, char *, int);
 static int micropklt_write(struct i2c_client *, const char *, int);
+static unsigned int color_led_address;
 
 extern int bma150_probe(struct microp_klt*);
 
@@ -389,6 +390,13 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 			break;
 		}
 	}
+
+	if(machine_is_htctopaz())
+		color_led_address = 0x51;
+	else if (machine_is_htcrhodium()) 
+		color_led_address = 0x50;
+	else
+		color_led_address = 0x0;
 
 	mutex_unlock(&data->lock);
 
@@ -806,6 +814,7 @@ static int micropklt_dbg_color_led_get(void *dat, u64 *val) {
 
 static int micropklt_dbg_color_led_set(void *dat, u64 val)
 {
+	if(color_led_address==0) return -ENODEV;
 	struct microp_klt *data;
 	struct i2c_client *client;
 	char buffer[5] = { 0, 0, 0, 0, 0 };
@@ -816,7 +825,7 @@ static int micropklt_dbg_color_led_set(void *dat, u64 val)
 	client = data->client;
 
 	mutex_lock(&data->lock);
-		buffer[0] = 0x50;
+		buffer[0] = color_led_address;
 		buffer[1] = 0x00;//time ?
 		buffer[2] = val&0xff;
 		buffer[3] = (val>>8)&0xff;
