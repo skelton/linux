@@ -505,7 +505,7 @@ int adsp_init_info_6120(struct adsp_info *info)
 	info->max_task_id = QDSP_RTOS_MAX_TASK_ID;
 	info->max_module_id = QDSP_MODULE_MAX - 1;
 	info->max_queue_id = QDSP_QUEUE_MAX;
-	info->max_image_id = 4;
+	info->max_image_id = 6;
 	info->queue_offset = qdsp_queue_offset_table;
 	info->task_to_module = qdsp_task_to_module;
 
