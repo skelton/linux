@@ -701,6 +701,10 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 			//Set enter key as home key
 			raphnavi_keymap[18]=KEY_HOME;
 			break;
+		case 2:
+			raphnavi_keymap[1]=KEY_HOME;
+			raphnavi_keymap[18]=KEY_MENU;
+			break;
 	};
 
 	schedule_work(&navi->work.work);
