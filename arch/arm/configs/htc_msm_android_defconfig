@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.27
-# Wed Feb 17 13:35:34 2010
+# Wed Feb 24 17:24:23 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -182,6 +182,7 @@ CONFIG_ARCH_MSM=y
 #
 # Power management
 #
+CONFIG_TURBO_MODE=y
 CONFIG_MSM_AMSS_VERSION=5200
 CONFIG_MSM_AMSS_VERSION_WINCE=y
 CONFIG_MSM_AMSS_VERSION_5200=y
@@ -251,7 +252,6 @@ CONFIG_MSM_HW3D=y
 CONFIG_MSM_ADSP=y
 # CONFIG_HTC_FB_CONSOLE is not set
 # CONFIG_WIFI_CONTROL_FUNC is not set
-CONFIG_MSM_POWER_DEBUG=y
 
 #
 # Processor Type
