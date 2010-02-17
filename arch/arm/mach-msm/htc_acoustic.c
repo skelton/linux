@@ -67,7 +67,7 @@ struct set_acoustic_rep {
 };
 
 static uint32_t htc_acoustic_vir_addr;
-static struct msm_rpc_endpoint *endpoint;
+static struct msm_rpc_endpoint *endpoint = NULL;
 static struct mutex api_lock;
 static struct mutex rpc_connect_mutex;
 static unsigned int mic_offset;
@@ -84,6 +84,26 @@ int turn_mic_bias_on(int on)
 	*(unsigned *)(MSM_SHARED_RAM_BASE+mic_offset)=0xffff0080 | (on?0x100:0);
 	dex.data=0x10;
 	msm_proc_comm_wince(&dex,0);
+
+	/* CDMA needs pm_mic_en */
+	if (machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500())
+	{
+		int ret;
+		struct {
+			struct rpc_request_hdr hdr;
+			uint32_t data;
+		} req;
+
+		if (!endpoint)
+			endpoint = msm_rpc_connect(0x30000061, 0x0, 0);
+		if (!endpoint) {
+			printk("Couldn't open rpc endpoint\n");
+			return -EIO;
+		}
+		req.data=cpu_to_be32(0x1);
+		ret = msm_rpc_call(endpoint, 0x1c, &req, sizeof(req), 5 * HZ);
+	}
+
 	return 0;
 }
 
