@@ -233,7 +233,7 @@ static int __init msm_pmem_init() {
 			pmem_setting.pmem_gpu1_size=0x800000;
 
 			//Put ramconsole somewhere ...
-			pmem_setting.ram_console_start=0x00800000;
+			pmem_setting.ram_console_start=0x00801000;
 			pmem_setting.ram_console_size=0x00100000;
 			break;
 		case MACH_TYPE_HTCRAPHAEL:
@@ -271,8 +271,8 @@ static int __init msm_pmem_init() {
 
 	}
 	//GPU0 must be in SMI1
-	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+0x100000;//1MB for wince SPL
-	pmem_setting.pmem_gpu0_size=0x700000;
+	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+0x1000;//One free memory page for reset vectors
+	pmem_setting.pmem_gpu0_size=0x800000;
 	resources_msm_fb[0].start=pmem_setting.fb_start;
 	resources_msm_fb[0].end=pmem_setting.fb_start+pmem_setting.fb_size;
 	resources_msm_fb[0].flags=IORESOURCE_MEM;
