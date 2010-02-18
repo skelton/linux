@@ -290,12 +290,16 @@ int htc_cable_status_update(int status)
 
 	if (!htc_battery_initial)
 		return 0;
-	
+
 	mutex_lock(&htc_batt_info.lock);
-	if(status==CHARGER_BATTERY && readl(MSM_SHARED_RAM_BASE+0xfc00c))
-		status=CHARGER_USB;
+	if(readl(MSM_SHARED_RAM_BASE+0xfc00c))
+		status=CHARGER_USB;	/* vbus present */
+	else
+		status=CHARGER_BATTERY;	/* no vbus present */
+
 	if(fake_charger)
 		status=CHARGER_USB;
+
 	switch(status) {
 	case CHARGER_BATTERY:
 		if(debug_mask&DEBUG_CABLE)
@@ -320,7 +324,9 @@ int htc_cable_status_update(int status)
 	source = htc_batt_info.rep.charging_source;
 	mutex_unlock(&htc_batt_info.lock);
 
+	htc_battery_set_charging(status);
 	msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
+
 	if ((source == CHARGER_USB) || (source==CHARGER_AC)) {
 		wake_lock(&vbus_wake_lock);
 	} else {
@@ -707,11 +713,6 @@ static int htc_battery_probe(struct platform_device *pdev)
 
 	if (htc_get_batt_info(&htc_batt_info.rep) < 0)
 		printk(KERN_ERR "%s: get info failed\n", __FUNCTION__);
-
-	htc_cable_status_update(htc_batt_info.rep.charging_source);
-	battery_charging_ctrl(htc_batt_info.rep.charging_enabled ?
-			      ENABLE_SLOW_CHG : DISABLE);
-	htc_battery_set_charging(2);
 
 	htc_batt_info.update_time = jiffies;
 	kernel_thread(htc_battery_thread, NULL, CLONE_KERNEL);
