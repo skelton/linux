@@ -223,17 +223,18 @@ static int __init msm_pmem_init() {
 		case MACH_TYPE_HTCDIAMOND:
 			//SMI 64 + EBI 128
 			pmem_setting.pmem_start=MSM_SMI2_BASE;
-			pmem_setting.pmem_size=0x1000000;//19MB
-			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
-			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
-			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
+			pmem_setting.pmem_size=16*1024*1024;
+			CALC_PMEM(pmem_adsp, pmem, 0);//adsp is useless currently.
+			CALC_PMEM(fb, pmem_adsp, 0x200000);//640*480*2 (2byte/pixel)(Or 3?) *2 (front+back buffer)=1.2MiB
+			CALC_PMEM(pmem_camera, fb, 8*1024*1024);//To be calculated more precisely
 
 			//GPU1 must be in EBI bank 1
 			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 			pmem_setting.pmem_gpu1_size=0x800000;
 
 			//Put ramconsole somewhere ...
-			pmem_setting.ram_console_start=0x00801000;
+			//End of SMI2
+			pmem_setting.ram_console_start=MSM_SMI2_BASE+31*1024*1024;
 			pmem_setting.ram_console_size=0x00100000;
 			break;
 		case MACH_TYPE_HTCRAPHAEL:
@@ -256,7 +257,7 @@ static int __init msm_pmem_init() {
 			pmem_setting.pmem_gpu1_size=0x800000;
 			
 			pmem_setting.ram_console_start=0x8e0000;
-			pmem_setting.ram_console_size=0x20000;
+			pmem_setting.ram_console_size=0x0000;
 			break;
 		default:
 			//SMI 32 + EBI 128
@@ -271,7 +272,7 @@ static int __init msm_pmem_init() {
 
 	}
 	//GPU0 must be in SMI1
-	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+0x1000;//One free memory page for reset vectors
+	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+1024*1024;
 	pmem_setting.pmem_gpu0_size=0x800000;
 	resources_msm_fb[0].start=pmem_setting.fb_start;
 	resources_msm_fb[0].end=pmem_setting.fb_start+pmem_setting.fb_size;
