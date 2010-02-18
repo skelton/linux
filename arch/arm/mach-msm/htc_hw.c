@@ -30,6 +30,8 @@
 #endif
 
 static htc_hw_pdata_t *htc_hw_pdata;
+static int force_cdma=0;
+module_param(force_cdma, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 extern void micropklt_lcd_ctrl(int);
 
@@ -59,7 +61,7 @@ static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
 static ssize_t radio_show(struct class *class, char *buf)
 {
 	char *radio_type = ((machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) || 
-	                    machine_is_htcdiamond_cdma() ? "CDMA" : "GSM");
+	                    machine_is_htcdiamond_cdma() || force_cdma) ? "CDMA" : "GSM";
 	return sprintf(buf, "%s\n", radio_type);
 }
 
