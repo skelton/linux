@@ -525,6 +525,8 @@ MODULE_VERSION("0.1");
 module_init(micropklt_init);
 module_exit(micropklt_exit);
 
+
+
 #if defined(CONFIG_DEBUG_FS)
 static int micropklt_dbg_leds_set(void *dat, u64 val)
 {
@@ -601,7 +603,10 @@ static int micropklt_dbg_auto_bl_set(void *dat, u64 val)
 
 	mutex_lock(&data->lock);
 		buffer[0] = MICROP_I2C_WCMD_AUTO_BL_CTL;
-		buffer[1] = 0x2;
+		if(machine_is_htctopaz())
+			buffer[1] = val;
+		  else
+			buffer[1] = 0x2;
 		buffer[2] = val;
 	r = micropklt_write(client, buffer, 3);
 	mutex_unlock(&data->lock);
