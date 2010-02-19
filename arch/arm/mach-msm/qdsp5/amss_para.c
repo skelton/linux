@@ -152,9 +152,6 @@ unsigned int get_amss_version(void)
 		dot1 = strchr(amss_dump, '-');
 		if(dot1 == NULL)
 			return 0;
-		dot1 = strchr(dot1+1, '-');
-		if(dot1 == NULL)
-			return 0;
 		strncpy(amss_ver, dot1+1, 4);
 		amss_ver[4] = '\0';
 		return  simple_strtoul(amss_ver, NULL, 10);
