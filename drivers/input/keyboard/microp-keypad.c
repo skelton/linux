@@ -485,9 +485,19 @@ static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, uns
 		switch (code)
 		{
 			case LED_CAPSL:
-				led = MICROP_KSC_LED_CAPS; break;
+				if (machine_is_htcraphael_cdma()) {
+					led = MICROP_KSC_LED_CAPS_RAPH800;
+				} else {
+					led = MICROP_KSC_LED_CAPS;
+				}
+				break;
 			case LED_MISC:
-				led = MICROP_KSC_LED_FN; break;
+				if (machine_is_htcraphael_cdma()) {
+					led = MICROP_KSC_LED_FN_RAPH800;
+				} else {
+					led = MICROP_KSC_LED_FN;
+				}
+				break;
 			default:
 				return -1;
 		}

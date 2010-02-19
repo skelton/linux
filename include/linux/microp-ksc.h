@@ -12,6 +12,8 @@ enum {
 	MICROP_KSC_LED_CAPS,	// Caps Lock
 	MICROP_KSC_LED_FN,	// FN lock
 	MICROP_KSC_LED_MAX,
+	MICROP_KSC_LED_FN_RAPH800 = 1,
+	MICROP_KSC_LED_CAPS_RAPH800 = 2,
 };
 
 extern int micropksc_read_scancode_kovsky(unsigned char *scancode, unsigned char *isdown, unsigned char *clamshell);
