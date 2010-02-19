@@ -263,14 +263,12 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 	if (sleep_mode < MSM_PM_SLEEP_MODE_APPS_SLEEP) {
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_SMSM_STATE)
 			smsm_print_sleep_info();
-		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
 		udelay(500);
 		saved_vector[0] = msm_pm_reset_vector[0];
 		saved_vector[1] = msm_pm_reset_vector[1];
 		msm_pm_reset_vector[0] = 0xE51FF004; /* ldr pc, 4 */
 		msm_pm_reset_vector[1] = virt_to_phys(msm_pm_collapse_exit);
 		udelay(500);
-		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_RESET_VECTOR)
 			printk(KERN_INFO "msm_sleep(): vector %x %x -> "
 			       "%x %x\n", saved_vector[0], saved_vector[1],
@@ -291,10 +289,8 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 //		local_irq_enable();
 		writel(0,MSM_SHARED_RAM_BASE+0xfc100);
 		writel(0,MSM_SHARED_RAM_BASE+0xfc128);
-		writel(0,MSM_AXIGS_BASE+0x800); // disable SMI memory protection
 		msm_pm_reset_vector[0] = saved_vector[0];
 		msm_pm_reset_vector[1] = saved_vector[1];
-		writel(1,MSM_AXIGS_BASE+0x800); // enable SMI memory protection
 //		printk("Exit Power Collapse %d\n",collapsed);
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_POWER_COLLAPSE)
 			printk(KERN_INFO "msm_pm_collapse(): returned %d\n",
