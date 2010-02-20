@@ -67,6 +67,7 @@ static struct microp_klt {
 #define MICROP_KLT_ID_VERSION           0x30 // Chip revision
 #define MICROP_KLT_ID_LED_STATE         0x40 // Set LED behavior using above bitmasks
 #define MICROP_KLT_ID_LCD_BRIGHTNESS    0x22 // Set brightness of LCD backlight
+#define MICROP_KLT_ID_GET_LCD_BRHTNS 	0x32 // Get light sensor's result
 #define MICROP_KLT_ID_LIGHT_SENSOR	0x33 // Get light sensor's result
 #define MICROP_KLT_ID_SPICTRL		0x21 // SPI Controll Topaz
 #define MICROP_KLT_ID_SPILCMDDATA	0x70 // SPI Data Topaz
