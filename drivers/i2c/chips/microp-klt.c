@@ -100,13 +100,25 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 
 	// lcd-backlight lets us do varied brightness
 	if ( idx==5+8 /*&& brightness>0*/) {
-		buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
-		buffer[1] = brightness/2 & 0xf0;
+		//microp version ?
+		if(machine_is_htcrhodium()) {
+			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS2;
+			//Scale from 0 to 9
+			buffer[1] = (brightness*9)/255;
 
-		printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n", 
-			led_cdev->name, buffer[1]);
-		micropklt_write(client, buffer, 2);
-		msleep(1);
+			printk(KERN_INFO MODULE_NAME ": Setting %s brightness2 to: %d/10\n", 
+				led_cdev->name, buffer[1]);
+			micropklt_write(client, buffer, 2);
+			msleep(1);
+		} else {
+			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
+			buffer[1] = brightness/2 & 0xf0;
+
+			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n", 
+				led_cdev->name, buffer[1]);
+			micropklt_write(client, buffer, 2);
+			msleep(1);
+		}
 	}
 
 	if ( data->led_states != state ) {
@@ -866,6 +878,33 @@ DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_color_led_fops,
 		micropklt_dbg_color_led_get,
 		micropklt_dbg_color_led_set, "%llu\n");
 
+static int micropklt_dbg_brightness_get(void *dat, u64 *val) {
+	return -EIO;
+}
+
+static int micropklt_dbg_brightness_set(void *dat, u64 val)
+{
+	struct microp_klt *data;
+	struct i2c_client *client;
+	char buffer[2] = { 0, 0, };
+	int r;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+		buffer[0] = 0xcc;
+		buffer[1] = val;//time ?
+	r = micropklt_write(client, buffer, 2);
+	mutex_unlock(&data->lock);
+	return 0;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_brightness_fops,
+		micropklt_dbg_brightness_get,
+		micropklt_dbg_brightness_set, "%llu\n");
 
 static int __init micropklt_dbg_init(void)
 {
@@ -889,6 +928,8 @@ static int __init micropklt_dbg_init(void)
 			&micropklt_dbg_effects_fops);
 	debugfs_create_file("color_led", 0666, dent, NULL,
 			&micropklt_dbg_color_led_fops);
+	debugfs_create_file("brightness", 0666, dent, NULL,
+			&micropklt_dbg_brightness_fops);
 
 	debugfs_create_file("gpi", 0444, dent, NULL,
 			&micropklt_dbg_gpi_fops);
