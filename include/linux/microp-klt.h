@@ -2,6 +2,7 @@
  * These are combined into a bitmask to turn individual LEDs on
  */
 #include <linux/leds.h>
+#include <linux/earlysuspend.h>
 enum microp_led_t {
 	MICROP_KLT_LED_HOME,	// 0x01
 	MICROP_KLT_LED_BACK,	// 0x02
@@ -42,6 +43,10 @@ static struct microp_klt {
 
 	unsigned short wrop[BMA150_WROP_BUF];
 	int head,tail;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend early_suspend;
+	uint8_t enable_early_suspend;
+#endif
 }*micropklt_t = 0;
 
 

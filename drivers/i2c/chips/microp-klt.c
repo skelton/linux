@@ -23,6 +23,7 @@
 #include <linux/debugfs.h>
 #include <asm/uaccess.h>
 #include <linux/unistd.h>
+#include <linux/earlysuspend.h>
 
 #include <linux/bma150.h>
 #include <linux/microp-klt.h>
@@ -253,6 +254,20 @@ void micropklt_lcd_precess_cmd(char* cmd, size_t count)
 	udelay(50);
 }
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+void micropklt_early_suspend(struct early_suspend *h)
+{
+	if(machine_is_htctopaz())
+		micropklt_set_led_states(0x1, 0x0);
+}
+
+void micropklt_early_resume(struct early_suspend *h)
+{
+	if(machine_is_htctopaz())
+		micropklt_set_led_states(0x1, 0x1);
+}
+#endif
+
 static int micropklt_remove(struct i2c_client *client)
 {
 	struct microp_klt *data;
@@ -265,6 +280,11 @@ static int micropklt_remove(struct i2c_client *client)
 	for (i=0; i<ARRAY_SIZE(data->leds); i++) {
 		led_classdev_unregister(&data->leds[i]);
 	}
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	if (data->enable_early_suspend) {
+		unregister_early_suspend(&data->early_suspend);
+	}
+#endif
 
 	kfree(data);
 	micropklt_t = NULL;
@@ -298,6 +318,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
+	data->enable_early_suspend=1;
 	micropklt_t = data;
 
 	// Read version
@@ -416,6 +437,18 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 
 	// Set default LED state
 	micropklt_set_led_states(MICROP_KLT_ALL_LEDS, MICROP_KLT_DEFAULT_LED_STATES);
+	if(machine_is_htctopaz())	// Enable keypadled with device
+		micropklt_set_led_states(0x1, 0x1);
+
+	#ifdef CONFIG_HAS_EARLYSUSPEND
+	if (data->enable_early_suspend) {
+		data->early_suspend.level =
+				EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+		data->early_suspend.suspend = micropklt_early_suspend;
+		data->early_suspend.resume = micropklt_early_resume;
+		register_early_suspend(&data->early_suspend);
+	}
+	#endif
 
 	printk(KERN_INFO MODULE_NAME ": Initialized MicroP-LED chip revision v%04x\n", data->version);
 
