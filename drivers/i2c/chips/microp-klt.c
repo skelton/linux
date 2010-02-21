@@ -48,6 +48,7 @@ int micropklt_set_lcd_state(int on);
 static int micropklt_read(struct i2c_client *, unsigned, char *, int);
 static int micropklt_write(struct i2c_client *, const char *, int);
 static unsigned int color_led_address;
+static unsigned int auto_bl;
 
 extern int bma150_probe(struct microp_klt*);
 
@@ -275,6 +276,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	struct microp_klt *data;
 	int supported, r, i;
 	char buf[3] = { 0, 0, 0 };
+	auto_bl = 0;
 
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-LED chip driver at "
 	       "addr: 0x%02x\n", client->addr);
@@ -477,11 +479,12 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 //	char cmd[]={0x20,0x08};
 //	send_command(cmd);
 //	micropklt_lcd_ctrl(4);
-	if(sleep_state==-1)
+	if(sleep_state==-1) {
 	if(micropklt_t)
 		old_state=micropklt_t->led_states;
 	else
 		old_state=0;
+	}
 	micropklt_set_led_states(0xffff, sleep_state);
 	return 0;
 }
@@ -578,17 +581,34 @@ static int micropklt_dbg_light_get(void *dat, u64 *val) {
 	struct microp_klt *data;
 	struct i2c_client *client;
 	int r;
-	unsigned long long d;
-
+	u64 lcd_brgh;
+	unsigned long long d, d2;
+	char buffer[4] = { 0, 0, 0, 0 };
 	data = micropklt_t;
 	if (!data) return -EAGAIN;
+	
 	client = data->client;
-
 	mutex_lock(&data->lock);
-
+	if(!auto_bl && machine_is_htctopaz()) {
+		buffer[0] = MICROP_I2C_WCMD_AUTO_BL_CTL;
+		buffer[1] = 0x1;
+		buffer[2] = 0x0;
+		r = micropklt_write(client, buffer, 3);
+		msleep(2);
+	}
 	r = micropklt_read(client, MICROP_KLT_ID_LIGHT_SENSOR, &d, 4);
 	*val=(d&0xff00);
-
+	if(machine_is_htctopaz()) {
+		if(!auto_bl) {
+			buffer[0] = MICROP_I2C_WCMD_AUTO_BL_CTL;
+			buffer[1] = 0x0;
+			buffer[2] = 0x0;
+			r = micropklt_write(client, buffer, 3);
+			msleep(2);
+		}
+		r = micropklt_read(client, MICROP_KLT_ID_GET_LCD_BRHTNS, &d2, 4);
+		lcd_brgh = (d2&0xff00);
+	}
 	mutex_unlock(&data->lock);
 	return r;
 }
@@ -605,9 +625,10 @@ static int micropklt_dbg_auto_bl_get(void *dat, u64 *val) {
 static int micropklt_dbg_auto_bl_set(void *dat, u64 val)
 {
 	struct microp_klt *data;
-	struct i2c_client *client;
 	char buffer[4] = { 0, 0, 0, 0 };
+	struct i2c_client *client;
 	int r;
+	auto_bl = val;
 
 	data = micropklt_t;
 	if (!data) return -EAGAIN;
