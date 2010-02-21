@@ -262,8 +262,8 @@ int audmgr_enable(struct audmgr *am, struct audmgr_config *cfg)
 	msg.args.def_method = cpu_to_be32(cfg->def_method);
 	msg.args.codec_type = cpu_to_be32(cfg->codec);
 	msg.args.snd_method = cpu_to_be32(cfg->snd_method);
-	msg.args.cb_func = cpu_to_be32(0x11111111);
-	msg.args.client_data = cpu_to_be32(0x11223344);
+	msg.args.cb_func = cpu_to_be32(9);//AUDMGR_CB_FUNC_PTR ?
+	msg.args.client_data = cpu_to_be32(0x017ad580);
 
 	msm_rpc_setup_req(&msg.hdr, 
 			  AUDMGR_PROG, 
