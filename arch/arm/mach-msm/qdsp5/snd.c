@@ -120,6 +120,7 @@ static int get_endpoint(struct snd_ctxt *snd, unsigned long arg)
 int turn_mic_bias_on(int on);
 
 void snd_set_adie_parameters (int device) {
+/*
 	int UpdateAudioMethod = 0;
 	int UpdateForceADIEAwake = 0;
 	uint32_t setval = 2;
@@ -151,8 +152,7 @@ void snd_set_adie_parameters (int device) {
 		pr_info("snd_set_adie_parameters: Set adie to %u\n", setval);
 		writel(setval, MSM_SHARED_RAM_BASE + 0xfc0d0);
 	}
-	
-
+*/
 }
 
 void snd_set_device(int device,int ear_mute, int mic_mute) {

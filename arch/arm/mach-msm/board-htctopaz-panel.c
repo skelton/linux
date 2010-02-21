@@ -15,6 +15,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/msm_fb.h>
+#include <mach/vreg.h>
 #include <linux/microp-klt.h>
 
 #include "board-htctopaz.h"
@@ -368,6 +369,8 @@ static struct microp_spi_table spi_deinit_table[] = {
 	{0x10,0x00,0x00},
 };
 
+static struct vreg *vreg_lcd_1;	/* LCD1 */
+static struct vreg *vreg_lcd_2;	/* LCD2 */
 
 #define	spicmdreg	0x70;
 
@@ -443,6 +446,12 @@ static int htctopaz_mddi_hitachi_panel_init(
 	int ret;
 	char con[2];
 	client_data->auto_hibernate(client_data, 0);
+	ret = vreg_enable(vreg_lcd_1);
+	if (ret)
+		return ret;
+	ret = vreg_enable(vreg_lcd_2);
+	if (ret)
+		return ret;
 	mdelay(50);
 	
 	gpio_configure(57, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
@@ -520,7 +529,10 @@ static int htctopaz_mddi_hitachi_panel_deinit(
 	gpio_set_value(57, 1);
 	gpio_configure(58, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
 	gpio_set_value(58, 1);
-
+	
+	vreg_disable(vreg_lcd_1);
+	vreg_disable(vreg_lcd_2);
+	mdelay(50);
 	client_data->auto_hibernate(client_data, 1);
 
 	return 0;
@@ -701,6 +713,13 @@ int __init htctopaz_init_panel(void)
 	{
 		printk(KERN_ERR "%s: set clock rate failed\n", __func__);
 	}
+	vreg_lcd_1 = vreg_get(0, "gp2");
+	if (IS_ERR(vreg_lcd_1))
+		return PTR_ERR(vreg_lcd_1);
+
+	vreg_lcd_2 = vreg_get(0, "gp4");
+	if (IS_ERR(vreg_lcd_2))
+		return PTR_ERR(vreg_lcd_2);
 
 	rc = platform_device_register(&msm_device_mdp);
 	if (rc)
