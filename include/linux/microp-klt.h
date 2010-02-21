@@ -30,19 +30,6 @@ static struct microp_klt {
 	u16 led_states;
 	unsigned short version;
 	struct led_classdev leds[MICROP_KLT_LED_CNT];
-//	For BMA150
-	struct input_dev *inputdev;
-	struct hrtimer timer;
-	struct delayed_work work;
-#ifdef CONFIG_ANDROID_POWER
-	android_suspend_lock_t suspend_lock;
-#endif
-	int on,scale,rate,susp;
-	unsigned short pedo_count;
-	int pedo_up,pedo_lim;
-
-	unsigned short wrop[BMA150_WROP_BUF];
-	int head,tail;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 	uint8_t enable_early_suspend;

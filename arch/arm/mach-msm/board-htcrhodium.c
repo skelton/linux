@@ -131,6 +131,10 @@ static struct platform_device raphael_rfkill = {
 
 static struct i2c_board_info i2c_devices[] = {
 	{
+		//gsensor 0x38
+		I2C_BOARD_INFO("bma150", 0x70>>1),
+	},
+	{
 		// LED & Backlight controller
 		I2C_BOARD_INFO("microp-klt", 0x66),
 	},
@@ -141,10 +145,6 @@ static struct i2c_board_info i2c_devices[] = {
 	{		
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
-	},
-	{
-		// Keyboard controller
-		I2C_BOARD_INFO("microp-ksc", 0x67),
 	},
 };
 
@@ -220,7 +220,7 @@ void msm_serial_debug_init(unsigned int base, int irq,
 
 static void htcraphael_reset(void)
 {
-	struct msm_dex_command dex = { .cmd = PCOM_RESET_ARM9 };
+	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
 	msm_proc_comm_wince(&dex, 0);
 	msleep(0x15e);
 	gpio_configure(25, GPIOF_OWNER_ARM11);
@@ -326,10 +326,10 @@ static void __init htcrhodium_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (107 * 1024 * 1024); 
 
-	mi->nr_banks++;
+	//mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
 	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
-	mi->bank[1].size = (128 * 1024 * 1024)-51*1024*1024;//See pmem.c for the 51 value
+	mi->bank[1].size = (128 * 1024 * 1024)-59*1024*1024;//See pmem.c for the value
 
 	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
 	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
