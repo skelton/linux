@@ -21,6 +21,9 @@
 
 static struct clk *gp_clk;
 
+static int no_bkl_off;
+module_param_named(no_bkl_off, no_bkl_off, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 static struct microp_spi_table spi_init_table[] = {
 	{0x0f,0x01},
 	{0x05,0x01},
@@ -176,11 +179,13 @@ static int htcblackstone_mddi_epson_panel_init(
 	micropklt_lcd_ctrl(2);
 	*/
 	
-	msleep(50);
-	micropklt_lcd_precess_cmd(c0, ARRAY_SIZE(c0));
-	msleep(50);
-	micropklt_lcd_precess_spi_table(MICROP_KLT_ID_SPILCMDDATA, spi_init_table, ARRAY_SIZE(spi_init_table));
-	msleep(50);
+	if(!no_bkl_off) {
+		msleep(50);
+		micropklt_lcd_precess_cmd(c0, ARRAY_SIZE(c0));
+		msleep(50);
+		micropklt_lcd_precess_spi_table(MICROP_KLT_ID_SPILCMDDATA, spi_init_table, ARRAY_SIZE(spi_init_table));
+		msleep(50);
+	}
 	
 	client_data->auto_hibernate(client_data, 1);
 	return ret;
@@ -194,10 +199,12 @@ static int htcblackstone_mddi_epson_panel_deinit(
 	// struct msm_dex_command dex;
 	//char con[2];
 	char c1[]={MICROP_KLT_ID_SPICTRL, 0x00};
-	micropklt_lcd_precess_spi_table(MICROP_KLT_ID_SPILCMDDATA, spi_deinit_table, ARRAY_SIZE(spi_deinit_table));
-	micropklt_lcd_precess_cmd(c1, ARRAY_SIZE(c1));
-	printk("blackstone panel deinit\n");
-	msleep(50);
+	if(!no_bkl_off) {
+		micropklt_lcd_precess_spi_table(MICROP_KLT_ID_SPILCMDDATA, spi_deinit_table, ARRAY_SIZE(spi_deinit_table));
+		micropklt_lcd_precess_cmd(c1, ARRAY_SIZE(c1));
+		printk("blackstone panel deinit\n");
+		msleep(50);
+	}
 	client_data->auto_hibernate(client_data, 0);
 	mdelay(2);
 	
