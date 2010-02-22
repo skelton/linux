@@ -273,7 +273,7 @@ static int __init msm_pmem_init() {
 	}
 	//GPU0 must be in SMI1
 	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+1024*1024;
-	pmem_setting.pmem_gpu0_size=0x800000;
+	pmem_setting.pmem_gpu0_size=0x700000;
 	resources_msm_fb[0].start=pmem_setting.fb_start;
 	resources_msm_fb[0].end=pmem_setting.fb_start+pmem_setting.fb_size;
 	resources_msm_fb[0].flags=IORESOURCE_MEM;
