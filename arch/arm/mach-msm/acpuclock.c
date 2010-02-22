@@ -36,6 +36,9 @@
 #define PERF_SWITCH_DEBUG 0
 #define PERF_SWITCH_STEP_DEBUG 0
 
+static int oc_freq_khz = 0;
+module_param_named(oc_freq_khz, oc_freq_khz, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 struct clock_state
 {
 	struct clkctl_acpu_speed	*current_speed;
@@ -320,7 +323,16 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 				goto out;
 			}
 		}
+	} else {
+		/* Power collapse should also increase VDD. */
+		if (tgt_s->vdd > cur_s->vdd) {
+			if ((rc = acpuclk_set_vdd_level(tgt_s->vdd)) < 0) {
+				printk(KERN_ERR "Unable to switch ACPU vdd\n");
+				goto out;
+			}
+		}
 	}
+
 
 	/* Set wait states for CPU inbetween frequency changes */
 	reg_clkctl = readl(A11S_CLK_CNTL_ADDR);
@@ -417,7 +429,65 @@ static void __init acpuclk_init(void)
 	struct clkctl_acpu_speed *speed;
 	uint32_t div, sel;
 	int rc;
+       
+	unsigned int a11clk_khz_new;
+	struct cpufreq_frequency_table *freq_tbl_entry;
+	uint32_t reg_clkctl;
 
+	if (oc_freq_khz) {
+		// make sure target freq is multpile of 19.2mhz
+		oc_freq_khz = (oc_freq_khz / 19200) * 19200;
+
+	        // set pll2 frequency
+		writel(oc_freq_khz / 19200, MSM_CLK_CTL_BASE+0x33c);
+	        udelay(50);
+
+		// for overclocking we will set pll2 to a 1 divider
+		// to have headroom over the max default 1.2ghz/2 setting
+		reg_clkctl = readl(A11S_CLK_CNTL_ADDR);
+		if (!(readl(A11S_CLK_SEL_ADDR) & 0x01)) { /* CLK_SEL_SRC1N0 */
+			/* CLK_SRC0_SEL */
+	                if (ACPU_PLL_2 == ((reg_clkctl >> 12) & 0x7)) {
+	               		/* CLK_SRC0_DIV */
+	                	if ((reg_clkctl >> 8) & 0x0f) {
+					reg_clkctl &= ~(0xf << 8);
+					writel(reg_clkctl, A11S_CLK_CNTL_ADDR);
+					udelay(50);
+				}
+		}
+		} else {
+			/* CLK_SRC1_SEL */
+	                if (ACPU_PLL_2 == ((reg_clkctl >> 4) & 0x07)) {
+	                	/* CLK_SRC1_DIV */
+		                if (reg_clkctl & 0x0f) {
+					reg_clkctl &= ~0xf;
+					writel(reg_clkctl, A11S_CLK_CNTL_ADDR);
+					udelay(50);
+				}
+			}
+		}
+
+		// adjust pll2 frequencies
+		for (speed = acpu_freq_tbl; speed->a11clk_khz != 0; speed++) {
+			if (speed->pll == ACPU_PLL_2) {
+				speed->a11clk_src_div = (speed->a11clk_src_div + 2) /2 - 1;
+				a11clk_khz_new = oc_freq_khz / (speed->a11clk_src_div + 1);
+
+				for (freq_tbl_entry = freq_table; freq_tbl_entry->frequency != CPUFREQ_TABLE_END; freq_tbl_entry++) {
+					if (freq_tbl_entry->frequency == speed->a11clk_khz) {
+						printk("OC: ADJUST freq_tbl_entry: %d to %d\n", freq_tbl_entry->frequency, a11clk_khz_new);
+						freq_tbl_entry->frequency = a11clk_khz_new;
+						break;
+					}
+				}	
+				speed->a11clk_khz = a11clk_khz_new;
+				speed->ahbclk_khz = speed->a11clk_khz / (speed->ahbclk_div+1);
+				speed->axiclk_khz = 160000;
+				printk("OC: ADJUSTING FREQ TABLE freq=%d div=%d ahbclk=%d ahbdiv=%d\n", speed->a11clk_khz, speed->a11clk_src_div, speed->ahbclk_khz, speed->ahbclk_div);
+			}
+		}
+	}
+ 
 	/*
 	 * Determine the rate of ACPU clock
 	 */
