@@ -672,7 +672,7 @@ static ssize_t bma150_ctl_enable_store(struct device *dev, struct device_attribu
 struct device_attribute bma150_sysfs_ctl_rate = 
 {
 	.attr = {	.name = "rate",
-			.mode = S_IWUSR | S_IRUGO },
+			.mode = S_IWUGO | S_IRUGO },
 	.show	= bma150_ctl_rate_show,
 	.store	= bma150_ctl_rate_store,
 };
@@ -680,7 +680,7 @@ struct device_attribute bma150_sysfs_ctl_rate =
 struct device_attribute bma150_sysfs_ctl_scale = 
 {
 	.attr = {	.name = "scale",
-			.mode = S_IWUSR | S_IRUGO },
+			.mode = S_IWUGO | S_IRUGO },
 	.show	= bma150_ctl_scale_show,
 	.store	= bma150_ctl_scale_store,
 };
@@ -688,7 +688,7 @@ struct device_attribute bma150_sysfs_ctl_scale =
 struct device_attribute bma150_sysfs_ctl_enable = 
 {
 	.attr = {	.name = "enable",
-			.mode = S_IWUSR | S_IRUGO },
+			.mode = S_IWUGO | S_IRUGO },
 	.show	= bma150_ctl_enable_show,
 	.store	= bma150_ctl_enable_store,
 };
