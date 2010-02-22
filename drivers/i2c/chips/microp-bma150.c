@@ -20,8 +20,8 @@
 
 #define MODULE_NAME "bma150"
 
-#define BMA150_DEBUG  0
-#define BMA150_DUMP   0
+#define BMA150_DEBUG  1
+#define BMA150_DUMP   1
 
 #define BMA150_FREE_FALL 0x800
 #define EVENT_TYPE_TEMPERATURE      ABS_THROTTLE
@@ -206,7 +206,7 @@ static int gsensor_read_acceleration(short *buf)
 {
 	struct i2c_client *client;
 	int ret;
-	uint8_t tmp[6];
+	uint8_t tmp[6]={0,0,0,0,0,0};
 
 	//BMA on microp
 	if(!_bma->client) {
@@ -279,12 +279,23 @@ static int gsensor_read_acceleration(short *buf)
 				__func__);
 			return ret;
 		}
+		/*
 		buf[0] = (short)(tmp[0] << 8 | tmp[1]);
 		buf[0] >>= 6;
 		buf[1] = (short)(tmp[2] << 8 | tmp[3]);
 		buf[1] >>= 6;
 		buf[2] = (short)(tmp[4] << 8 | tmp[5]);
-		buf[2] >>= 6;
+		buf[2] >>= 6;*/
+		buf[0] = tmp[1]<<2|tmp[0]>>6;
+		if (buf[0]&0x200)
+			buf[0] -= 1<<10;
+		buf[1] = tmp[3]<<2|tmp[2]>>6;
+		if (buf[1]&0x200)
+			buf[1] -= 1<<10;
+		buf[2] = tmp[5]<<2|tmp[4]>>6;
+		if (buf[2]&0x200)
+			buf[2] -= 1<<10;
+
 	}
 
 #ifdef DEBUG_BMA150
@@ -367,6 +378,7 @@ static int bma150_i2c_read(struct i2c_client *client, unsigned addr,
 			return 0;
 		}
 		msleep(10);
+		printk("read retry\n");
 	}
 
 	dev_err(&client->dev, "i2c_read_block retry over %d\n",
@@ -455,12 +467,12 @@ static int gsensor_read_reg(uint8_t reg, uint8_t *data)
 		*data = tmp[1];
 	} else {
 		client=_bma->client;
-		ret = bma150_i2c_read(client, reg, tmp, 2);
+		ret = bma150_i2c_read(client, reg, tmp, 1);
 		if (ret < 0) {
 			dev_err(&client->dev,"%s: i2c_read_block fail\n", __func__);
 			return ret;
 		}
-		*data = tmp[1];
+		*data = tmp[0];
 	}
 	return ret;
 }
