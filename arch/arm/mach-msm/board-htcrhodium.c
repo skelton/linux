@@ -326,7 +326,7 @@ static void __init htcrhodium_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (107 * 1024 * 1024); 
 
-	//mi->nr_banks++;
+	mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
 	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
 	mi->bank[1].size = (128 * 1024 * 1024)-59*1024*1024;//See pmem.c for the value
