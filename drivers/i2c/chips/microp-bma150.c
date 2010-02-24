@@ -20,8 +20,8 @@
 
 #define MODULE_NAME "bma150"
 
-#define BMA150_DEBUG  1
-#define BMA150_DUMP   1
+#define BMA150_DEBUG  0
+#define BMA150_DUMP   0
 
 #define BMA150_FREE_FALL 0x800
 #define EVENT_TYPE_TEMPERATURE      ABS_THROTTLE

@@ -163,6 +163,26 @@ int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values)
 }
 EXPORT_SYMBOL(micropklt_set_led_states);
 
+int micropklt_set_color_led_state(int state) {
+	struct microp_klt *data;
+	struct i2c_client *client;
+	char buffer[5] = { 0, 0, 0, 0, 0 };
+	int r;
+
+	data = micropklt_t;
+	if (!data) return -EAGAIN;
+	client = data->client;
+
+	mutex_lock(&data->lock);
+		buffer[0] = color_led_address;
+		buffer[1] = 0;
+		buffer[2] = state;
+		buffer[3] = 0xff;
+		buffer[4] = 0xff;
+	r = micropklt_write(client, buffer, 5);
+	mutex_unlock(&data->lock);
+}
+
 int micropklt_set_lcd_state(int on)
 {
 	return micropklt_set_led_states(1 << MICROP_KLT_BKL_LCD,on ? 1 << MICROP_KLT_BKL_LCD : 0);
@@ -519,6 +539,9 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 		old_state=0;
 	}
 	micropklt_set_led_states(0xffff, sleep_state);
+	//Sleeping is GOOD !
+	//It's GREEN ! (on topa/rhod.)
+	micropklt_set_color_led_state(1);
 	return 0;
 }
 
@@ -529,6 +552,9 @@ static int micropklt_resume(struct i2c_client *client)
 //	send_command(cmd);
 //	micropklt_lcd_ctrl(1);
 	micropklt_set_led_states(0xffff,old_state);
+	//Being awake is BAD !
+	//It's RED ! (on topa/rhod.) (ok it's amber.)
+	micropklt_set_color_led_state(2);
 	return 0;
 }
 #else
@@ -897,10 +923,10 @@ static int micropklt_dbg_color_led_set(void *dat, u64 val)
 
 	mutex_lock(&data->lock);
 		buffer[0] = color_led_address;
-		buffer[1] = 0x00;//time ?
-		buffer[2] = val&0xff;
-		buffer[3] = (val>>8)&0xff;
-		buffer[4] = (val>>16)&0xff;
+		buffer[1] = val&0xff;
+		buffer[2] = (val>>8)&0xff;
+		buffer[3] = (val>>16)&0xff;
+		buffer[4] = (val>>32)&0xff;
 	r = micropklt_write(client, buffer, 5);
 	mutex_unlock(&data->lock);
 	return 0;

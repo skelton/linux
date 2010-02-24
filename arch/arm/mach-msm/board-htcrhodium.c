@@ -103,7 +103,7 @@ static struct platform_device msm_serial0_device = {
 
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm2_pdata = {
-	.wakeup_irq = MSM_GPIO_TO_INT(21),
+	//.wakeup_irq = MSM_GPIO_TO_INT(21),
 	.inject_rx_on_wakeup = 1,
 	.rx_to_inject = 0x32,
 };

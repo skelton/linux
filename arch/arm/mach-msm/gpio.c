@@ -508,6 +508,8 @@ void msm_gpio_enter_sleep(int from_idle)
 	}
 	for (i = 0; i < ARRAY_SIZE(msm_gpio_chips); i++) {
 		writel(msm_gpio_chips[i].int_enable[!from_idle], msm_gpio_chips[i].regs.int_en);
+		if(!from_idle && msm_gpio_debug_mask&GPIO_DEBUG_SLEEP)
+			printk("GPIO %d, int_enable=%x\n", i, msm_gpio_chips[i].int_enable[!from_idle]);
 		if (smem_gpio) {
 			uint32_t tmp;
 			int start, index, shiftl, shiftr;

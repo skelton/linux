@@ -64,6 +64,7 @@ struct panel_info {
 	struct msmfb_callback *epson_callback;
 	int epson_got_int;
 };
+static int setup_vsync(struct panel_info *panel, int init);
 
 
 static void epson_request_vsync(struct msm_panel_data *panel_data,
@@ -115,6 +116,7 @@ printk("epson_suspend\n");return 0;
 		return ret;
 	}
 	client_data->suspend(client_data);
+	setup_vsync(panel, 0);
 	return 0;
 }
 
@@ -129,6 +131,7 @@ printk("epson_resume\n");return 0;
 		client_data->private_client_data;
 	int ret;
 
+	setup_vsync(panel, 1);
 	client_data->resume(client_data);
 	ret = bridge_data->init(bridge_data, client_data);
 	if (ret)
@@ -177,7 +180,7 @@ irqreturn_t epson_vsync_interrupt(int irq, void *data)
 static int setup_vsync(struct panel_info *panel,
 		       int init)
 {
-printk("setup_vsync\n");
+	printk("setup_vsync\n");
 	int ret;
 	int gpio = 97;
 	unsigned int irq;
