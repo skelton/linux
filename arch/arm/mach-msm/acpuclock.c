@@ -29,6 +29,8 @@
 #include <linux/io.h>
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
+#include <linux/debugfs.h>
+#include <linux/poll.h>
 
 #include "proc_comm.h"
 #include "acpuclock.h"
@@ -49,7 +51,6 @@ struct clock_state
 
 static struct clk *ebi1_clk;
 static struct clock_state drv_state = { 0 };
-
 static void __init acpuclk_init(void);
 
 /* MSM7201A Levels 3-6 all correspond to 1.2V, level 7 corresponds to 1.325V. */
@@ -64,6 +65,7 @@ enum {
 	VDD_7 = 7,
 	VDD_END
 };
+
 
 struct clkctl_acpu_speed {
 	unsigned int	a11clk_khz;
@@ -118,6 +120,11 @@ static struct clkctl_acpu_speed  acpu_freq_tbl[] = {
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 };
 #endif
+
+const uint8_t nbr_vdd = 8;
+static uint8_t vdd_user_data[8];
+static uint8_t user_vdd = 0;
+static uint8_t user_vdd_max = VDD_7;
 
 #ifdef CONFIG_MSM_CPU_FREQ_ONDEMAND
 static struct cpufreq_frequency_table freq_table[] = {
@@ -275,9 +282,9 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 	struct clkctl_acpu_speed *cur_s, *tgt_s, *strt_s;
 	int rc = 0;
 	unsigned int plls_enabled = 0, pll;
-
+	unsigned int v_val;	  
 	strt_s = cur_s = drv_state.current_speed;
-
+	
 	WARN_ONCE(cur_s == NULL, "acpuclk_set_rate: not initialized\n");
 	if (cur_s == NULL)
 		return -ENOENT;
@@ -292,6 +299,11 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 
 	if (tgt_s->a11clk_khz == 0)
 		return -EINVAL;
+
+	if(user_vdd)	// Switch to the user VREG
+		v_val = vdd_user_data[tgt_s-acpu_freq_tbl];
+	else
+		v_val = tgt_s->vdd;
 
 	/* Choose the highest speed speed at or below 'rate' with same PLL. */
 	if (for_power_collapse && tgt_s->a11clk_khz < cur_s->a11clk_khz) {
@@ -314,8 +326,8 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 			plls_enabled |= 1 << tgt_s->pll;
 		}
 		/* Increase VDD if needed. */
-		if (tgt_s->vdd > cur_s->vdd) {
-			if ((rc = acpuclk_set_vdd_level(tgt_s->vdd)) < 0) {
+		if (v_val > cur_s->vdd) {
+			if ((rc = acpuclk_set_vdd_level(v_val)) < 0) {
 				printk(KERN_ERR "Unable to switch ACPU vdd\n");
 				goto out;
 			}
@@ -398,8 +410,8 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 	}
 
 	/* Drop VDD level if we can. */
-	if (tgt_s->vdd < strt_s->vdd) {
-		if (acpuclk_set_vdd_level(tgt_s->vdd) < 0)
+	if (v_val < strt_s->vdd) {
+		if (acpuclk_set_vdd_level(v_val) < 0)
 			printk(KERN_ERR "acpuclock: Unable to drop ACPU vdd\n");
 	}
 
@@ -502,3 +514,118 @@ void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 	cpufreq_frequency_table_get_attr(freq_table, smp_processor_id());
 #endif
 }
+
+#if defined(CONFIG_DEBUG_FS)
+// Read the custom VDDs. They have to be seperated by a ',' and with \0 exactly nbr_vdd(Number config lines in the Table)*2
+static ssize_t acpu_vdd_fops_write(struct file *filp, const char __user *buf,
+				size_t count, loff_t *ppos)
+{	
+	struct msm_rpc_endpoint	*ept;
+	int rc = 0, i;
+	uint8_t val;
+	void *k_buffer;
+	char *data_pnt;
+	char *token=NULL; 
+	ept = (struct msm_rpc_endpoint *) filp->private_data;
+
+	k_buffer = kmalloc(count, GFP_KERNEL);
+	if (!k_buffer)
+		return -ENOMEM;
+
+	if (copy_from_user(k_buffer, buf, count)) {
+		rc = -EFAULT;
+		goto write_out_free;
+	}
+
+	if (count!=nbr_vdd*2) {
+		rc = -EFAULT;
+		goto write_out_free;
+	}
+	
+	data_pnt = k_buffer;
+	token=strsep(&data_pnt, ",");
+	for(i=0; token!=NULL && i<nbr_vdd; i++) {
+		val=simple_strtoul(token, NULL, 10);
+		if(val>user_vdd_max||val<0){
+			rc = -EFAULT;
+			goto write_out_free;
+		}
+		vdd_user_data[i]=val;
+		token=strsep(&data_pnt, ",");
+	}
+	user_vdd = 1;
+	rc = count;
+write_out_free:
+	kfree(k_buffer);
+	return rc;
+}
+
+// Write the active VDDs. They are seperated by a ','
+static ssize_t acpu_vdd_fops_read(struct file *file, char __user * buf,
+		                size_t len, loff_t * ppos)
+{
+	char k_buffer[nbr_vdd*2];
+	int i=0, j=0;
+	struct clkctl_acpu_speed *tgt_s;
+	if(user_vdd) {
+		for(j=0; j<nbr_vdd; j++){
+			sprintf(&k_buffer[i], "%d", vdd_user_data[j]);
+			k_buffer[i+1]=',';
+			i+=2;
+		}
+	}
+	else {
+		for (tgt_s = acpu_freq_tbl; tgt_s->a11clk_khz != 0; tgt_s++) {
+			sprintf(&k_buffer[i], "%d", tgt_s->vdd);
+			k_buffer[i+1]=',';
+			i+=2;
+		}
+	}
+	k_buffer[nbr_vdd*2-1]= '\0';
+	if (len < sizeof (k_buffer))
+		return -EINVAL;
+	return simple_read_from_buffer(buf, len, ppos, k_buffer,
+				       sizeof (k_buffer));
+}
+
+
+static struct file_operations acpu_vdd_fops = {
+	.write = acpu_vdd_fops_write,
+	.read = acpu_vdd_fops_read,
+ };
+
+static int acpu_vdd_reset_get(void *dat, u64 *val) {
+	return 0;
+}
+
+// Resets the custom VDDs to default Values
+static int acpu_vdd_reset_set(void *dat, u64 val)
+{
+	user_vdd=0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(acpu_vdd_reset_fops,
+		acpu_vdd_reset_get,
+		acpu_vdd_reset_set, "%llu\n");
+
+static int __init acpu_dbg_init(void)
+{
+	struct dentry *dent;
+
+	dent = debugfs_create_dir("acpu_dbg", 0);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+
+	debugfs_create_file("acpu_vdd", 0644, dent, NULL,
+			    &acpu_vdd_fops);
+			    
+	debugfs_create_file("acpu_vdd_reset", 0644, dent, NULL,
+			&acpu_vdd_reset_fops);
+
+	return 0;
+}
+
+device_initcall(acpu_dbg_init);
+
+#endif
