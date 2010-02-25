@@ -313,7 +313,7 @@ int __init htcblackstone_init_panel(void)
 	
 	printk(KERN_INFO "%s: Initializing panel\n", __func__);
 
-	if (!machine_is_htcblackstone()) {
+	if (!machine_is_htcblackstone() && !machine_is_htckovsky()) {
 		printk(KERN_INFO "%s: panel does not apply to this device, aborted\n", __func__);
 		return 0;
 	}
