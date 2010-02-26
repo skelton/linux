@@ -414,9 +414,6 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	dex.cmd = PCOM_GET_BATTERY_DATA;
 	msm_proc_comm_wince(&dex, 0);
 
-	dex.cmd = PCOM_GET_BATTERY_ID;
-	msm_proc_comm_wince(&dex, 0);
-
 	mutex_lock(&htc_batt_info.lock);
 
 	if (htc_batt_info.resources->smem_field_size == 4) {
