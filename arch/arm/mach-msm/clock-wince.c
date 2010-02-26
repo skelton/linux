@@ -184,6 +184,68 @@ struct mdns_clock_params msm_clock_freq_parameters[] = {
 	MSM_CLOCK_REG(64000000,0x19, 0x60, 0x30, 0, 2, 4, 1, 245760000), /* BT, 4000000 (*16) */
 };
 
+static void set_grp_clk( int on )
+{
+	if ( on != 0 )
+	{
+		//axi_reset
+		writel(readl(MSM_CLK_CTL_BASE+0x208) |0x20,          MSM_CLK_CTL_BASE+0x208); //AXI_RESET
+		//row_reset
+		writel(readl(MSM_CLK_CTL_BASE+0x214) |0x20000,       MSM_CLK_CTL_BASE+0x214); //ROW_RESET
+		//vdd_grp gfs_ctl
+		writel(                              0x11f,          MSM_CLK_CTL_BASE+0x284); //VDD_GRP_GFS_CTL
+		// very rough delay
+		mdelay(20);
+		//grp NS
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x800,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x80,          MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x200,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
+		//grp idx
+		writel(readl(MSM_CLK_CTL_BASE)       |0x8,           MSM_CLK_CTL_BASE);
+		//grp clk ramp
+		writel(readl(MSM_CLK_CTL_BASE+0x290) &(~(0x4)),      MSM_CLK_CTL_BASE+0x290); //MSM_RAIL_CLAMP_IO
+		//Suppress bit 0 of grp MD (?!?)
+		writel(readl(MSM_CLK_CTL_BASE+0x80)  &(~(0x1)),      MSM_CLK_CTL_BASE+0x80);  //PRPH_WEB_NS_REG
+		//axi_reset
+		writel(readl(MSM_CLK_CTL_BASE+0x208) &(~(0x20)),     MSM_CLK_CTL_BASE+0x208); //AXI_RESET
+		//row_reset
+		writel(readl(MSM_CLK_CTL_BASE+0x214) &(~(0x20000)),  MSM_CLK_CTL_BASE+0x214); //ROW_RESET
+	}
+	else
+	{
+		//grp NS
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x800,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x80,          MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x200,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
+		//grp idx
+		writel(readl(MSM_CLK_CTL_BASE)       |0x8,           MSM_CLK_CTL_BASE);
+		//grp MD
+		writel(readl(MSM_CLK_CTL_BASE+0x80)  |0x1,      	 MSM_CLK_CTL_BASE+0x80);  //PRPH_WEB_NS_REG
+		int i = 0;
+		int status = 0;
+		while ( status == 0 && i < 100) {
+			i++;
+			status = readl(MSM_CLK_CTL_BASE+0x84) & 0x1;			
+		}
+		
+		//axi_reset
+		writel(readl(MSM_CLK_CTL_BASE+0x208) |0x20,     	MSM_CLK_CTL_BASE+0x208); //AXI_RESET
+		//row_reset
+		writel(readl(MSM_CLK_CTL_BASE+0x214) |0x20000,  	MSM_CLK_CTL_BASE+0x214); //ROW_RESET
+		//grp NS
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  &(~(0x800)),   MSM_CLK_CTL_BASE+0x84);  //GRP_NS_REG
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  &(~(0x80)),    MSM_CLK_CTL_BASE+0x84);  //GRP_NS_REG
+		writel(readl(MSM_CLK_CTL_BASE+0x84)  &(~(0x200)),   MSM_CLK_CTL_BASE+0x84);  //GRP_NS_REG
+		//grp clk ramp
+		writel(readl(MSM_CLK_CTL_BASE+0x290) |0x4,      	MSM_CLK_CTL_BASE+0x290); //MSM_RAIL_CLAMP_IO
+		writel(                              0x11f,         MSM_CLK_CTL_BASE+0x284); //VDD_GRP_GFS_CTL
+
+		int control = readl(MSM_CLK_CTL_BASE+0x288); //VDD_VDC_GFS_CTL
+		if ( control & 0x100 )
+			writel(readl(MSM_CLK_CTL_BASE) &(~(0x8)),      	MSM_CLK_CTL_BASE);
+	}
+}
+
 static inline struct msm_clock_params msm_clk_get_params(uint32_t id)
 {
 	int i;
@@ -367,6 +429,13 @@ static int pc_clk_enable(uint32_t id)
 	params = msm_clk_get_params(id);
 
 	//XXX: too spammy, extreme debugging only: D(KERN_DEBUG "%s: %d\n", __func__, id);
+	
+	if ( id == IMEM_CLK || id == GRP_CLK )
+	{
+		set_grp_clk( 1 );
+		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
+		return 0;
+	}
 
 	if (params.idx)
 	{
@@ -390,6 +459,13 @@ static void pc_clk_disable(uint32_t id)
 	params = msm_clk_get_params(id);
 
 	//XXX: D(KERN_DEBUG "%s: %d\n", __func__, id);
+	
+	if ( id == IMEM_CLK || id == GRP_CLK )
+	{
+		set_grp_clk( 1 );
+		writel(readl(MSM_CLK_CTL_BASE) & ~(1U << params.idx), MSM_CLK_CTL_BASE);
+		return 0;
+	}
 
 	if (params.idx)
 	{
@@ -647,6 +723,11 @@ static int __init clock_late_init(void)
 	}
 	mutex_unlock(&clocks_mutex);
 	pr_info("clock_late_init() disabled %d unused clocks\n", count);
+	
+	// reset imem config, I guess all devices need this so somewhere here would be good.
+	// it needs to be moved to somewhere else.
+	writel( 0, MSM_IMEM_BASE );
+	pr_info("reset imem_config\n");
 	return 0;
 }
 

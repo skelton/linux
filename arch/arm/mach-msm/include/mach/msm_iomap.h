@@ -155,9 +155,12 @@
 #define MSM_TSSC_PHYS         0xAA300000
 #define MSM_TSSC_SIZE         SZ_4K
 
-#define MSM_AXIGS_BASE         IOMEM(0xF900a000)
-#define MSM_AXIGS_PHYS         0xA8250000
-#define MSM_AXIGS_SIZE         SZ_4K
+#define MSM_AXIGS_BASE        IOMEM(0xF900a000)
+#define MSM_AXIGS_PHYS        0xA8250000
+#define MSM_AXIGS_SIZE        SZ_4K
 
+#define MSM_IMEM_BASE         IOMEM(0xF900B000)
+#define MSM_IMEM_PHYS         0xA8500000
+#define MSM_IMEM_SIZE         0x100
 
 #endif
