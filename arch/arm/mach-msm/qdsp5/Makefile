@@ -17,4 +17,5 @@ obj-y += adsp_lpm_verify_cmd.o
 obj-y += audio_out.o audio_in.o audio_mp3.o audmgr.o audpp.o
 obj-y += snd.o
 obj-y += amss_para.o
+obj-y += external.o
 

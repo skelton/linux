@@ -146,6 +146,12 @@ static struct i2c_board_info i2c_devices[] = {
 		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
 		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
 	},
+	{		
+		I2C_BOARD_INFO("tpa2016", 0xb0>>1),
+	},
+	{		
+		I2C_BOARD_INFO("a1010", 0xf4>>1),
+	},
 };
 
 #define SND(num, desc) { .name = desc, .id = num }

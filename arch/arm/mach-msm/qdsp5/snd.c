@@ -155,6 +155,11 @@ void snd_set_adie_parameters (int device) {
 */
 }
 
+//from external.c
+void enable_speaker(void);
+void disable_speaker(void);
+void speaker_vol(int);
+
 void snd_set_device(int device,int ear_mute, int mic_mute) {
 	struct snd_ctxt *snd = &the_snd;
 	struct snd_set_device_msg dmsg;
@@ -170,6 +175,10 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 	dmsg.args.mic_mute = cpu_to_be32(mic_mute);
 	dmsg.args.cb_func = -1;
 	dmsg.args.client_data = 0;
+	if(!ear_mute && device==1)
+		enable_speaker();
+	else
+		disable_speaker();
 
 	if(mic_mute==SND_MUTE_UNMUTED)
 		turn_mic_bias_on(1);
@@ -208,15 +217,13 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			rc = -EFAULT;
 			break;
 		}
-		if(machine_is_htcblackstone()) {
-			if(dev.device == 1){
-				gpio_set_value(57,1);
-			}else{
-				gpio_set_value(57,0);
-			}
-		}
 		if(force_headset && (force_headset==2 || headset_plugged()))
 			dev.device=2;
+
+		if(!dev.ear_mute && dev.device==1)
+			enable_speaker();
+		else
+			disable_speaker();
 
 		switch(__machine_arch_type) {
 			case MACH_TYPE_HTCTOPAZ:
@@ -276,6 +283,8 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 		}
 #endif
+		if(vol.device==1)
+			speaker_vol(vol.volume);
 		vmsg.args.device = cpu_to_be32(vol.device);
 		vmsg.args.method = cpu_to_be32(vol.method);
 		if (vol.method != SND_METHOD_VOICE && vol.method != SND_METHOD_AUDIO) {
