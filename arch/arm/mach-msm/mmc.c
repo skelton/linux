@@ -602,7 +602,8 @@ static int mmc_dbg_wifi1_gpio_get(void *data, u64 *val)
 
 static int mmc_dbg_wifi2_gpio_set(void *data, u64 val)
 {
-	gpio_direction_output( mmc_pdata.wifi_power_gpio2, val );
+	if(mmc_pdata.wifi_power_gpio2>=0)
+		gpio_direction_output( mmc_pdata.wifi_power_gpio2, val );
 	return 0;
 }
 
