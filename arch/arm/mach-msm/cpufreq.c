@@ -27,11 +27,11 @@
 
 #ifdef CONFIG_MSM_CPU_FREQ_SCREEN
 static void msm_early_suspend(struct early_suspend *handler) {
-	acpuclk_set_rate(CONFIG_MSM_CPU_FREQ_SCREEN_OFF * 1000, 0);
+	acpuclk_set_rate(CONFIG_MSM_CPU_FREQ_SCREEN_OFF * 1000, SETRATE_CPUFREQ);
 }
 
 static void msm_late_resume(struct early_suspend *handler) {
-	acpuclk_set_rate(CONFIG_MSM_CPU_FREQ_SCREEN_ON * 1000, 0);
+	acpuclk_set_rate(CONFIG_MSM_CPU_FREQ_SCREEN_ON * 1000, SETRATE_CPUFREQ);
 }
 
 static struct early_suspend msm_power_suspend = {
@@ -71,7 +71,7 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 	freqs.new = table[index].frequency;
 	freqs.cpu = smp_processor_id();
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	acpuclk_set_rate(table[index].frequency * 1000, 0);
+	acpuclk_set_rate(table[index].frequency * 1000, SETRATE_CPUFREQ);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	return 0;
 }
@@ -91,10 +91,18 @@ static int __init msm_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cur = acpuclk_get_rate();
 	if (cpufreq_frequency_table_cpuinfo(policy, table)) {
 		policy->cpuinfo.min_freq = CONFIG_MSM_CPU_FREQ_ONDEMAND_MIN;
-		policy->cpuinfo.max_freq = CONFIG_MSM_CPU_FREQ_ONDEMAND_MAX;
+		if (acpuclk_get_max_rate_override()) {
+			policy->cpuinfo.max_freq = acpuclk_get_max_rate_override();
+		} else {
+			policy->cpuinfo.max_freq = CONFIG_MSM_CPU_FREQ_ONDEMAND_MAX;
+		}
 	}
 	policy->min = CONFIG_MSM_CPU_FREQ_ONDEMAND_MIN;
-	policy->max = CONFIG_MSM_CPU_FREQ_ONDEMAND_MAX;
+	if (acpuclk_get_max_rate_override()) {
+		policy->max = acpuclk_get_max_rate_override();
+	} else {
+		policy->max = CONFIG_MSM_CPU_FREQ_ONDEMAND_MAX;
+	}
 
 	policy->cpuinfo.transition_latency =
 		acpuclk_get_switch_time() * NSEC_PER_USEC;
