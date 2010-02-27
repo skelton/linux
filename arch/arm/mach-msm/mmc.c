@@ -297,17 +297,6 @@ static struct embedded_sdio_data ti_wifi_emb_data = {
 	.num_funcs = 1,
 };
 
-static struct embedded_sdio_data bcm_wifi_emb_data = {
-	.cccr   = {
-		.sdio_vsn       = 2,
-		.multi_block    = 1,
-		.low_speed      = 0,
-		.wide_bus       = 0,
-		.high_power     = 1,
-		.high_speed     = 1,
-	},
-};
-
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
 
@@ -385,8 +374,12 @@ int trout_wifi_power(int on)
 	if( mmc_pdata.wifi_power_gpio2>=0) {
 	  gpio_direction_output(mmc_pdata.wifi_power_gpio2, on );
 	}
-	gpio_direction_input(29);
-	set_irq_wake(gpio_to_irq(29), on);
+	if (!machine_is_htcrhodium())
+	{
+		/* Only used for TI WLAN */
+		gpio_direction_input(29);
+		set_irq_wake(gpio_to_irq(29), on);
+	}
 	mdelay(150);
 
 	if (!on) {
@@ -420,6 +413,51 @@ int trout_wifi_reset(int on)
 #ifndef CONFIG_WIFI_CONTROL_FUNC
 EXPORT_SYMBOL(trout_wifi_reset);
 #endif
+
+/* bcm_wlan_power_ hardcoded in bcm4329 driver */
+void bcm_wlan_power_off(unsigned power_mode)
+{
+	printk ("%s: power_mode %d\n", __FUNCTION__, power_mode);
+
+	switch (power_mode) {
+		case 1:
+			/* Unload driver */
+			trout_wifi_power(0);
+			trout_wifi_set_carddetect(0);
+			msleep_interruptible(100);
+			break;
+		case 2:
+			/* Stop driver */
+			trout_wifi_power(0);
+			break;
+		default:
+			printk ("%s: ERROR unsupported power_mode %d\n", __FUNCTION__, power_mode);
+			break;
+	}
+}
+EXPORT_SYMBOL(bcm_wlan_power_off);
+
+void bcm_wlan_power_on(unsigned power_mode)
+{
+	printk ("%s: power_mode %d\n", __FUNCTION__, power_mode);
+
+	switch (power_mode) {
+		case 1:
+			/* Load driver */
+			trout_wifi_power(1);
+			trout_wifi_set_carddetect(1);
+			msleep_interruptible(100);
+			break;
+		case 2:
+			/* Start driver */
+			trout_wifi_power(1);
+			break;
+		default:
+			printk ("%s: ERROR unsupported power_mode %d\n", __FUNCTION__, power_mode);
+			break;
+	}
+}
+EXPORT_SYMBOL(bcm_wlan_power_on);
 
 static struct mmc_platform_data wifi_data = {
 	.ocr_mask		= MMC_VDD_28_29,
@@ -471,7 +509,7 @@ int __init init_mmc(void)
 
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCRHODIUM:
-			wifi_data.embedded_sdio=&bcm_wifi_emb_data;
+			wifi_data.embedded_sdio=NULL;
 			gsm_mmc_pdata.wifi_power_gpio1 = 93;
 		case MACH_TYPE_HTCTOPAZ:
 			gsm_mmc_pdata.sdcard_status_gpio=38;
