@@ -592,7 +592,7 @@ void fiq(void *data,void *regs) {
 
 static int __init msm_pm_init(void)
 {
-	pm_power_off = msm_pm_power_off;
+	pm_power_off = msm_pm_restart;
 	arm_pm_restart = msm_pm_restart;
 	msm_pm_max_sleep_time = 0;
 
