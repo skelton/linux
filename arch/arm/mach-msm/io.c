@@ -61,6 +61,7 @@ static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE(AXIGS),
 	MSM_DEVICE(SSBI),
 	MSM_DEVICE(TSSC),
+	MSM_DEVICE(IMEM),
 };
 
 void __init msm_map_common_io(void)

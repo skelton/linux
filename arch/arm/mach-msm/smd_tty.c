@@ -106,7 +106,9 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
 	struct smd_tty_info *info;
 	const char *name;
 
-	if(machine_is_htcdiamond() || machine_is_htcraphael() || machine_is_htcblackstone() || machine_is_htctopaz() || machine_is_htcrhodium()) {
+	if(machine_is_htcdiamond() || machine_is_htcraphael() ||
+			machine_is_htcblackstone() || machine_is_htctopaz() ||
+			machine_is_htcrhodium() || machine_is_htckovsky()) {
 		if(n==1) n=7; // map 7 to 1 for android compatability, on GSM
 	}
 

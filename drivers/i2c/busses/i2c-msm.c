@@ -511,16 +511,18 @@ msm_i2c_remove(struct platform_device *pdev)
 static int msm_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct msm_i2c_dev *dev = platform_get_drvdata(pdev);
+	/*
 	if (dev)
-		clk_disable(dev->clk);
+		clk_disable(dev->clk);*/
 	return 0;
 }
 
 static int msm_i2c_resume(struct platform_device *pdev)
 {
 	struct msm_i2c_dev *dev = platform_get_drvdata(pdev);
+	/*
 	if (dev)
-		clk_enable(dev->clk);
+		clk_enable(dev->clk);*/
 	return 0;
 }
 

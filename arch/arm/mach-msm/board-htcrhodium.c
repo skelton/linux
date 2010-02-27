@@ -220,7 +220,7 @@ void msm_serial_debug_init(unsigned int base, int irq,
 
 static void htcraphael_reset(void)
 {
-	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
+	struct msm_dex_command dex = { .cmd = PCOM_NOTIFY_ARM9_REBOOT };
 	msm_proc_comm_wince(&dex, 0);
 	msleep(0x15e);
 	gpio_configure(25, GPIOF_OWNER_ARM11);

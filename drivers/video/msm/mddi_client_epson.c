@@ -81,6 +81,13 @@ static void epson_request_vsync(struct msm_panel_data *panel_data,
 	}
 }
 
+static void epson_clear_vsync(struct msm_panel_data *panel_data) {
+	struct panel_info *panel = container_of(panel_data, struct panel_info,
+			panel_data);
+	struct msm_mddi_client_data *client_data = panel->client_data;
+	client_data->activate_link(client_data);
+}
+
 static void epson_wait_vsync(struct msm_panel_data *panel_data)
 {
 	struct panel_info *panel = container_of(panel_data, struct panel_info,
@@ -258,12 +265,18 @@ printk("mddi_epson_probe\n");
 	panel->panel_data.resume = epson_resume;
 	panel->panel_data.wait_vsync = epson_wait_vsync;
 	panel->panel_data.request_vsync = epson_request_vsync;
+	panel->panel_data.clear_vsync = epson_clear_vsync;
 	panel->panel_data.blank = epson_blank;
 	panel->panel_data.unblank = epson_unblank;
 	panel->panel_data.fb_data =  &bridge_data->fb_data;
 
-	panel->panel_data.fb_data->width = 480;
-	panel->panel_data.fb_data->height = 640;
+	if(machine_is_htcblackstone() || machine_is_htckovsky()) {
+		panel->panel_data.fb_data->width = 480;
+		panel->panel_data.fb_data->height = 800;
+	} else {
+		panel->panel_data.fb_data->width = 480;
+		panel->panel_data.fb_data->height = 640;
+	}
 
 	panel->pdev.name = "msm_panel";
 	panel->pdev.id = pdev->id;

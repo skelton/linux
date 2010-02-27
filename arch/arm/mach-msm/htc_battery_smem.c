@@ -28,6 +28,7 @@
 #include <asm/gpio.h>
 #include <mach/board.h>
 #include <asm/mach-types.h>
+#include <linux/io.h>
 
 #include "proc_comm_wince.h"
 
@@ -35,6 +36,7 @@
 #include <mach/htc_battery.h>
 
 static struct wake_lock vbus_wake_lock;
+static struct work_struct bat_work;
 
 #define TRACE_BATT 1
 
@@ -203,6 +205,9 @@ static int init_batt_gpio(void)
 		goto gpio_failed;
 	if (gpio_request(htc_batt_info.resources->gpio_charger_current_select, "charge_current") < 0)
 		goto gpio_failed;
+	if (machine_is_htckovsky())
+		if (gpio_request(htc_batt_info.resources->gpio_ac_detect, "ac_detect") < 0)
+			goto gpio_failed;
 
 	return 0;
 
@@ -342,6 +347,24 @@ int htc_cable_status_update(int status)
 	power_supply_changed(&htc_power_supplies[CHARGER_AC]);
 
 	return rc;
+}
+
+static void htc_bat_work(struct work_struct *work) {
+	int rc = 0;
+	int ac_detect = 1;
+
+	if (htc_batt_info.resources->gpio_ac_detect == 0)
+		return;
+
+	ac_detect = gpio_get_value(htc_batt_info.resources->gpio_ac_detect);
+	BATT("ac_detect=%d\n", ac_detect);
+	if (ac_detect == 0) {
+		rc = battery_charging_ctrl(ENABLE_SLOW_CHG);
+		BATT("charging enable rc=%d\n", rc);
+	} else {
+		rc = battery_charging_ctrl(DISABLE);
+		BATT("charging disable rc=%d\n", rc);
+	}
 }
 
 static int battery_table_4[] = {
@@ -563,6 +586,18 @@ static int htc_battery_get_property(struct power_supply *psy,
 	return 0;
 }
 
+void htc_battery_external_power_changed(struct power_supply *psy) {
+	BATT("external power changed\n");
+	schedule_work(&bat_work);
+	return;
+}
+
+static irqreturn_t htc_bat_gpio_isr(int irq, void *data) {
+	BATT("IRQ %d for GPIO \n", irq);
+	schedule_work(&bat_work);
+	return IRQ_HANDLED;
+}
+
 #define HTC_BATTERY_ATTR(_name)							\
 {										\
 	.attr = { .name = #_name, .mode = S_IRUGO, .owner = THIS_MODULE },	\
@@ -682,6 +717,7 @@ static int htc_battery_probe(struct platform_device *pdev)
 {
 	int i, rc;
 
+	INIT_WORK(&bat_work, htc_bat_work);
 	htc_batt_info.resources = (smem_batt_t *)pdev->dev.platform_data;
 
 	if (!htc_batt_info.resources) {
@@ -716,7 +752,15 @@ static int htc_battery_probe(struct platform_device *pdev)
 
 	htc_batt_info.update_time = jiffies;
 	kernel_thread(htc_battery_thread, NULL, CLONE_KERNEL);
-	
+	if (machine_is_htckovsky()) {
+		rc = request_irq(gpio_to_irq(htc_batt_info.resources->gpio_ac_detect),
+				htc_bat_gpio_isr,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				"htc_ac_detect", &htc_batt_info);
+        if (rc)
+            printk(KERN_ERR "IRQ-request rc=%d\n", rc);
+    }
+
 	return 0;
 }
 

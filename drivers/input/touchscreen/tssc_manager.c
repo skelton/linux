@@ -124,7 +124,7 @@ struct tssc_manager_data {
 
 
 //----------------------------------------------
-//#define ENABLE_TSSC_AVERAGE
+#define ENABLE_TSSC_AVERAGE
 
 #define TOUCH_POLLING_NSEC 8400000//9000000//
 #define TOUCH_QUEUE_NUMBER 2//3

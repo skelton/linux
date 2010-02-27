@@ -1218,12 +1218,11 @@ static int msm_rpcrouter_probe(struct platform_device *pdev)
 //	smsm_change_state(0,SMSM_RPCINIT);
 //	msleep(50);
 
-	if (!machine_is_htcdiamond_cdma()) {
-		/* power-off doesn't work on CDMA diamond with this enabled */
-		msg.cmd = RPCROUTER_CTRL_CMD_BYE;
-		rpcrouter_send_control_msg(&msg);
-		msleep(50);
-	}
+	/* disabling this makes power-off works on cdma diamond, but that
+	   also kills sound on some phones, so keep it enabled */
+	msg.cmd = RPCROUTER_CTRL_CMD_BYE;
+	rpcrouter_send_control_msg(&msg);
+	msleep(50);
 	
 //	msg.cmd = RPCROUTER_CTRL_CMD_REMOVE_CLIENT;
 //	rpcrouter_send_control_msg(&msg);
