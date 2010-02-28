@@ -51,6 +51,9 @@ static struct snd_ctxt the_snd;
 static int force_headset=0;
 module_param_named(force_headset, force_headset, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
+static int stupid_android=1;
+module_param_named(stupid_android, stupid_android, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 
 struct rpc_snd_set_device_args {
 	uint32_t device;
@@ -175,7 +178,7 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 	dmsg.args.mic_mute = cpu_to_be32(mic_mute);
 	dmsg.args.cb_func = -1;
 	dmsg.args.client_data = 0;
-	if(!ear_mute && device==1)
+	if(!ear_mute && ( device==1 || stupid_android))
 		enable_speaker();
 	else
 		disable_speaker();
@@ -220,7 +223,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if(force_headset && (force_headset==2 || headset_plugged()))
 			dev.device=2;
 
-		if(!dev.ear_mute && dev.device==1)
+		if(!dev.ear_mute && (dev.device==1 || stupid_android))
 			enable_speaker();
 		else
 			disable_speaker();
