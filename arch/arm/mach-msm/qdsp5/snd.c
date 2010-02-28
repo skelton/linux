@@ -178,7 +178,7 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 	dmsg.args.mic_mute = cpu_to_be32(mic_mute);
 	dmsg.args.cb_func = -1;
 	dmsg.args.client_data = 0;
-	if(!ear_mute && ( device==1 || stupid_android))
+	if((!ear_mute || stupid_android) && device==1)
 		enable_speaker();
 	else
 		disable_speaker();
@@ -223,7 +223,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if(force_headset && (force_headset==2 || headset_plugged()))
 			dev.device=2;
 
-		if(!dev.ear_mute && (dev.device==1 || stupid_android))
+		if((!dev.ear_mute || stupid_android) && dev.device==1)
 			enable_speaker();
 		else
 			disable_speaker();
