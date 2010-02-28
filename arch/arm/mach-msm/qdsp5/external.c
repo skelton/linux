@@ -37,7 +37,9 @@ void enable_speaker(void) {
 	if(machine_is_htcblackstone()) {
 		gpio_set_value(57,1);
 	} else if(machine_is_htcrhodium()) {
-		enable_speaker_rhod();
+		//Needs userland fix
+		//enable_speaker_rhod();
+		disable_speaker_rhod();
 	}
 }
 
