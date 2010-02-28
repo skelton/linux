@@ -94,8 +94,8 @@ static void __init acpuclk_init(void);
 /* 7x01/7x25 normal with GSM capable modem */
 static struct clkctl_acpu_speed pll0_245_pll1_768_pll2_1056[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 30720, 0 },
-	{ 0, 122880, ACPU_PLL_0, 4, 1,  61440, 1,  61440, 3 },
-	{ 1, 128000, ACPU_PLL_1, 1, 5,  64000, 1,  61440, 3 },
+	{ 0, 122880, ACPU_PLL_0, 4, 1,  61440, 1,  61440, 0 },
+	{ 1, 128000, ACPU_PLL_1, 1, 5,  64000, 1,  61440, 0 },
 	{ 0, 176000, ACPU_PLL_2, 2, 5,  88000, 1,  61440, 3 },
 	{ 0, 245760, ACPU_PLL_0, 4, 0,  81920, 2,  61440, 4 },
 	{ 1, 256000, ACPU_PLL_1, 1, 2, 128000, 1, 128000, 5 },
@@ -108,8 +108,8 @@ static struct clkctl_acpu_speed pll0_245_pll1_768_pll2_1056[] = {
 /* 7x01/7x25 normal with CDMA-only modem */
 static struct clkctl_acpu_speed pll0_196_pll1_768_pll2_1056[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 24576, 0 },
-	{ 0,  98304, ACPU_PLL_0, 4, 1,  49152, 1,  24576, 3 },
-	{ 1, 128000, ACPU_PLL_1, 1, 5,  64000, 1,  24576, 3 },
+	{ 0,  98304, ACPU_PLL_0, 4, 1,  49152, 1,  24576, 0 },
+	{ 1, 128000, ACPU_PLL_1, 1, 5,  64000, 1,  24576, 0 },
 	{ 0, 176000, ACPU_PLL_2, 2, 5,  88000, 1,  24576, 3 },
 	{ 0, 196608, ACPU_PLL_0, 4, 0,  65536, 2,  24576, 4 },
 	{ 1, 256000, ACPU_PLL_1, 1, 2, 128000, 1, 128000, 5 },
@@ -122,8 +122,8 @@ static struct clkctl_acpu_speed pll0_196_pll1_768_pll2_1056[] = {
 /* 7x01/7x25 turbo with GSM capable modem */
 static struct clkctl_acpu_speed pll0_245_pll1_960_pll2_1056[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 30720, 0 },
-	{ 0, 120000, ACPU_PLL_1, 1, 7,  60000, 1,  61440, 3 },
-	{ 1, 122880, ACPU_PLL_0, 4, 1,  61440, 1,  61440, 3 },
+	{ 0, 120000, ACPU_PLL_1, 1, 7,  60000, 1,  61440, 0 },
+	{ 1, 122880, ACPU_PLL_0, 4, 1,  61440, 1,  61440, 0 },
 	{ 0, 176000, ACPU_PLL_2, 2, 5,  88000, 1,  61440, 3 },
 	{ 1, 245760, ACPU_PLL_0, 4, 0,  81920, 2,  61440, 4 },
 	{ 1, 320000, ACPU_PLL_1, 1, 2, 107000, 2, 120000, 5 },
@@ -136,8 +136,8 @@ static struct clkctl_acpu_speed pll0_245_pll1_960_pll2_1056[] = {
 /* 7x01/7x25 turbo with CDMA-only modem */
 static struct clkctl_acpu_speed pll0_196_pll1_960_pll2_1056[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 24576, 0 },
-	{ 1,  98304, ACPU_PLL_0, 4, 1,  49152, 1,  24576, 3 },
-	{ 0, 120000, ACPU_PLL_1, 1, 7,  60000, 1,  24576, 3 },
+	{ 1,  98304, ACPU_PLL_0, 4, 1,  49152, 1,  24576, 0 },
+	{ 0, 120000, ACPU_PLL_1, 1, 7,  60000, 1,  24576, 0 },
 	{ 0, 176000, ACPU_PLL_2, 2, 5,  88000, 1,  24576, 3 },
 	{ 1, 196608, ACPU_PLL_0, 4, 0,  65536, 2,  24576, 4 },
 	{ 1, 320000, ACPU_PLL_1, 1, 2, 107000, 2, 120000, 5 },
@@ -515,13 +515,9 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		udelay(drv_state.acpu_switch_time_us);
 	}
 
-	/* Nothing else to do for SWFI. */
-	if (reason == SETRATE_SWFI)
-		return 0;
-
 	/* Change the AXI bus frequency if we can. */
 	/* Don't change it at power collapse, it will cause stability issue. */
-	if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
+	if (strt_s->axiclk_khz != tgt_s->axiclk_khz && reason!=SETRATE_PC) {
 		rc = clk_set_rate(ebi1_clk, tgt_s->axiclk_khz * 1000);
 		if (rc < 0)
 			pr_err("Setting AXI min rate failed!\n");
@@ -541,10 +537,6 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 				goto out;
 			}
 		}
-
-	/* Nothing else to do for power collapse. */
-	if (reason == SETRATE_PC)
-		return 0;
 
 	/* Drop VDD level if we can. */
 	if (tgt_s->vdd < strt_s->vdd) {
