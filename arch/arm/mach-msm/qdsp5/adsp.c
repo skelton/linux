@@ -832,11 +832,11 @@ static int msm_adsp_probe(struct platform_device *pdev)
 
 	switch(__amss_version) {
 		case 5225:
-			rc = adsp_init_info_5200(&adsp_info);
+			rc = adsp_init_info_5225(&adsp_info);
 			int_adsp = INT_ADSP_A11;
 			break;
 		case 6125:
-			rc = adsp_init_info_6120(&adsp_info);
+			rc = adsp_init_info_6125(&adsp_info);
 			int_adsp = INT_ADSP_A9_A11;
 			break;
 		case 6150:

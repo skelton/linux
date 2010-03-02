@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/qdsp5/adsp_5200.h
+/* arch/arm/mach-msm/qdsp5/adsp_5225.h
  *
  * Copyright (c) 2008 QUALCOMM Incorporated.
  *
@@ -262,7 +262,7 @@ static struct adsp_module_info module_info[] = {
 	QDSP_MODULE(VDEC_LP_MODE),
 };
 
-int adsp_init_info_5200(struct adsp_info *info)
+int adsp_init_info_5225(struct adsp_info *info)
 {
 	info->send_irq =   0x00c00200;
 	info->read_ctrl =  0x00400038;
