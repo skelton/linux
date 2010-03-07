@@ -308,6 +308,10 @@ int get_msm_hw3d_file(int fd, int region, uint32_t offs, unsigned long *pbase,
 	struct hw3d_data *data;
 	int ret = 0;
 
+	//HW3D not inited
+	if(!info)
+		return -ENOENT;
+
 	if (unlikely(region >= HW3D_NUM_REGIONS)) {
 		VDBG("hw3d: invalid region %d requested\n", region);
 		return -EINVAL;
