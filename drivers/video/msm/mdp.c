@@ -52,7 +52,6 @@ static DECLARE_WAIT_QUEUE_HEAD(mdp_ppp_waitqueue);
 static struct msmfb_callback *dma_callback;
 static struct clk *clk;
 static unsigned int mdp_irq_mask;
-static unsigned int is_HW3D_device;
 static DEFINE_SPINLOCK(mdp_lock);
 DEFINE_MUTEX(mdp_mutex);
 
@@ -281,14 +280,13 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 	if (!get_pmem_file(img->memory_id, start, &vstart, len, filep)) {
 		return 0;
 #if defined(CONFIG_MSM_HW3D)		
-	} else if(is_HW3D_device)
-			if (!get_msm_hw3d_file(img->memory_id, HW3D_REGION_ID(img->offset),
+	} else if (!get_msm_hw3d_file(img->memory_id, HW3D_REGION_ID(img->offset),
 				HW3D_REGION_OFFSET(img->offset), start, len,
 				filep)) {
-					img->offset=HW3D_REGION_OFFSET(img->offset);
-					return ret;
+		img->offset=HW3D_REGION_OFFSET(img->offset);
+		return ret;
 #endif
-			}
+	}
 #endif
 
 	file = fget_light(img->memory_id, &put_needed);
@@ -313,12 +311,12 @@ void put_img(struct file *file) {
 	if (file) {
 		if(is_pmem_file(file)) {
 			put_pmem_file(file);
+		}
 #if defined(CONFIG_MSM_HW3D)			
-		} else if(is_HW3D_device)
-				if(is_msm_hw3d_file(file)) {
-					put_msm_hw3d_file(file);
+		if(is_msm_hw3d_file(file)) {
+			put_msm_hw3d_file(file);
 #endif
-				}
+		}
 	}
 #endif
 }
@@ -561,11 +559,6 @@ static struct platform_driver msm_mdp_driver = {
 
 static int __init mdp_init(void)
 {
-	if(machine_is_htctopaz() || machine_is_htcrhodium()) 
-		is_HW3D_device = 0;
-	else
-		is_HW3D_device = 1;
-
 	mdp_class = class_create(THIS_MODULE, "msm_mdp");
 	if (IS_ERR(mdp_class)) {
 		printk(KERN_ERR "Error creating mdp class\n");
