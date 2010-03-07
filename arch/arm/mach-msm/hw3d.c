@@ -105,6 +105,8 @@ static long hw3d_ioctl(struct file *, unsigned int, unsigned long);
 
 static void hw3d_vma_open(struct vm_area_struct *);
 static void hw3d_vma_close(struct vm_area_struct *);
+static int force_3d;
+module_param_named(force, force_3d, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static struct file_operations hw3d_fops = {
 	.open		= hw3d_open,
@@ -283,7 +285,7 @@ static void locked_hw3d_revoke(struct hw3d_info *info)
 bool is_msm_hw3d_file(struct file *file)
 {
 	struct hw3d_info *info = hw3d_info;
-	if(!file || !file->f_dentry || !file->f_dentry->d_inode)
+	if(!file || !file->f_dentry || !file->f_dentry->d_inode || !hw3d_info)
 		return 0;
 	if (MAJOR(file->f_dentry->d_inode->i_rdev) == MISC_MAJOR &&
 	    (is_master(info, file) || is_client(info, file)))
@@ -790,7 +792,7 @@ static struct platform_driver msm_hw3d_driver = {
 
 static int __init hw3d_init(void)
 {
-  	if(machine_is_htctopaz() || machine_is_htcrhodium()) 
+  	if(!force_3d && (machine_is_htctopaz() || machine_is_htcrhodium())) 
 		return 0;
 
 	return platform_driver_register(&msm_hw3d_driver);
