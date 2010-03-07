@@ -166,7 +166,10 @@ void fix_mddi_clk_black() {
 	.calc_freq = (pll_frequency*M/((PRE+1)*N)), \
 }
 
-struct mdns_clock_params msm_clock_freq_parameters[] = {
+static struct mdns_clock_params *msm_clock_freq_parameters;
+
+// GSM phones typically use a 245 MHz PLL0
+struct mdns_clock_params msm_clock_freq_parameters_pll0_245[] = {
 
 	MSM_CLOCK_REG(  144000,   3, 0x64, 0x32, 3, 3, 0, 1, 19200000), /* SD, 144kHz */
 #if 0 /* wince uses this clock setting for UART2DM */
@@ -182,6 +185,22 @@ struct mdns_clock_params msm_clock_freq_parameters[] = {
 	MSM_CLOCK_REG(32000000,   1, 0x0c, 0x06, 1, 3, 1, 1, 768000000), /* SD, 32MHz */
 	MSM_CLOCK_REG(58982400,   6, 0x19, 0x0c, 0, 2, 4, 1, 245760000), /* BT, 3686400 (*16) */
 	MSM_CLOCK_REG(64000000,0x19, 0x60, 0x30, 0, 2, 4, 1, 245760000), /* BT, 4000000 (*16) */
+	{0, 0, 0, 0, 0, 0},
+};
+
+// CDMA phones typically use a 196 MHz PLL0
+struct mdns_clock_params msm_clock_freq_parameters_pll0_196[] = {
+
+	MSM_CLOCK_REG(  144000,   3, 0x64, 0x32, 3, 3, 0, 1, 19200000), /* SD, 144kHz */
+	MSM_CLOCK_REG( 7372800,   3, 0x50, 0x28, 0, 2, 4, 1, 196608000), /*  460800*16, will be divided by 4 for 115200 */
+	MSM_CLOCK_REG(12000000,   1, 0x20, 0x10, 1, 3, 1, 1, 768000000), /* SD, 12MHz */
+	MSM_CLOCK_REG(14745600,   3, 0x28, 0x14, 0, 2, 4, 1, 196608000), /* BT, 921600 (*16)*/
+	MSM_CLOCK_REG(19200000,   1, 0x0a, 0x05, 3, 3, 1, 1, 768000000), /* SD, 19.2MHz */
+	MSM_CLOCK_REG(24000000,   1, 0x10, 0x08, 1, 3, 1, 1, 768000000), /* SD, 24MHz */
+	MSM_CLOCK_REG(32000000,   1, 0x0c, 0x06, 1, 3, 1, 1, 768000000), /* SD, 32MHz */
+	MSM_CLOCK_REG(58982400,   3, 0x0a, 0x05, 0, 2, 4, 1, 196608000), /* BT, 3686400 (*16) */
+	MSM_CLOCK_REG(64000000,0x7d, 0x180, 0xC0, 0, 2, 4, 1, 196608000), /* BT, 4000000 (*16) */
+	{0, 0, 0, 0, 0, 0},
 };
 
 static void set_grp_clk( int on )
@@ -310,7 +329,12 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 		retval = 0;
 
 	} else {
-		for (n = ARRAY_SIZE(msm_clock_freq_parameters)-1; n >= 0; n--) {
+		n = 0;
+		while (msm_clock_freq_parameters[n].freq) {
+			n++;
+		}
+
+		for (n--; n >= 0; n--) {
 			if (freq >= msm_clock_freq_parameters[n].freq) {
 				// This clock requires MD and NS regs to set frequency:
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
@@ -358,12 +382,14 @@ static unsigned long get_mdns_host_clock(uint32_t id)
 	mdreg = readl(MSM_CLK_CTL_BASE + offset - 4);
 	nsreg = readl(MSM_CLK_CTL_BASE + offset);
 
-	for (n = 0; n < ARRAY_SIZE(msm_clock_freq_parameters); n++) {
+	n = 0;
+	while (msm_clock_freq_parameters[n].freq) {
 		if (msm_clock_freq_parameters[n].md == mdreg &&
 			msm_clock_freq_parameters[n].ns == nsreg) {
 			freq = msm_clock_freq_parameters[n].freq;
 			break;
 		}
+		n++;
 	}
 
 	return freq;
@@ -697,6 +723,15 @@ void __init msm_clock_init(void)
 	for (clk = msm_clocks; clk && clk->name; clk++) {
 		list_add_tail(&clk->list, &clocks);
 	}
+
+	if (pll_get_rate(0) == 196608000) {
+		// cdma pll0 = 196 MHz
+		msm_clock_freq_parameters = msm_clock_freq_parameters_pll0_196;
+	} else {
+		// default gsm pll0 = 245 MHz
+		msm_clock_freq_parameters = msm_clock_freq_parameters_pll0_245;
+	}
+
 	mutex_unlock(&clocks_mutex);
 }
 
