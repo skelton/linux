@@ -235,10 +235,10 @@ static struct pll_freq_tbl_map acpu_freq_tbl_list[] = {
 	{ 0, 0, 0, 0 }
 };
 
-const uint8_t nbr_vdd = 8;
-static uint8_t vdd_user_data[8];
+const uint8_t nbr_vdd = 9;
+static uint8_t vdd_user_data[9];
 static uint8_t user_vdd = 0;
-static uint8_t user_vdd_max = 7;
+static uint8_t user_vdd_max = 8;
 
 #if defined(CONFIG_MSM_CPU_FREQ_ONDEMAND) || \
     defined(CONFIG_MSM_CPU_FREQ_USERSPACE) || \
