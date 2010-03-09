@@ -315,8 +315,8 @@ void put_img(struct file *file) {
 #if defined(CONFIG_MSM_HW3D)			
 		if(is_msm_hw3d_file(file)) {
 			put_msm_hw3d_file(file);
-#endif
 		}
+#endif
 	}
 #endif
 }
