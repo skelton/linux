@@ -60,7 +60,7 @@ obj-$(CONFIG_MACH_SAPPHIRE) += devices_htc.o
 
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 
-obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
+obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o pwrsink.o
 obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
 obj-$(CONFIG_MSM_SMEM_BATTCHG) += htc_battery_smem.o
 obj-$(CONFIG_RFKILL) += board-htcraphael-rfkill.o
