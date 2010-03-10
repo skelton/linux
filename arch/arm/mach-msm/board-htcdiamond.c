@@ -58,11 +58,8 @@
 #include "htc_hw.h"
 #include "board-htcdiamond.h"
 
-static int halibut_ffa;
-module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
-
-static int adb=1;
-module_param(adb, int, S_IRUGO | S_IWUSR | S_IWGRP);
+static int extra_bank;
+module_param_named(extra_bank, extra_bank, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void htcdiamond_device_specific_fixes(void);
 
@@ -455,8 +452,14 @@ static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (107 * 1024 * 1024); // Why 107? See board-htcdiamond.h
+	mi->nr_banks++;
+	mi->bank[1].start = PAGE_ALIGN(0x02000000+(12+2)*1024*1024);
+	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
+	mi->bank[1].size = (32-1/*ramconsole*/-2/*fb*/-12/*pmem*/)*1024*1024;
 	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
 	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
+	if(mi->nr_banks==2)
+		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
 static void __init htcdiamond_cdma_fixup(struct machine_desc *desc, struct tag *tags,
