@@ -452,7 +452,7 @@ static void __init htcdiamond_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
 	mi->bank[0].size = (107 * 1024 * 1024); // Why 107? See board-htcdiamond.h
-	mi->nr_banks++;
+	//mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(0x02000000+(12+2)*1024*1024);
 	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
 	mi->bank[1].size = (32-1/*ramconsole*/-2/*fb*/-12/*pmem*/)*1024*1024;
