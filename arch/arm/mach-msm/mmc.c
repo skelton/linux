@@ -521,7 +521,7 @@ int __init init_mmc(void)
 			mmc_pdata = gsm_mmc_pdata;
 			break;
 		case MACH_TYPE_HTCKOVSKY:
-			gsm_mmc_pdata.sdcard_status_gpio = 94;
+			cdma_mmc_pdata.sdcard_status_gpio = 94;
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
 			mmc_pdata = cdma_mmc_pdata;
 			break;
