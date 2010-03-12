@@ -145,7 +145,7 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa0c, .name="PMDH_CLK"},
 //#endif
 
-	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, .name="I2C_CLK"},
+	{ .clk_id = I2C_CLK, .offset = 0x68, .ns_only = 0xa00, .name="I2C_CLK"},
 //	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
 };
 
