@@ -152,6 +152,9 @@ static struct i2c_board_info i2c_devices[] = {
 	{		
 		I2C_BOARD_INFO("a1010", 0xf4>>1),
 	},
+	{		
+		I2C_BOARD_INFO("adc3001", 0x30>>1),
+	},
 };
 
 #define SND(num, desc) { .name = desc, .id = num }
