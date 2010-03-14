@@ -22,6 +22,7 @@
 struct data_t {
 	struct i2c_client *a1010;
 	struct i2c_client *tpa2016;
+	struct i2c_client *adc3001;
 };
 static struct data_t _dat;
 
@@ -285,6 +286,27 @@ static struct i2c_driver aud_driver = {
 	.probe = aud_probe,
 };
 
+//ADC3001 ADC + mic bias
+static int adc_probe(struct i2c_client *client, const struct i2c_device_id *id) {
+	//Not much to do here uh ?
+	_dat.adc3001=client;
+	return 0;
+}
+
+static const struct i2c_device_id adc_ids[] = {
+        { "adc3001", 0 },
+        { }
+};
+
+static struct i2c_driver adc_driver = {
+	.driver = {
+		.name	= MODULE_NAME,
+		.owner	= THIS_MODULE,
+	},
+	.id_table = adc_ids,
+	.probe = adc_probe,
+};
+
 static int __init rhod_audio_init(void) {
 	int rc;
 
@@ -293,7 +315,14 @@ static int __init rhod_audio_init(void) {
 
 	printk(KERN_INFO "Rhodium audio registering drivers\n");
 	rc=i2c_add_driver(&tpa_driver);
-	return rc ? rc : i2c_add_driver(&aud_driver);
+	if(rc)
+		return rc;
+
+	rc=i2c_add_driver(&adc_driver);
+	if(rc)
+		return rc;
+
+	return i2c_add_driver(&aud_driver);
 }
 
 module_init(rhod_audio_init);
