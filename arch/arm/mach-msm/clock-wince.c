@@ -132,11 +132,11 @@ static struct msm_clock_params msm_clock_parameters[] = {
 
 	// MD/NS only; offset = Ns reg
 	{ .clk_id = VFE_CLK, .offset = 0x44, .name="VFE_CLK", },
-	
+
 	// Enable bit only; bit = 1U << idx
 	{ .clk_id = MDP_CLK, .idx = 9, .name="MDP_CLK",},
- 	
-	
+
+
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
 	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
 /*#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
@@ -203,65 +203,70 @@ struct mdns_clock_params msm_clock_freq_parameters_pll0_196[] = {
 	{0, 0, 0, 0, 0, 0},
 };
 
-static void set_grp_clk( int on )
-{
-	if ( on != 0 )
-	{
-		//axi_reset
-		writel(readl(MSM_CLK_CTL_BASE+0x208) |0x20,          MSM_CLK_CTL_BASE+0x208); //AXI_RESET
-		//row_reset
-		writel(readl(MSM_CLK_CTL_BASE+0x214) |0x20000,       MSM_CLK_CTL_BASE+0x214); //ROW_RESET
-		//vdd_grp gfs_ctl
-		writel(                              0x11f,          MSM_CLK_CTL_BASE+0x284); //VDD_GRP_GFS_CTL
-		// very rough delay
-		mdelay(20);
-		//grp NS
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x800,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x80,          MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x200,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
-		//grp idx
-		writel(readl(MSM_CLK_CTL_BASE)       |0x8,           MSM_CLK_CTL_BASE);
-		//grp clk ramp
-		writel(readl(MSM_CLK_CTL_BASE+0x290) &(~(0x4)),      MSM_CLK_CTL_BASE+0x290); //MSM_RAIL_CLAMP_IO
-		//Suppress bit 0 of grp MD (?!?)
-		writel(readl(MSM_CLK_CTL_BASE+0x80)  &(~(0x1)),      MSM_CLK_CTL_BASE+0x80);  //PRPH_WEB_NS_REG
-		//axi_reset
-		writel(readl(MSM_CLK_CTL_BASE+0x208) &(~(0x20)),     MSM_CLK_CTL_BASE+0x208); //AXI_RESET
-		//row_reset
-		writel(readl(MSM_CLK_CTL_BASE+0x214) &(~(0x20000)),  MSM_CLK_CTL_BASE+0x214); //ROW_RESET
-	}
-	else
-	{
-		//grp NS
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x800,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x80,          MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  |0x200,         MSM_CLK_CTL_BASE+0x84); //GRP_NS_REG
-		//grp idx
-		writel(readl(MSM_CLK_CTL_BASE)       |0x8,           MSM_CLK_CTL_BASE);
-		//grp MD
-		writel(readl(MSM_CLK_CTL_BASE+0x80)  |0x1,      	 MSM_CLK_CTL_BASE+0x80);  //PRPH_WEB_NS_REG
+// defines from MSM7500_Core.h
+
+// often used defines
+#define MSM_PRPH_WEB_NS_REG	( MSM_CLK_CTL_BASE+0x80 )
+#define MSM_GRP_NS_REG				( MSM_CLK_CTL_BASE+0x84 )
+#define MSM_AXI_RESET 					( MSM_CLK_CTL_BASE+0x208 )
+#define MSM_ROW_RESET 				( MSM_CLK_CTL_BASE+0x214 )
+#define MSM_VDD_GRP_GFS_CTL	( MSM_CLK_CTL_BASE+0x284 )
+#define MSM_VDD_VDC_GFS_CTL	( MSM_CLK_CTL_BASE+0x288 )
+#define MSM_RAIL_CLAMP_IO			( MSM_CLK_CTL_BASE+0x290 )
+
+#define REG_OR( reg, value ) do { u32 i = readl( (reg) ); writel( i | (value), (reg) ); } while(0)
+#define REG_AND( reg, value ) do {	u32 i = readl( reg ); writel( i & ~value, reg); } while(0)
+#define REG_SET( reg, value ) do { writel( value, reg ); } while(0)
+
+static void set_grp_clk( int on ) {
+	if ( on != 0 ) {
+		REG_OR( MSM_AXI_RESET, 0x20 );
+		REG_OR( MSM_ROW_RESET, 0x20000 );
+		REG_SET( MSM_VDD_GRP_GFS_CTL, 0x11f );
+		mdelay( 20 );																// very rough delay
+
+		REG_OR( MSM_GRP_NS_REG, 0x800 );
+		REG_OR( MSM_GRP_NS_REG, 0x80 );
+		REG_OR( MSM_GRP_NS_REG, 0x200 );
+
+		REG_OR( MSM_CLK_CTL_BASE, 0x8 );					// grp idx
+
+		REG_AND( MSM_RAIL_CLAMP_IO, 0x4 );
+		REG_AND( MSM_PRPH_WEB_NS_REG, 0x1 );			// Suppress bit 0 of grp MD
+		REG_AND( MSM_AXI_RESET, 0x20 );
+		REG_AND( MSM_ROW_RESET, 0x20000 );
+	} else {
+		REG_OR( MSM_GRP_NS_REG, 0x800 );
+		REG_OR( MSM_GRP_NS_REG, 0x80 );
+		REG_OR( MSM_GRP_NS_REG, 0x200 );
+
+		REG_OR(  MSM_CLK_CTL_BASE, 0x8 );					// grp idx
+
+		REG_OR( MSM_PRPH_WEB_NS_REG, 0x1 );			// grp MD
+
 		int i = 0;
 		int status = 0;
 		while ( status == 0 && i < 100) {
 			i++;
-			status = readl(MSM_CLK_CTL_BASE+0x84) & 0x1;			
+			status = readl( MSM_GRP_NS_REG ) & 0x1;
 		}
-		
-		//axi_reset
-		writel(readl(MSM_CLK_CTL_BASE+0x208) |0x20,     	MSM_CLK_CTL_BASE+0x208); //AXI_RESET
-		//row_reset
-		writel(readl(MSM_CLK_CTL_BASE+0x214) |0x20000,  	MSM_CLK_CTL_BASE+0x214); //ROW_RESET
-		//grp NS
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  &(~(0x800)),   MSM_CLK_CTL_BASE+0x84);  //GRP_NS_REG
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  &(~(0x80)),    MSM_CLK_CTL_BASE+0x84);  //GRP_NS_REG
-		writel(readl(MSM_CLK_CTL_BASE+0x84)  &(~(0x200)),   MSM_CLK_CTL_BASE+0x84);  //GRP_NS_REG
-		//grp clk ramp
-		writel(readl(MSM_CLK_CTL_BASE+0x290) |0x4,      	MSM_CLK_CTL_BASE+0x290); //MSM_RAIL_CLAMP_IO
-		writel(                              0x11f,         MSM_CLK_CTL_BASE+0x284); //VDD_GRP_GFS_CTL
 
-		int control = readl(MSM_CLK_CTL_BASE+0x288); //VDD_VDC_GFS_CTL
-		if ( control & 0x100 )
-			writel(readl(MSM_CLK_CTL_BASE) &(~(0x8)),      	MSM_CLK_CTL_BASE);
+		REG_OR( MSM_AXI_RESET, 0x20 );
+		REG_OR( MSM_ROW_RESET, 0x20000 );
+
+		REG_AND( MSM_GRP_NS_REG, 0x800 );
+		REG_AND( MSM_GRP_NS_REG, 0x80 );
+		REG_AND( MSM_GRP_NS_REG, 0x200 );
+
+		REG_OR( MSM_RAIL_CLAMP_IO, 0x4 );					// grp clk ramp
+
+		REG_SET( MSM_VDD_GRP_GFS_CTL, 0x11f );
+
+		int control = readl( MSM_VDD_VDC_GFS_CTL );
+
+		if ( control & 0x100 ) {
+			REG_AND( MSM_CLK_CTL_BASE, 0x8 );				// grp idx
+		}
 	}
 }
 
@@ -302,12 +307,12 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 	uint32_t nsreg;
 	found = 0;
 	retval = -EINVAL;
-	
+
 	params = msm_clk_get_params(id);
 	offset = params.offset;
 
 	if(debug_mask&DEBUG_MDNS)
-		D("set mdns: %u, %lu; bitidx=%u, offset=%x, ns=%x\n", id, freq, 
+		D("set mdns: %u, %lu; bitidx=%u, offset=%x, ns=%x\n", id, freq,
 	  params.idx, params.offset, params.ns_only);
 
 	if (!params.offset)
@@ -341,7 +346,7 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
 //				msleep(5);
 				if(debug_mask&DEBUG_MDNS)
-					D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id, 
+					D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id,
 				  msm_clock_freq_parameters[n].freq,
 				  msm_clock_freq_parameters[n].calc_freq,
 				  msm_clock_freq_parameters[n].ns&7,
@@ -455,7 +460,7 @@ static int pc_clk_enable(uint32_t id)
 	params = msm_clk_get_params(id);
 
 	//XXX: too spammy, extreme debugging only: D(KERN_DEBUG "%s: %d\n", __func__, id);
-	
+
 	if ( id == IMEM_CLK || id == GRP_CLK )
 	{
 		set_grp_clk( 1 );
@@ -485,11 +490,11 @@ static void pc_clk_disable(uint32_t id)
 	params = msm_clk_get_params(id);
 
 	//XXX: D(KERN_DEBUG "%s: %d\n", __func__, id);
-	
+
 	if ( id == IMEM_CLK || id == GRP_CLK )
 	{
-		set_grp_clk( 1 );
-		writel(readl(MSM_CLK_CTL_BASE) & ~(1U << params.idx), MSM_CLK_CTL_BASE);
+		set_grp_clk( 0 );
+		writel( readl( MSM_CLK_CTL_BASE ) & ~( 1U << params.idx ), MSM_CLK_CTL_BASE );
 		return 0;
 	}
 
@@ -745,6 +750,12 @@ static int __init clock_late_init(void)
 	struct clk *clk;
 	unsigned count = 0;
 
+	// reset imem config, I guess all devices need this so somewhere here would be good.
+	// it needs to be moved to somewhere else.
+	// note: this needs to be done before all clocks get disabled.
+	writel( 0, MSM_IMEM_BASE );
+	pr_info("reset imem_config\n");
+
 	mutex_lock(&clocks_mutex);
 	list_for_each_entry(clk, &clocks, list) {
 		if (clk->flags & CLKFLAG_AUTO_OFF) {
@@ -758,11 +769,7 @@ static int __init clock_late_init(void)
 	}
 	mutex_unlock(&clocks_mutex);
 	pr_info("clock_late_init() disabled %d unused clocks\n", count);
-	
-	// reset imem config, I guess all devices need this so somewhere here would be good.
-	// it needs to be moved to somewhere else.
-	writel( 0, MSM_IMEM_BASE );
-	pr_info("reset imem_config\n");
+
 	return 0;
 }
 
