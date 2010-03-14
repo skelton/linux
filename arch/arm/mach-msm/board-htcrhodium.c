@@ -152,6 +152,9 @@ static struct i2c_board_info i2c_devices[] = {
 	{		
 		I2C_BOARD_INFO("a1010", 0xf4>>1),
 	},
+	{		
+		I2C_BOARD_INFO("adc3001", 0x30>>1),
+	},
 };
 
 #define SND(num, desc) { .name = desc, .id = num }
@@ -184,6 +187,10 @@ static struct platform_device rhodium_gps = {
     .name       = "gps_rfkill",
 };
 
+static struct platform_device rhod_prox = {
+    .name       = "rhodium_proximity",
+};
+
 static struct platform_device touchscreen = {
 	.name		= "tssc-manager",
 	.id		= -1,
@@ -204,6 +211,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_uart_dm2,
 #endif
 	//&rhodium_gps,
+	&rhod_prox,
 };
 
 extern struct sys_timer msm_timer;

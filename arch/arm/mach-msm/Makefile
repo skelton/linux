@@ -44,6 +44,7 @@ obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htcblackstone-panel.o ht
 obj-$(CONFIG_MACH_HTCKOVSKY) += msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
 obj-$(CONFIG_MACH_HTCTOPAZ) += board-htctopaz.o board-htctopaz-panel.o board-htctopaz-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o msm-gpio-keys.o htc_acoustic.o board-htcraphael-gps.o
 obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium.o board-htctopaz-panel.o board-htcrhodium-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o htc_acoustic.o gps-rfkill.o msm-gpio-keys.o board-htcrhodium-audio.o
+obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium-proximity.o
 
 
 obj-$(CONFIG_MACH_HALIBUT) += board-halibut.o board-halibut-keypad.o
@@ -60,7 +61,7 @@ obj-$(CONFIG_MACH_SAPPHIRE) += devices_htc.o
 
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 
-obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
+obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o pwrsink.o
 obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
 obj-$(CONFIG_MSM_SMEM_BATTCHG) += htc_battery_smem.o
 obj-$(CONFIG_RFKILL) += board-htcraphael-rfkill.o
