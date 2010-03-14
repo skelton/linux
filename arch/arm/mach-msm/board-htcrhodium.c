@@ -187,6 +187,10 @@ static struct platform_device rhodium_gps = {
     .name       = "gps_rfkill",
 };
 
+static struct platform_device rhod_prox = {
+    .name       = "rhodium_proximity",
+};
+
 static struct platform_device touchscreen = {
 	.name		= "tssc-manager",
 	.id		= -1,
@@ -207,6 +211,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_uart_dm2,
 #endif
 	//&rhodium_gps,
+	&rhod_prox,
 };
 
 extern struct sys_timer msm_timer;
