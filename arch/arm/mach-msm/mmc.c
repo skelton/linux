@@ -104,7 +104,7 @@ static uint opt_disable_wifi;
 static int __init disablesdcard_setup(char *str)
 {
 	int cal = simple_strtol(str, NULL, 0);
-	
+
 	opt_disable_sdcard = cal;
 	return 1;
 }
@@ -114,7 +114,7 @@ __setup("disable_sdcard=", disablesdcard_setup);
 static int __init disablewifi_setup(char *str)
 {
 	int cal = simple_strtol(str, NULL, 0);
-	
+
 	opt_disable_wifi = cal;
 	return 1;
 }
@@ -218,9 +218,9 @@ static unsigned int sdslot_status(struct device *dev)
 			| MMC_VDD_28_29 | MMC_VDD_29_30
 
 static struct mmc_platform_data sdslot_data = {
-	.ocr_mask	= MMC_VDD_28_29,
+	.ocr_mask	= RAPH_MMC_VDD,
 	.status		= sdslot_status,
-//	.translate_vdd	= sdslot_switchvdd,
+	.translate_vdd	= sdslot_switchvdd,
 };
 
 /* ---- WIFI ---- */
@@ -600,7 +600,7 @@ static int mmc_dbg_wifi_pwr_set(void *data, u64 val)
 
 static int mmc_dbg_wifi_pwr_get(void *data, u64 *val)
 {
-	
+
 	*val = wifi_power_state;
 	return 0;
 }
