@@ -33,13 +33,18 @@ void enable_speaker_rhod(void);
 void disable_speaker_rhod(void);
 void speaker_vol_rhod(int);
 
+static int force_rhod_speaker=0;
+module_param_named(rhod_speaker, force_rhod_speaker, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 void enable_speaker(void) {
 	if(machine_is_htcblackstone()) {
 		gpio_set_value(57,1);
 	} else if(machine_is_htcrhodium()) {
 		//Needs userland fix
-		//enable_speaker_rhod();
-		disable_speaker_rhod();
+		if(force_rhod_speaker)
+			enable_speaker_rhod();
+		else
+			disable_speaker_rhod();
 	}
 }
 
