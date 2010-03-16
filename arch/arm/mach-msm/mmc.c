@@ -515,10 +515,16 @@ int __init init_mmc(void)
 			gsm_mmc_pdata.sdcard_status_gpio=38;
 			gsm_mmc_pdata.wifi_power_gpio2 = -1;
 		case MACH_TYPE_HTCRAPHAEL:
-		case MACH_TYPE_HTCDIAMOND_CDMA:
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
 			mmc_pdata = gsm_mmc_pdata;
+			break;
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+			mmc_pdata = gsm_mmc_pdata;
+			/* MoviNAND returns 1.8V in OCR, but (for whatever reason)
+			 * doesn't work at 1.8V
+			 */
+			sdslot_data.ocr_mask = MMC_VDD_29_30;
 			break;
 		case MACH_TYPE_HTCKOVSKY:
 			cdma_mmc_pdata.sdcard_status_gpio = 94;
