@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/smd_7500.c
+/* arch/arm/mach-msm/smd_6150.c
  * Author: Joe Hansche <madcoder@gmail.com>
  * Based on vogue-smd.c by Martin Johnson <M.J.Jonson@massey.ac.nz>
  *            and smd.c by Brian Swetland <swetland@google.com>
