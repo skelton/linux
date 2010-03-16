@@ -167,16 +167,30 @@ static int smd_7500_read(smd_channel_t *ch, void *data, int len)
 	
 	if (len < 0)
 		return -EINVAL;
+
+	if (data == NULL)
+		return -EINVAL;
 	
 	notify_other_smd(ch->n);
 	
 	mytail = *p->recv_tail;
 	
 	while (recvd < len) {
+		unsigned int n;
+
 		mytail = (mytail + 1) % p->recv_size;
-		if (buf)
-			*buf++ = *(ch->recv_buf + mytail);
-		++recvd;
+		n = min(len-recvd, p->recv_size-mytail);
+
+		memcpy(buf, (const void *)(ch->recv_buf + mytail), n);
+
+		buf += n;
+		recvd += n;
+
+		/* recv_tail has to be incremented by 1 before it can be
+		 * read from, as the old design did
+		 */
+		mytail = (mytail + n - 1) % p->recv_size;
+
 		if ((recvd % BURST_SIZE) == 0) {
 			*p->recv_tail = mytail;
 			notify_other_smd(ch->n);
