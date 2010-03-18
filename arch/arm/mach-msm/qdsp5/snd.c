@@ -219,7 +219,9 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 }
 EXPORT_SYMBOL(snd_set_device);
 
-void msm_audio_path(int i);
+/* From external.c */
+void headphone_amp_power(int status);
+
 static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct snd_set_device_msg dmsg;
@@ -247,21 +249,12 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		/* Headphones/headset need to turn on amp through GPIO */
-		if (machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500())
-		{
-			if ((dev.device == SND_DEVICE_HEADSET) || (dev.device == SND_DEVICE_NO_MIC_HEADSET))
-			{
-				gpio_configure(0x54, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
-				gpio_configure(0x54, 1);
-			}
-			else
-			{
-				gpio_configure(0x54, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
-				gpio_configure(0x54, 0);
-			}
-		}
+		headphone_amp_power(
+				(dev.device == SND_DEVICE_HEADSET) ||
+				(dev.device == SND_DEVICE_NO_MIC_HEADSET)
+				);
 
-		/* Headset output (2) is the working output, not 8 */
+		/* Headset output (2) is the working output for headphones, not 8 */
 		if (dev.device == SND_DEVICE_NO_MIC_HEADSET)
 			dev.device = SND_DEVICE_HEADSET;
 

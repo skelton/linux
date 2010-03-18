@@ -28,6 +28,9 @@
 #include <asm/gpio.h>
 #include <mach/amss_para.h>
 
+// called from snd.c
+void headphone_amp_power(int status);
+
 //from board-htcrhodium-audio
 void enable_speaker_rhod(void);
 void disable_speaker_rhod(void);
@@ -59,4 +62,32 @@ void disable_speaker(void) {
 void speaker_vol(int arg) {
 	if(machine_is_htcrhodium())
 		speaker_vol_rhod(arg);
+}
+
+void headphone_amp_power(int status)
+{
+	unsigned int gpio;
+	switch (__machine_arch_type) {
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+			gpio = 0x54;
+			break;
+		default:
+			/* We should test this on more machines */
+			return;
+	}
+
+	if (status)
+	{
+		/* Power up headphone amp */
+		gpio_configure(gpio, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+		gpio_set_value(gpio, 1);
+	}
+	else
+	{
+		/* Power down headphone amp */
+		gpio_configure(gpio, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+		gpio_set_value(gpio, 0);
+	}
 }
