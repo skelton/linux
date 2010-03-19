@@ -10,6 +10,11 @@
 #include <mach/msm_iomap.h>
 
 
+#define RHODIUM_CABLE_IN1		42
+#define RHODIUM_CABLE_IN2		45
+#define RHODIUM_H2W_CLK			46
+#define RHODIUM_H2W_DATA		92
+#define RHODIUM_H2W_UART_MUX		103	/* pretty sure this is right */
 
 #define RHODIUM_BAT_IRQ			28  // GPIO IRQ
 #define RHODIUM_USB_AC_PWR		32
