@@ -328,12 +328,12 @@ config MSM_SMD
 	  used to communicate with various services on the baseband
 	  processor.
 
-config MSM_SMD_7500
+config MSM_SMD_6150
 	default n
-	bool "MSM750x SMD support"
+	bool "AMSS 6150 (MSM75xx) SMD support"
 	depends on MSM_SMD
 	help
-	  Some CDMA devices (e.g., MSM7501A) require special handling
+	  AMSS 6150 (used on some MSM75xx CDMA devices) requires special handling
 	  of SMD channels 0 and 1.  Say Y here to enable that support
 
 config MSM_ONCRPCROUTER

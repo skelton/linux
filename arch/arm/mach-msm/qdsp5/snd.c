@@ -39,6 +39,22 @@
 
 #define RPC_SND_PROG	0x30000002
 
+/* Taken from android hardware/msm7k/libaudio/AudioHardware.h
+ * Used for SND_SET_DEVICE ioctl
+ */
+#define SND_DEVICE_HANDSET 0
+#define SND_DEVICE_SPEAKER 1
+#define SND_DEVICE_HEADSET 2
+#define SND_DEVICE_BT 3
+#define SND_DEVICE_CARKIT 4
+#define SND_DEVICE_TTY_FULL 5
+#define SND_DEVICE_TTY_VCO 6
+#define SND_DEVICE_TTY_HCO 7
+#define SND_DEVICE_NO_MIC_HEADSET 8
+#define SND_DEVICE_FM_HEADSET 9
+#define SND_DEVICE_HEADSET_AND_SPEAKER 10
+#define SND_DEVICE_FM_SPEAKER 11
+#define SND_DEVICE_BT_EC_OFF 12
 
 struct snd_ctxt {
 	struct mutex lock;
@@ -183,6 +199,7 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 	else
 		disable_speaker();
 
+	mic_mute=SND_MUTE_UNMUTED;
 	if(mic_mute==SND_MUTE_UNMUTED)
 		turn_mic_bias_on(1);
 	else
@@ -202,6 +219,8 @@ void snd_set_device(int device,int ear_mute, int mic_mute) {
 }
 EXPORT_SYMBOL(snd_set_device);
 
+/* From external.c */
+void headphone_amp_power(int status);
 
 static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -220,42 +239,26 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			rc = -EFAULT;
 			break;
 		}
-		if(force_headset && (force_headset==2 || headset_plugged()))
-			dev.device=2;
+		printk("snd_ioctl set_device: device %d\n", dev.device);
 
-		if((!dev.ear_mute || stupid_android) && dev.device==1)
-			enable_speaker();
-		else
-			disable_speaker();
-
-		switch(__machine_arch_type) {
-			case MACH_TYPE_HTCTOPAZ:
-				snd_set_adie_parameters(dev.device);
-				break;
-		}
-		dev.mic_mute=SND_MUTE_UNMUTED;
-		dmsg.args.device = cpu_to_be32(dev.device);
-		dmsg.args.ear_mute = cpu_to_be32(dev.ear_mute);
-		dmsg.args.mic_mute = cpu_to_be32(dev.mic_mute);
 		if (check_mute(dev.ear_mute) ||
 				check_mute(dev.mic_mute) ) {
 			pr_err("snd_ioctl set device: invalid mute status.\n");
 			rc = -EINVAL;
 			break;
 		}
-		if(dev.mic_mute==SND_MUTE_UNMUTED)
-			turn_mic_bias_on(1);
-		else
-			turn_mic_bias_on(0);
-		dmsg.args.cb_func = -1;
-		dmsg.args.client_data = 0;
 
-		pr_info("snd_set_device %d %d %d\n", dev.device,
-						 dev.ear_mute, dev.mic_mute);
-		rc = msm_rpc_call(snd->ept,
-			amss_get_num_value(SND_SET_DEVICE_PROC),
-			&dmsg, sizeof(dmsg), 5 * HZ);
+		/* Headphones/headset need to turn on amp through GPIO */
+		headphone_amp_power(
+				(dev.device == SND_DEVICE_HEADSET) ||
+				(dev.device == SND_DEVICE_NO_MIC_HEADSET)
+				);
 
+		/* Headset output (2) is the working output for headphones, not 8 */
+		if (dev.device == SND_DEVICE_NO_MIC_HEADSET)
+			dev.device = SND_DEVICE_HEADSET;
+
+		snd_set_device(dev.device, dev.ear_mute, dev.mic_mute);
 		break;
 
 	case SND_SET_VOLUME:

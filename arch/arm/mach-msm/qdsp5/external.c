@@ -28,18 +28,26 @@
 #include <asm/gpio.h>
 #include <mach/amss_para.h>
 
+// called from snd.c
+void headphone_amp_power(int status);
+
 //from board-htcrhodium-audio
 void enable_speaker_rhod(void);
 void disable_speaker_rhod(void);
 void speaker_vol_rhod(int);
+
+static int force_rhod_speaker=0;
+module_param_named(rhod_speaker, force_rhod_speaker, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 void enable_speaker(void) {
 	if(machine_is_htcblackstone()) {
 		gpio_set_value(57,1);
 	} else if(machine_is_htcrhodium()) {
 		//Needs userland fix
-		//enable_speaker_rhod();
-		disable_speaker_rhod();
+		if(force_rhod_speaker)
+			enable_speaker_rhod();
+		else
+			disable_speaker_rhod();
 	}
 }
 
@@ -54,4 +62,32 @@ void disable_speaker(void) {
 void speaker_vol(int arg) {
 	if(machine_is_htcrhodium())
 		speaker_vol_rhod(arg);
+}
+
+void headphone_amp_power(int status)
+{
+	unsigned int gpio;
+	switch (__machine_arch_type) {
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
+			gpio = 0x54;
+			break;
+		default:
+			/* We should test this on more machines */
+			return;
+	}
+
+	if (status)
+	{
+		/* Power up headphone amp */
+		gpio_configure(gpio, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+		gpio_set_value(gpio, 1);
+	}
+	else
+	{
+		/* Power down headphone amp */
+		gpio_configure(gpio, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+		gpio_set_value(gpio, 0);
+	}
 }

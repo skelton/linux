@@ -44,6 +44,9 @@
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
 
+#ifdef CONFIG_HTC_HEADSET
+#include <mach/htc_headset.h>
+#endif
 
 #include <linux/microp-keypad.h>
 #include <mach/board_htc.h>
@@ -196,6 +199,49 @@ static struct platform_device touchscreen = {
 	.id		= -1,
 };
 
+#ifdef CONFIG_HTC_HEADSET
+
+static void h2w_config_cpld(int route);
+static void h2w_init_cpld(void);
+static struct h2w_platform_data rhodium_h2w_data = {
+	.cable_in1		= RHODIUM_CABLE_IN1,
+	.cable_in2		= RHODIUM_CABLE_IN2,
+	.h2w_clk		= RHODIUM_H2W_CLK,
+	.h2w_data		= RHODIUM_H2W_DATA,
+	.debug_uart 		= H2W_UART3,
+	.config_cpld 		= h2w_config_cpld,
+	.init_cpld 		= h2w_init_cpld,
+	.headset_mic_35mm	= 17,
+};
+
+static void h2w_config_cpld(int route)
+{
+	switch (route) {
+	case H2W_UART3:
+		gpio_set_value(RHODIUM_H2W_UART_MUX, 1);
+		break;
+	case H2W_GPIO:
+		gpio_set_value(RHODIUM_H2W_UART_MUX, 0);
+		break;
+	}
+}
+
+static void h2w_init_cpld(void)
+{
+	h2w_config_cpld(H2W_UART3);
+	gpio_set_value(rhodium_h2w_data.h2w_clk, 0);
+	gpio_set_value(rhodium_h2w_data.h2w_data, 0);
+}
+
+static struct platform_device rhodium_h2w = {
+	.name		= "h2w",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &rhodium_h2w_data,
+	},
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
@@ -212,6 +258,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	//&rhodium_gps,
 	&rhod_prox,
+#ifdef CONFIG_HTC_HEADSET
+	&rhodium_h2w,
+#endif
 };
 
 extern struct sys_timer msm_timer;
@@ -227,6 +276,7 @@ static struct msm_acpu_clock_platform_data halibut_clock_data = {
 	.vdd_switch_time_us = 62,
 	.power_collapse_khz = 19200000,
 	.wait_for_irq_khz = 19200000,
+	.max_axi_khz = 160000,
 };
 
 void msm_serial_debug_init(unsigned int base, int irq, 

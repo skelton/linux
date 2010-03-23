@@ -847,7 +847,7 @@ void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 	drv_state.vdd_switch_time_us = clkdata->vdd_switch_time_us;
 	drv_state.power_collapse_khz = clkdata->power_collapse_khz;
 	drv_state.wait_for_irq_khz = clkdata->wait_for_irq_khz;
-	//drv_state.max_axi_khz = clkdata->max_axi_khz;
+	drv_state.max_axi_khz = clkdata->max_axi_khz;
 	acpu_freq_tbl_fixup();
 	precompute_stepping();
 	acpuclk_init();
