@@ -1,3 +1,6 @@
+#ifndef _MICROP_H
+#define _MICROP_H
+
 #define MICROP_LSENSOR_ADC_CHAN		6
 #define MICROP_REMOTE_KEY_ADC_CHAN	7
 
@@ -62,3 +65,5 @@
 
 /* delay for deferred light sensor read */
 #define LS_READ_DELAY   (HZ/2)
+
+#endif

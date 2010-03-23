@@ -67,18 +67,6 @@ static struct gpio_event_matrix_info rhodium_keypad_matrix_info = {
 		 GPIOKPF_PRINT_UNMAPPED_KEYS /*| GPIOKPF_PRINT_MAPPED_KEYS*/
 };
 
-static struct gpio_event_direct_entry htcrhodium_keyboard_switch_map[] = {
-	{ RHODIUM_KB_SLIDER_IRQ, SW_LID	} 
-};
-
-static struct gpio_event_input_info htcrhodium_keyboard_switch_info = {
-	.info.func = gpio_event_input_func,
-	.flags = 0,
-	.type = EV_SW,
-	.keymap = htcrhodium_keyboard_switch_map,
-	.keymap_size = ARRAY_SIZE(htcrhodium_keyboard_switch_map)
-};
-
 static struct gpio_event_info *rhodium_keypad_info[] = {
 	&rhodium_keypad_matrix_info.info,
 };

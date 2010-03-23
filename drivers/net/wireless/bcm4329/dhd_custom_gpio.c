@@ -122,7 +122,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		case WLAN_POWER_OFF:
 			WL_TRACE(("%s: call customer specific GPIO to turn off WL_REG_ON\n",
 				__FUNCTION__));
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
+#if (defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)) || defined(CUSTOMER_HW)
 			bcm_wlan_power_off(1);
 #endif /* CUSTOMER_HW */
 		break;
@@ -130,7 +130,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		case WLAN_POWER_ON:
 			WL_TRACE(("%s: call customer specific GPIO to turn on WL_REG_ON\n",
 				__FUNCTION__));
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
+#if (defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)) || defined(CUSTOMER_HW)
 			bcm_wlan_power_on(1);
 #endif /* CUSTOMER_HW */
 			/* Lets customer power to get stable */

@@ -68,7 +68,7 @@ static struct platform_device *devices[] __initdata = {
 };
 
 static void __init msm_gpio_keys_init(void) {
-	if(machine_is_htcblackstone()) {
+	if(machine_is_htcblackstone() || machine_is_htckovsky()) {
 		gpio_keys_data.buttons=blackstone_button_table;
 		gpio_keys_data.nbuttons=ARRAY_SIZE(blackstone_button_table);
 	} else if(machine_is_htcraphael() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() ||

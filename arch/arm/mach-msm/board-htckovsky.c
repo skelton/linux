@@ -42,6 +42,7 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/vreg.h>
 #include <mach/htc_battery.h>
+#include <mach/board_htc.h>
 
 #include <mach/gpio.h>
 #include <mach/io.h>
@@ -54,10 +55,7 @@
 #include "htc_hw.h"
 #include "board-htckovsky.h"
 
-static int halibut_ffa;
-module_param_named(ffa, halibut_ffa, int, S_IRUGO | S_IWUSR | S_IWGRP);
-
-extern int htcraphael_init_mmc(void);
+extern int init_mmc(void);
 
 static struct resource raphael_keypad_resources[] = {
 	{ 
@@ -71,7 +69,7 @@ static struct microp_keypad_platform_data raphael_keypad_data = {
 	.backlight_gpio = 86,
 };
 
-static struct platform_device raphael_keypad_device = {
+static struct platform_device keypad_device = {
 	.name = "microp-keypad",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(raphael_keypad_resources),
@@ -80,59 +78,20 @@ static struct platform_device raphael_keypad_device = {
 };
 
 
-static int halibut_phy_init_seq_raph100[] = {
+static int usb_phy_init_seq_raph100[] = {
 	0x40, 0x31, /* Leave this pair out for USB Host Mode */
 	0x1D, 0x0D,
 	0x1D, 0x10,
 	-1
 };
 
-static void halibut_phy_reset(void)
+static void usb_phy_reset(void)
 {
 	gpio_set_value(0x64, 0);
 	mdelay(1);
 	gpio_set_value(0x64, 1);
 	mdelay(3);
 }
-
-static char *halibut_usb_functions[] = {
-	"ether",
-//	"diag",
-//	"adb",
-};
-
-static struct msm_hsusb_product halibut_usb_products[] = {
-	/* Use product_id 0x505a always, as we moved ether to the top of the list */
-	{
-		.product_id = 0x505a,
-		.functions = 0x01,
-	},
-	{
-		.product_id = 0x505a,
-		.functions = 0x02,
-	},
-	{
-		.product_id = 0x505a,
-		.functions = 0x03,
-	},
-};
-
-// netripper
-// orig vendor_id 0x18d1
-// orig product_id 0xd00d
-static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.phy_reset      = halibut_phy_reset,
-	.phy_init_seq	= halibut_phy_init_seq_raph100,
-	.vendor_id      = 0x049F,
-	.product_id     = 0x0002, // by default (no funcs)
-	.version        = 0x0100,
-	.product_name   = "MSM USB",
-	.manufacturer_name = "HTC",
-	.functions	= halibut_usb_functions,
-	.num_functions	= ARRAY_SIZE(halibut_usb_functions),
-	.products = halibut_usb_products,
-	.num_products = ARRAY_SIZE(halibut_usb_products),
-};
 
 static struct i2c_board_info i2c_devices[] = {
 	{
@@ -149,66 +108,11 @@ static struct i2c_board_info i2c_devices[] = {
 	},
 };
 
-static struct android_pmem_platform_data android_pmem_pdata = {
-	.name = "pmem",
-	.start = MSM_PMEM_MDP_BASE,
-	.size = MSM_PMEM_MDP_SIZE,
-	.no_allocator = 1,
-	.cached = 1,
-};
-
-static struct android_pmem_platform_data android_pmem_adsp_pdata = {
-	.name = "pmem_adsp",
-	.start = MSM_PMEM_ADSP_BASE,
-	.size = MSM_PMEM_ADSP_SIZE,
-	.no_allocator = 0,
-	.cached = 0,
-};
-
-static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
-	.name = "pmem_gpu0",
-	.start = MSM_PMEM_GPU0_BASE,
-	.size = MSM_PMEM_GPU0_SIZE,
-	.no_allocator = 1,
-	.cached = 0,
-};
-
-static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
-	.name = "pmem_gpu1",
-	.start = MSM_PMEM_GPU1_BASE,
-	.size = MSM_PMEM_GPU1_SIZE,
-	.no_allocator = 1,
-	.cached = 0,
-};
-
-static struct platform_device android_pmem_device = {
-	.name = "android_pmem",
-	.id = 0,
-	.dev = { .platform_data = &android_pmem_pdata },
-};
-
-static struct platform_device android_pmem_adsp_device = {
-	.name = "android_pmem",
-	.id = 1,
-	.dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
-static struct platform_device android_pmem_gpu0_device = {
-	.name = "android_pmem",
-	.id = 2,
-	.dev = { .platform_data = &android_pmem_gpu0_pdata },
-};
-
-static struct platform_device android_pmem_gpu1_device = {
-	.name = "android_pmem",
-	.id = 3,
-	.dev = { .platform_data = &android_pmem_gpu1_pdata },
-};
-
 static smem_batt_t msm_battery_pdata = {
 	.gpio_battery_detect = RAPH100_BAT_IRQ,
-	.gpio_charger_enable = KOVS100_CHARGE_EN_N,
+	.gpio_charger_enable = RAPH100_CHARGE_EN_N,
 	.gpio_charger_current_select = RAPH100_USB_AC_PWR,
+	.gpio_ac_detect = KOVS110_AC_DETECT,
 	.smem_offset = 0xfc110,
 	.smem_field_size = 2,
 };
@@ -282,15 +186,14 @@ static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
 
+static struct platform_device touchscreen = {
+	.name		= "tssc-manager",
+	.id		= -1,
+};
 
 static struct platform_device *devices[] __initdata = {
-	&msm_device_hsusb,
-	&raphael_keypad_device,
-	&android_pmem_device,
-	&android_pmem_adsp_device,
-	&android_pmem_gpu0_device,
-	&android_pmem_gpu1_device,
-//	&raphael_rfkill,
+	&keypad_device,
+	&raphael_rfkill,
 	&msm_device_smd,
 	&msm_device_nand,
 	&msm_device_i2c,
@@ -305,6 +208,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_battery,
 	&raphael_snd,
 	&raphael_gps,
+	&touchscreen,
 };
 
 extern struct sys_timer msm_timer;
@@ -367,6 +271,7 @@ static htc_hw_pdata_t msm_htc_hw_pdata = {
 	.battery_smem_field_size = 4,
 };
 
+void fix_mddi_clk_black(void);
 static void __init halibut_init(void)
 {
 	int i;
@@ -379,14 +284,15 @@ static void __init halibut_init(void)
 	msm_hw_reset_hook = htcraphael_reset;
 
 	// Device pdata overrides
-	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	msm_device_htc_hw.dev.platform_data = &msm_htc_hw_pdata;
 	msm_device_htc_battery.dev.platform_data = &msm_battery_pdata;
+	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
 #endif
 
+	msm_init_pmic_vibrator();
 	// Register devices
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
@@ -394,7 +300,7 @@ static void __init halibut_init(void)
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 
 	// Initialize SD controllers
-	htcraphael_init_mmc();
+	init_mmc();
 
 	/* TODO: detect vbus and correctly notify USB about its presence 
 	 * For now we just declare that VBUS is present at boot and USB
@@ -417,20 +323,17 @@ static void __init halibut_map_io(void)
 	msm_clock_init();
 }
 
-static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
+static void __init htckovsky_fixup(struct machine_desc *desc, struct tag *tags,
                                     char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
 	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
-	mi->bank[0].size = (89 * 1024 * 1024); // Why 89? See board-htcraphael.h
-#if 1
-	/* TODO: detect whether a 2nd memory bank is actually present, not all devices have it */
+	mi->bank[0].size = 107*1024*1024;
 	mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
 	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
-	mi->bank[1].size = (128 * 1024 * 1024);
-#endif
+	mi->bank[1].size = (128-51)*1024*1024;
 	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
 	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
 	if (mi->nr_banks > 1)
@@ -438,7 +341,7 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 }
 
 MACHINE_START(HTCKOVSKY, "HTC Kovsky GSM phone (aka Xperia X1)")
-	.fixup 		= htcraphael_fixup,
+	.fixup 		= htckovsky_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,

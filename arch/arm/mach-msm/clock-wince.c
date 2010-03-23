@@ -153,11 +153,11 @@ static struct msm_clock_params msm_clock_parameters[] = {
 
 	// MD/NS only; offset = Ns reg
 	{ .clk_id = VFE_CLK, .offset = 0x44, .name="VFE_CLK", },
-	
+
 	// Enable bit only; bit = 1U << idx
 	{ .clk_id = MDP_CLK, .idx = 9, .name="MDP_CLK",},
- 	
-	
+
+
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
 	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
 /*#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
@@ -166,7 +166,7 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa0c, .name="PMDH_CLK"},
 //#endif
 
-	{ .clk_id = I2C_CLK, .offset = 0x64, .ns_only = 0xa00, .name="I2C_CLK"},
+	{ .clk_id = I2C_CLK, .offset = 0x68, .ns_only = 0xa00, .name="I2C_CLK"},
 //	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
 };
 
@@ -187,7 +187,10 @@ void fix_mddi_clk_black() {
 	.calc_freq = (pll_frequency*M/((PRE+1)*N)), \
 }
 
-struct mdns_clock_params msm_clock_freq_parameters[] = {
+static struct mdns_clock_params *msm_clock_freq_parameters;
+
+// GSM phones typically use a 245 MHz PLL0
+struct mdns_clock_params msm_clock_freq_parameters_pll0_245[] = {
 
 	MSM_CLOCK_REG(  144000,   3, 0x64, 0x32, 3, 3, 0, 1, 19200000), /* SD, 144kHz */
 #if 0 /* wince uses this clock setting for UART2DM */
@@ -203,7 +206,90 @@ struct mdns_clock_params msm_clock_freq_parameters[] = {
 	MSM_CLOCK_REG(32000000,   1, 0x0c, 0x06, 1, 3, 1, 1, 768000000), /* SD, 32MHz */
 	MSM_CLOCK_REG(58982400,   6, 0x19, 0x0c, 0, 2, 4, 1, 245760000), /* BT, 3686400 (*16) */
 	MSM_CLOCK_REG(64000000,0x19, 0x60, 0x30, 0, 2, 4, 1, 245760000), /* BT, 4000000 (*16) */
+	{0, 0, 0, 0, 0, 0},
 };
+
+// CDMA phones typically use a 196 MHz PLL0
+struct mdns_clock_params msm_clock_freq_parameters_pll0_196[] = {
+
+	MSM_CLOCK_REG(  144000,   3, 0x64, 0x32, 3, 3, 0, 1, 19200000), /* SD, 144kHz */
+	MSM_CLOCK_REG( 7372800,   3, 0x50, 0x28, 0, 2, 4, 1, 196608000), /*  460800*16, will be divided by 4 for 115200 */
+	MSM_CLOCK_REG(12000000,   1, 0x20, 0x10, 1, 3, 1, 1, 768000000), /* SD, 12MHz */
+	MSM_CLOCK_REG(14745600,   3, 0x28, 0x14, 0, 2, 4, 1, 196608000), /* BT, 921600 (*16)*/
+	MSM_CLOCK_REG(19200000,   1, 0x0a, 0x05, 3, 3, 1, 1, 768000000), /* SD, 19.2MHz */
+	MSM_CLOCK_REG(24000000,   1, 0x10, 0x08, 1, 3, 1, 1, 768000000), /* SD, 24MHz */
+	MSM_CLOCK_REG(32000000,   1, 0x0c, 0x06, 1, 3, 1, 1, 768000000), /* SD, 32MHz */
+	MSM_CLOCK_REG(58982400,   3, 0x0a, 0x05, 0, 2, 4, 1, 196608000), /* BT, 3686400 (*16) */
+	MSM_CLOCK_REG(64000000,0x7d, 0x180, 0xC0, 0, 2, 4, 1, 196608000), /* BT, 4000000 (*16) */
+	{0, 0, 0, 0, 0, 0},
+};
+
+// defines from MSM7500_Core.h
+
+// often used defines
+#define MSM_PRPH_WEB_NS_REG	( MSM_CLK_CTL_BASE+0x80 )
+#define MSM_GRP_NS_REG				( MSM_CLK_CTL_BASE+0x84 )
+#define MSM_AXI_RESET 					( MSM_CLK_CTL_BASE+0x208 )
+#define MSM_ROW_RESET 				( MSM_CLK_CTL_BASE+0x214 )
+#define MSM_VDD_GRP_GFS_CTL	( MSM_CLK_CTL_BASE+0x284 )
+#define MSM_VDD_VDC_GFS_CTL	( MSM_CLK_CTL_BASE+0x288 )
+#define MSM_RAIL_CLAMP_IO			( MSM_CLK_CTL_BASE+0x290 )
+
+#define REG_OR( reg, value ) do { u32 i = readl( (reg) ); writel( i | (value), (reg) ); } while(0)
+#define REG_AND( reg, value ) do {	u32 i = readl( reg ); writel( i & ~value, reg); } while(0)
+#define REG_SET( reg, value ) do { writel( value, reg ); } while(0)
+
+static void set_grp_clk( int on ) {
+	if ( on != 0 ) {
+		REG_OR( MSM_AXI_RESET, 0x20 );
+		REG_OR( MSM_ROW_RESET, 0x20000 );
+		REG_SET( MSM_VDD_GRP_GFS_CTL, 0x11f );
+		mdelay( 20 );																// very rough delay
+
+		REG_OR( MSM_GRP_NS_REG, 0x800 );
+		REG_OR( MSM_GRP_NS_REG, 0x80 );
+		REG_OR( MSM_GRP_NS_REG, 0x200 );
+
+		REG_OR( MSM_CLK_CTL_BASE, 0x8 );					// grp idx
+
+		REG_AND( MSM_RAIL_CLAMP_IO, 0x4 );
+		REG_AND( MSM_PRPH_WEB_NS_REG, 0x1 );			// Suppress bit 0 of grp MD
+		REG_AND( MSM_AXI_RESET, 0x20 );
+		REG_AND( MSM_ROW_RESET, 0x20000 );
+	} else {
+		REG_OR( MSM_GRP_NS_REG, 0x800 );
+		REG_OR( MSM_GRP_NS_REG, 0x80 );
+		REG_OR( MSM_GRP_NS_REG, 0x200 );
+
+		REG_OR(  MSM_CLK_CTL_BASE, 0x8 );					// grp idx
+
+		REG_OR( MSM_PRPH_WEB_NS_REG, 0x1 );			// grp MD
+
+		int i = 0;
+		int status = 0;
+		while ( status == 0 && i < 100) {
+			i++;
+			status = readl( MSM_GRP_NS_REG ) & 0x1;
+		}
+
+		REG_OR( MSM_AXI_RESET, 0x20 );
+		REG_OR( MSM_ROW_RESET, 0x20000 );
+
+		REG_AND( MSM_GRP_NS_REG, 0x800 );
+		REG_AND( MSM_GRP_NS_REG, 0x80 );
+		REG_AND( MSM_GRP_NS_REG, 0x200 );
+
+		REG_OR( MSM_RAIL_CLAMP_IO, 0x4 );					// grp clk ramp
+
+		REG_SET( MSM_VDD_GRP_GFS_CTL, 0x11f );
+
+		int control = readl( MSM_VDD_VDC_GFS_CTL );
+
+		if ( control & 0x100 ) {
+			REG_AND( MSM_CLK_CTL_BASE, 0x8 );				// grp idx
+		}
+	}
+}
 
 static inline struct msm_clock_params msm_clk_get_params(uint32_t id)
 {
@@ -242,12 +328,12 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 	uint32_t nsreg;
 	found = 0;
 	retval = -EINVAL;
-	
+
 	params = msm_clk_get_params(id);
 	offset = params.offset;
 
 	if(debug_mask&DEBUG_MDNS)
-		D("set mdns: %u, %lu; bitidx=%u, offset=%x, ns=%x\n", id, freq, 
+		D("set mdns: %u, %lu; bitidx=%u, offset=%x, ns=%x\n", id, freq,
 	  params.idx, params.offset, params.ns_only);
 
 	if (!params.offset)
@@ -269,14 +355,19 @@ static int set_mdns_host_clock(uint32_t id, unsigned long freq)
 		retval = 0;
 
 	} else {
-		for (n = ARRAY_SIZE(msm_clock_freq_parameters)-1; n >= 0; n--) {
+		n = 0;
+		while (msm_clock_freq_parameters[n].freq) {
+			n++;
+		}
+
+		for (n--; n >= 0; n--) {
 			if (freq >= msm_clock_freq_parameters[n].freq) {
 				// This clock requires MD and NS regs to set frequency:
 				writel(msm_clock_freq_parameters[n].md, MSM_CLK_CTL_BASE + offset - 4);
 				writel(msm_clock_freq_parameters[n].ns, MSM_CLK_CTL_BASE + offset);
 //				msleep(5);
 				if(debug_mask&DEBUG_MDNS)
-					D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id, 
+					D("%s: %u, freq=%lu calc_freq=%u pll%d=%u expected pll =%u\n", __func__, id,
 				  msm_clock_freq_parameters[n].freq,
 				  msm_clock_freq_parameters[n].calc_freq,
 				  msm_clock_freq_parameters[n].ns&7,
@@ -317,12 +408,14 @@ static unsigned long get_mdns_host_clock(uint32_t id)
 	mdreg = readl(MSM_CLK_CTL_BASE + offset - 4);
 	nsreg = readl(MSM_CLK_CTL_BASE + offset);
 
-	for (n = 0; n < ARRAY_SIZE(msm_clock_freq_parameters); n++) {
+	n = 0;
+	while (msm_clock_freq_parameters[n].freq) {
 		if (msm_clock_freq_parameters[n].md == mdreg &&
 			msm_clock_freq_parameters[n].ns == nsreg) {
 			freq = msm_clock_freq_parameters[n].freq;
 			break;
 		}
+		n++;
 	}
 
 	return freq;
@@ -912,6 +1005,13 @@ static int pc_clk_enable(uint32_t id)
 		return 0;
 	}
 
+	if ( id == IMEM_CLK || id == GRP_CLK )
+	{
+		set_grp_clk( 1 );
+		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
+		return 0;
+	}
+
 	if (params.idx)
 	{
 		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
@@ -934,6 +1034,13 @@ static void pc_clk_disable(uint32_t id)
 	params = msm_clk_get_params(id);
 
 	//XXX: D(KERN_DEBUG "%s: %d\n", __func__, id);
+
+	if ( id == IMEM_CLK || id == GRP_CLK )
+	{
+		set_grp_clk( 0 );
+		writel( readl( MSM_CLK_CTL_BASE ) & ~( 1U << params.idx ), MSM_CLK_CTL_BASE );
+		return 0;
+	}
 
 	if (params.idx)
 	{
@@ -1166,6 +1273,15 @@ void __init msm_clock_init(void)
 	for (clk = msm_clocks; clk && clk->name; clk++) {
 		list_add_tail(&clk->list, &clocks);
 	}
+
+	if (pll_get_rate(0) == 196608000) {
+		// cdma pll0 = 196 MHz
+		msm_clock_freq_parameters = msm_clock_freq_parameters_pll0_196;
+	} else {
+		// default gsm pll0 = 245 MHz
+		msm_clock_freq_parameters = msm_clock_freq_parameters_pll0_245;
+	}
+
 	mutex_unlock(&clocks_mutex);
 }
 
@@ -1181,6 +1297,12 @@ static int __init clock_late_init(void)
 	int i;
 	int val;
 
+	// reset imem config, I guess all devices need this so somewhere here would be good.
+	// it needs to be moved to somewhere else.
+	// note: this needs to be done before all clocks get disabled.
+	writel( 0, MSM_IMEM_BASE );
+	pr_info("reset imem_config\n");
+
 	mutex_lock(&clocks_mutex);
 	list_for_each_entry(clk, &clocks, list) {
 		if (clk->flags & CLKFLAG_AUTO_OFF) {
@@ -1195,6 +1317,7 @@ static int __init clock_late_init(void)
 		
 	mutex_unlock(&clocks_mutex);
 	pr_info("clock_late_init() disabled %d unused clocks\n", count);
+
 	return 0;
 }
 

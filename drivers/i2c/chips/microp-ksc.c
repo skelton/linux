@@ -1,6 +1,6 @@
 /*
     microp-ksc.c - i2c chip driver for microp-key
-    
+
     Joe Hansche <madcoder@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
@@ -27,6 +27,8 @@ static int micropksc_probe(struct i2c_client *, const struct i2c_device_id *id);
 static int __devexit micropksc_remove(struct i2c_client *);
 
 #define MODULE_NAME "microp-ksc"
+
+#define I2C_READ_RETRY_TIMES 10
 
 #if 0
  #define D(fmt, arg...) printk(KERN_DEBUG "[KSC] %s: " fmt "\n", __FUNCTION__, ## arg);
@@ -124,14 +126,14 @@ EXPORT_SYMBOL(micropksc_read_scancode_kovsky);
 int micropksc_set_led(unsigned int led, int on)
 {
 	struct microp_ksc *data;
-	
+
 	if (!micropksc_t)
 		return -EAGAIN;
 	if (led >= MICROP_KSC_LED_MAX)
 		return -EINVAL;
-	
+
 	data = micropksc_t;
-	
+
 	mutex_lock(&data->lock);
 
 	if (led == MICROP_KSC_LED_RESET)
@@ -144,7 +146,7 @@ int micropksc_set_led(unsigned int led, int on)
 	schedule_work(&data->work);
 
 	mutex_unlock(&data->lock);
-	
+
 	return 0;
 }
 EXPORT_SYMBOL(micropksc_set_led);
@@ -164,7 +166,7 @@ static void micropksc_led_work_func(struct work_struct *work)
 }
 
 /**
- * The i2c buffer holds all the keys that are pressed, 
+ * The i2c buffer holds all the keys that are pressed,
  * even when microp-ksc isn't listening. It's safe to assume
  * we don't care about those bytes, so we need to flush
  * the i2c buffer by reading scancodes until it's empty.
@@ -209,7 +211,7 @@ static int micropksc_remove(struct i2c_client *client)
 	data = i2c_get_clientdata(client);
 
 	cancel_work_sync(&data->work);
-	
+
 	kfree(data);
 	return 0;
 }
@@ -272,27 +274,33 @@ static int micropksc_write(struct i2c_client *client, const char *sendbuf, int l
 
 static int micropksc_read(struct i2c_client *client, unsigned id, char *buf, int len)
 {
-	int r;
-	char outbuffer[2] = { 0, 0 };
-
-	outbuffer[0] = id;
-
-	// Have to separate the "ask" and "read" chunks
-	r = i2c_master_send(client, outbuffer, 1);
-	if (r < 0) {
-		printk(KERN_WARNING "micropksc_read: error while asking for "
-			"data address %02x,%02x: %d\n", client->addr, id, r);
-		return r;
+	int retry;
+	int ret;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &id,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = buf,
+		}
+	};
+	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
+		ret = i2c_transfer(client->adapter, msgs, 2);
+		if (ret == 2) {
+			return 0;
+		}
+		msleep(10);
+		printk("read retry\n");
 	}
-	mdelay(1);
-	r = i2c_master_recv(client, buf, len);
-	if (r < 0) {
-		printk(KERN_ERR "micropksc_read: error while reading data at "
-		       "address %02x,%02x: %d\n", client->addr, id, r);
-		return r;
-	}
-	D("  <<< 0x%02x, 0x%02x -> %02x %02x", client->addr, id, buf[0], buf[1]);
-	return 0;
+	dev_err(&client->dev, "i2c_read_block retry over %d\n",
+			I2C_READ_RETRY_TIMES);
+	return -EIO;
 }
 
 #if CONFIG_PM

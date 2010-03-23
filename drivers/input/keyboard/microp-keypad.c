@@ -43,7 +43,7 @@ static int microp_keymap_rhodium[] = {
      	KEY_BACK, //Back key
         KEY_Q,
      	KEY_HOME, //Mute button on back of device
-        KEY_E,
+        KEY_CAMERA,
         KEY_A,
         KEY_F,
         KEY_S,
@@ -87,7 +87,7 @@ static int microp_keymap_rhodium[] = {
         KEY_3,
         KEY_4,
         KEY_5,
-    			KEY_UP, 	//KEY_LEFT,	//ARROW KEY
+    			KEY_LEFT, 	//KEY_LEFT,	//ARROW KEY
         KEY_6,
         			KEY_2,			//KEY_RESERVED, // 0x32 //Unknown
    	KEY_SPACE,
@@ -273,7 +273,7 @@ static int microp_keymap_htckovsky[] = {
 	KEY_ENTER,
 	KEY_LEFT,
 	KEY_F1, // NAVI_SILVER_LEFT; Menu-Key for Android
-	KEY_RESERVED, // NAVI_GREEN
+	KEY_SEND, // NAVI_GREEN
 	KEY_A,
 	KEY_F,
 	KEY_S,
@@ -290,7 +290,7 @@ static int microp_keymap_htckovsky[] = {
 	KEY_G,
 	KEY_RESERVED,
 	KEY_RESERVED,
-	KEY_RESERVED, // NAVI_RED
+	KEY_END, // NAVI_RED
 	KEY_BACK, // NAVI_OK; Back-Key for Android
 	KEY_UP,
 	KEY_RESERVED,

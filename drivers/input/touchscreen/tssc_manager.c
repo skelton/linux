@@ -124,7 +124,7 @@ struct tssc_manager_data {
 
 
 //----------------------------------------------
-//#define ENABLE_TSSC_AVERAGE
+#define ENABLE_TSSC_AVERAGE
 
 #define TOUCH_POLLING_NSEC 8400000//9000000//
 #define TOUCH_QUEUE_NUMBER 2//3
@@ -332,6 +332,16 @@ static int tssc_manager_polling_func(struct tssc_manager_data *ts)
 			ts->y = 0;
 			ts->z1 = 0;
 			ts->z2 = 0;
+
+			/* When data is not available, we need to differentiate
+			 * whether this is a queue finish event, or a missing
+			 * data glitch. Otherwise, false "double taps" get reported.
+			 * -bzo
+			 */
+			if ((tssc_reg->tssc_status.penirq_status != 1) || (tssc_reg->tssc_status.busy != 0)) {
+				tssc_reg->tssc_ctl.intr_flag1 = 0;
+				return 0;
+			}
 		}
 	}
 

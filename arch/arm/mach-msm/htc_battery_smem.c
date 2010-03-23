@@ -28,13 +28,16 @@
 #include <asm/gpio.h>
 #include <mach/board.h>
 #include <asm/mach-types.h>
+#include <linux/io.h>
 
 #include "proc_comm_wince.h"
 
 #include <mach/msm_iomap.h>
 #include <mach/htc_battery.h>
+#include <mach/htc_battery_smem.h>
 
 static struct wake_lock vbus_wake_lock;
+static struct work_struct bat_work;
 
 #define TRACE_BATT 1
 
@@ -96,6 +99,96 @@ static unsigned int cache_time = 1000;
 
 static int htc_battery_initial = 0;
 
+/* ADC linear correction numbers.
+ */
+static u32 htc_adc_a = 0;					// Account for Divide Resistors
+static u32 htc_adc_b = 0;
+static u32 htc_adc_range = 0x1000;	// 12 bit adc range correction.
+static u32 batt_vendor = 0;
+
+// todo: use readl
+#define GET_BATT_ID 				*(int *)( MSM_SHARED_RAM_BASE + 0xFC0DC )
+#define GET_ADC_VREF 			*(int *)( MSM_SHARED_RAM_BASE + 0xFC0E0 )
+#define GET_ADC_0_5_VREF 	*(int *)( MSM_SHARED_RAM_BASE + 0xFC0E4 )
+
+static int get_battery_id_detection( struct battery_info_reply *buffer );
+static int htc_get_batt_info( struct battery_info_reply *buffer );
+
+static int init_battery_settings( struct battery_info_reply *buffer ) {
+	u32 batt_vref = 0;
+	u32 batt_vref_half = 0;
+
+	if ( buffer == NULL )
+		return -EINVAL;
+
+	if ( htc_get_batt_info( buffer ) < 0 )
+		return -EINVAL;
+
+	mutex_lock( &htc_batt_info.lock );
+
+	batt_vref = GET_ADC_VREF;
+	batt_vref_half = GET_ADC_0_5_VREF;
+
+	printk( "init_battery_settings, VREF=%d, 0.5 VREF=%d\n", batt_vref, batt_vref_half );
+
+	if ( batt_vref - batt_vref_half >= 500 ) {
+		// set global correction var
+		htc_adc_a = 625000 / ( batt_vref - batt_vref_half );
+		htc_adc_b = 1250000 - ( batt_vref * htc_adc_a );
+	}
+
+	printk( "init_battery_settings, ADC_A=%d, ADC_B=%d\n", htc_adc_a, htc_adc_b );
+
+	// calculate the current adc range correction.
+	htc_adc_range = ( batt_vref * 0x1000 ) / 1250;
+
+	if ( get_battery_id_detection( buffer ) < 0 ) {
+		mutex_unlock(&htc_batt_info.lock);
+		return -EINVAL;
+	}
+
+	mutex_unlock(&htc_batt_info.lock);
+
+	return 0;
+}
+
+static int get_battery_id_detection( struct battery_info_reply *buffer ) {
+	// dono incorparate these in the battery info.
+	u32 batt_id;
+	u32 batt_capacity;
+	struct msm_dex_command dex;
+
+	dex.cmd = PCOM_GET_BATTERY_ID;
+	msm_proc_comm_wince( &dex, 0 );
+
+	batt_id = GET_BATT_ID;
+	batt_id = ( batt_id * 0xA28 ) / htc_adc_range;					// apply the adc range correction.
+	//batt_id = ( ( htc_adc_a * batt_id ) + htc_adc_b )  / 1000;
+	//buffer->batt_id = batt_id;
+
+	printk( "get_battery_id_detection, HTC_SMEM_BATTERY_ID = %d\n", GET_BATT_ID );
+	printk( "get_battery_id_detection, batt_id_kohm = %d\n", batt_id );
+
+	if ( batt_id > 800 ) {
+		batt_vendor = 0xFF;
+		buffer->full_bat = 100; // hack
+	}
+
+	// battery capacity part is a hack..
+	if ( batt_id < 280 ) {
+		batt_vendor = 1;
+		batt_capacity = 1800;
+		buffer->full_bat = 1800000;
+	} else {
+		batt_vendor = 2;
+		batt_capacity = 1340;
+		buffer->full_bat = 1340000;
+	}
+
+	printk( "get_battery_id_detection, vendor = %d, capacity: %d\n", batt_vendor,  batt_capacity);
+	return 0;
+}
+
 static enum power_supply_property htc_battery_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -117,11 +210,11 @@ static ssize_t htc_battery_show_property(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf);
 
-static int htc_power_get_property(struct power_supply *psy, 
+static int htc_power_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val);
 
-static int htc_battery_get_property(struct power_supply *psy, 
+static int htc_battery_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val);
 
@@ -203,15 +296,18 @@ static int init_batt_gpio(void)
 		goto gpio_failed;
 	if (gpio_request(htc_batt_info.resources->gpio_charger_current_select, "charge_current") < 0)
 		goto gpio_failed;
+	if (machine_is_htckovsky())
+		if (gpio_request(htc_batt_info.resources->gpio_ac_detect, "ac_detect") < 0)
+			goto gpio_failed;
 
 	return 0;
 
-gpio_failed:	
+gpio_failed:
 	return -EINVAL;
-	
+
 }
 
-/* 
+/*
  *	battery_charging_ctrl - battery charing control.
  * 	@ctl:			battery control command
  *
@@ -244,17 +340,17 @@ static int battery_charging_ctrl(batt_ctl_t ctl)
 		result = -EINVAL;
 		break;
 	}
-	
+
 	return result;
 }
 
 int htc_battery_set_charging(batt_ctl_t ctl)
 {
 	int rc;
-	
+
 	if ((rc = battery_charging_ctrl(ctl)) < 0)
 		goto result;
-	
+
 	if (!htc_battery_initial) {
 		htc_batt_info.rep.charging_enabled = ctl & 0x3;
 	} else {
@@ -262,7 +358,7 @@ int htc_battery_set_charging(batt_ctl_t ctl)
 		htc_batt_info.rep.charging_enabled = ctl & 0x3;
 		mutex_unlock(&htc_batt_info.lock);
 	}
-result:	
+result:
 	return rc;
 }
 
@@ -344,7 +440,25 @@ int htc_cable_status_update(int status)
 	return rc;
 }
 
-static int battery_table_4[] = {
+static void htc_bat_work(struct work_struct *work) {
+	int rc = 0;
+	int ac_detect = 1;
+
+	if (htc_batt_info.resources->gpio_ac_detect == 0)
+		return;
+
+	ac_detect = gpio_get_value(htc_batt_info.resources->gpio_ac_detect);
+	BATT("ac_detect=%d\n", ac_detect);
+	if (ac_detect == 0) {
+		rc = battery_charging_ctrl(ENABLE_SLOW_CHG);
+		BATT("charging enable rc=%d\n", rc);
+	} else {
+		rc = battery_charging_ctrl(DISABLE);
+		BATT("charging disable rc=%d\n", rc);
+	}
+}
+
+static short battery_table_4[] = {
 	0,      0,
 	0xe11,	0,
 	0xe1e,	5,
@@ -362,7 +476,7 @@ static int battery_table_4[] = {
 	0,	0
 };
 
-static int battery_table_2[] = {
+static short battery_table_2[] = {
 	0,      0,
 	0xb10,  0,
 	0xb50,  30,
@@ -372,19 +486,38 @@ static int battery_table_2[] = {
 	0,	0
 };
 
+/* 2 byte alligned */
+struct htc_batt_info_u16 {
+	volatile u16 batt_id;
+	volatile u16 batt_temp;
+	volatile u16 batt_vol;
+	volatile s16 batt_charge;
+	volatile u16 batt_discharge;
+};
+
+/* 4 byte alligned */
+struct htc_batt_info_u32 {
+	volatile u32 batt_id;
+	volatile u32 batt_temp;
+	volatile u32 batt_vol;
+	volatile s32 batt_charge;
+	volatile u32 batt_discharge;
+};
+
 static int htc_get_batt_info(struct battery_info_reply *buffer)
 {
 	int i, capacity, v;
-	int *battery_table;
+	short *battery_table;
 
-	volatile unsigned int *values_32 = NULL;
-	volatile unsigned short *values_16 = NULL;
+	volatile struct htc_batt_info_u32 *batt_32 = NULL;
+	volatile struct htc_batt_info_u16 *batt_16 = NULL;
 	struct msm_dex_command dex;
 
-	if (buffer == NULL) 
+	if ( buffer == NULL )
 		return -EINVAL;
-	if (!htc_batt_info.resources || !htc_batt_info.resources->smem_offset) {
-		printk(KERN_ERR MODULE_NAME ": smem_offset not set\n");
+
+	if ( !htc_batt_info.resources || !htc_batt_info.resources->smem_offset ) {
+		printk( KERN_ERR MODULE_NAME ": smem_offset not set\n" );
 		return -EINVAL;
 	}
 
@@ -394,22 +527,62 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	mutex_lock(&htc_batt_info.lock);
 
 	if (htc_batt_info.resources->smem_field_size == 4) {
-		values_32 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
+		batt_32 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
 		// FIXME: Adding factors to make these numbers come out sane, but they're not being calculated correctly.
-		v = (values_32[2] * 9 / 7) + (values_32[4] / 7) - (values_32[3] / 28);
+		v = (batt_32->batt_vol * 9 / 7) + (batt_32->batt_discharge / 7) - (batt_32->batt_charge / 28);
 		battery_table = battery_table_4;
-		buffer->batt_id = values_32[0];
-		buffer->batt_temp = values_32[1] / 10;
-		buffer->batt_vol = values_32[2] * 9 / 7;
-		buffer->batt_current = values_32[3];
+		buffer->batt_id = batt_32->batt_id;
+		buffer->batt_temp = batt_32->batt_temp / 12;
+		buffer->batt_vol = batt_32->batt_vol * 9 / 7;
+		buffer->batt_current = batt_32->batt_charge;
 	} else if (htc_batt_info.resources->smem_field_size == 2) {
-		values_16 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
-		v = values_16[2] - (values_16[3] / 36);
+		batt_16 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
+
+		// don't add the batt_charge here as it still needs to be corrected.
+		v = batt_16->batt_vol;// - ( batt_16->batt_charge / 36 );
 		battery_table = battery_table_2;
-		buffer->batt_id = values_16[4];
-		buffer->batt_temp = values_16[1] / -6 + 750;
-		buffer->batt_vol = values_16[2];
-		buffer->batt_current = values_16[3];
+		buffer->batt_id = batt_16->batt_id;
+
+		/* initial corrected voltage reporting
+		 * These value's are read with a 12 bit adc.
+		 * The best thing todo is to make sure that the work area in the measurement
+		 * are evenly divided over the adc. This means that after we have read the value
+		 * we need todo some corrections to the measured value before we get usuable
+		 * readings.
+		 * note: this is WIP so don't trust it.
+		 * note: the linear correction value can be different on every model.
+		 * todo: add ADC_REF and ADC_REF 1/2 corrections.
+		 */
+		buffer->batt_vol = batt_16->batt_vol;
+		buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / htc_adc_range; 								// apply a linear correction.
+		buffer->batt_vol = ( ( htc_adc_a * buffer->batt_vol ) + htc_adc_b ) / 1000;
+
+		/* Despite its very plauseble that the next piece if code is correct, there is no way
+		 * to be sure of it. Android doesn't support "current" info in its battery reports. So
+		 * there is no way to be sure.
+		 */
+		buffer->batt_current = batt_16->batt_charge;
+		buffer->batt_current = ( buffer->batt_current * 2600 ) / htc_adc_range;					// apply a linear correction.
+		buffer->batt_current = ( ( htc_adc_a * buffer->batt_current ) + htc_adc_b )  / 1000;
+
+		// temperature adc correction
+		buffer->batt_temp = ( batt_16->batt_temp * 2600 ) / htc_adc_range;
+		buffer->batt_temp = ( ( htc_adc_a * buffer->batt_temp ) + htc_adc_b ) / 1000;
+
+		// ( RAPH tested )
+		int temp = ( buffer->batt_temp * 18 ) / ( 2600 - buffer->batt_temp );
+
+		// everything below 8 is HOT
+		if ( temp < 8 )
+			temp = 8;
+
+		// max size of the table, everything higher than 1347 would
+		// cause the battery to freeze in a instance.
+		if ( temp > 1347 )
+			temp = 1347;
+
+		buffer->batt_temp = temp_table[ temp - 8 ];
+
 	} else {
 		printk(KERN_WARNING MODULE_NAME ": unsupported smem_field_size\n");
 		mutex_unlock(&htc_batt_info.lock);
@@ -424,7 +597,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	 msm_proc_comm_wince(&dex, &dex_test);
 	 printk("dex_batt: 0x%x = 0x%x\n",i,dex_test);
 	}
-	 printk("dex_batt: 0x%x = 0x%x 0x%x 0x%x 0x%x\n",PCOM_GET_BATTERY_DATA, 
+	 printk("dex_batt: 0x%x = 0x%x 0x%x 0x%x 0x%x\n",PCOM_GET_BATTERY_DATA,
 	  buffer->batt_id,  buffer->batt_temp, buffer->batt_vol, buffer->batt_current);
 #endif
 
@@ -437,19 +610,39 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		}
 	}
 	// since this is not very accurate, stop the phone from thinking it has 0 capacity.
-	if(capacity<5)
-		capacity=5;
+
+	if( capacity <5 )
+		capacity = 5;
+
 	buffer->level = capacity;
-	
+
 	if(debug_mask&DEBUG_BATT) {
 		if (htc_batt_info.resources->smem_field_size == 4) {
-			BATT("%p: %08x %08x %08x %08x %08x  v=%4d c=%3d\n", values_32,
-				values_32[0], values_32[1], values_32[2], values_32[3], values_32[4],
-				v, capacity);
+			printk("Raw batt Info:\n"
+				"batt_id: %d\n"
+				"batt_temp: %d\n"
+				"batt_vol: %d\n"
+				"batt_charge: %d\n"
+				"batt_discharge: %d\n",
+				batt_32->batt_id,
+				batt_32->batt_temp,
+				batt_32->batt_vol,
+				batt_32->batt_charge,
+				batt_32->batt_discharge
+				);
 		} else {
-			BATT("%p: %04x %04x %04x %04x %04x  v=%4d c=%3d\n", values_16,
-				values_16[0], values_16[1], values_16[2], values_16[3], values_16[4],
-				v, capacity);
+			printk("Raw batt Info:\n"
+				"batt_id: %d\n"
+				"batt_temp: %d\n"
+				"batt_vol: %d\n"
+				"batt_charge: %d\n"
+				"batt_discharge: %d\n",
+				batt_16->batt_id,
+				batt_16->batt_temp,
+				batt_16->batt_vol,
+				batt_16->batt_charge,
+				batt_16->batt_discharge
+				);
 		}
 	}
 
@@ -464,12 +657,11 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		buffer->charging_enabled = 0;
 		buffer->charging_source = CHARGER_BATTERY;
 	}
-	buffer->full_bat = 100;
 
-	if(!machine_is_htckovsky() && htc_batt_info.resources->smem_field_size==2) { 
+	if(!machine_is_htckovsky() && htc_batt_info.resources->smem_field_size==2) {
 		// these were taken out in a kovsky commit, so assume it doesn't need them.
-		buffer->charging_enabled = (values_16[3] > 0x700);
-		buffer->charging_source =  (values_16[3] < 0x200) ? CHARGER_BATTERY : CHARGER_USB;
+		buffer->charging_enabled = ( batt_16->batt_charge > 0x700 );
+		buffer->charging_source =  ( batt_16->batt_charge < 0x200 ) ? CHARGER_BATTERY : CHARGER_USB;
 	}
 
 	mutex_unlock(&htc_batt_info.lock);
@@ -480,12 +672,12 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 }
 
 /* -------------------------------------------------------------------------- */
-static int htc_power_get_property(struct power_supply *psy, 
+static int htc_power_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val)
 {
 	charger_type_t charger;
-	
+
 	mutex_lock(&htc_batt_info.lock);
 	charger = htc_batt_info.rep.charging_source;
 	mutex_unlock(&htc_batt_info.lock);
@@ -502,19 +694,19 @@ static int htc_power_get_property(struct power_supply *psy,
 	default:
 		return -EINVAL;
 	}
-	
+
 	return 0;
 }
 
 static int htc_battery_get_charging_status(void)
 {
 	u32 level;
-	charger_type_t charger;	
+	charger_type_t charger;
 	int ret;
-	
+
 	mutex_lock(&htc_batt_info.lock);
 	charger = htc_batt_info.rep.charging_source;
-	
+
 	switch (charger) {
 	case CHARGER_BATTERY:
 		ret = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -534,7 +726,7 @@ static int htc_battery_get_charging_status(void)
 	return ret;
 }
 
-static int htc_battery_get_property(struct power_supply *psy, 
+static int htc_battery_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val)
 {
@@ -556,11 +748,23 @@ static int htc_battery_get_property(struct power_supply *psy,
 		val->intval = htc_batt_info.rep.level;
 		mutex_unlock(&htc_batt_info.lock);
 		break;
-	default:		
+	default:
 		return -EINVAL;
 	}
-	
+
 	return 0;
+}
+
+void htc_battery_external_power_changed(struct power_supply *psy) {
+	BATT("external power changed\n");
+	schedule_work(&bat_work);
+	return;
+}
+
+static irqreturn_t htc_bat_gpio_isr(int irq, void *data) {
+	BATT("IRQ %d for GPIO \n", irq);
+	schedule_work(&bat_work);
+	return IRQ_HANDLED;
 }
 
 #define HTC_BATTERY_ATTR(_name)							\
@@ -593,7 +797,7 @@ enum {
 static int htc_battery_create_attrs(struct device *dev)
 {
 	int i, rc;
-	
+
 	for (i = 0; i < ARRAY_SIZE(htc_battery_attrs); i++) {
 		rc = device_create_file(dev, &htc_battery_attrs[i]);
 		if (rc)
@@ -601,11 +805,11 @@ static int htc_battery_create_attrs(struct device *dev)
 	}
 
 	goto succeed;
-	
+
 htc_attrs_failed:
 	while (i--)
 		device_remove_file(dev, &htc_battery_attrs[i]);
-succeed:	
+succeed:
 	return rc;
 }
 
@@ -615,13 +819,13 @@ static ssize_t htc_battery_show_property(struct device *dev,
 {
 	int i = 0;
 	const ptrdiff_t off = attr - htc_battery_attrs;
-	
+
 	/* check cache time to decide if we need to update */
 	if (htc_batt_info.update_time &&
             time_before(jiffies, htc_batt_info.update_time +
                                 msecs_to_jiffies(cache_time)))
                 goto dont_need_update;
-	
+
 	if (htc_get_batt_info(&htc_batt_info.rep) < 0) {
 		printk(KERN_ERR "%s: get_batt_info failed!!!\n", __FUNCTION__);
 	} else {
@@ -654,16 +858,16 @@ dont_need_update:
 	case CHARGING_ENABLED:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			       htc_batt_info.rep.charging_enabled);
-		break;		
+		break;
 	case FULL_BAT:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			       htc_batt_info.rep.full_bat);
 		break;
 	default:
 		i = -EINVAL;
-	}	
+	}
 	mutex_unlock(&htc_batt_info.lock);
-	
+
 	return i;
 }
 
@@ -682,6 +886,7 @@ static int htc_battery_probe(struct platform_device *pdev)
 {
 	int i, rc;
 
+	INIT_WORK(&bat_work, htc_bat_work);
 	htc_batt_info.resources = (smem_batt_t *)pdev->dev.platform_data;
 
 	if (!htc_batt_info.resources) {
@@ -698,25 +903,37 @@ static int htc_battery_probe(struct platform_device *pdev)
 	/* init structure data member */
 	htc_batt_info.update_time 	= jiffies;
 	htc_batt_info.present 		= gpio_get_value(htc_batt_info.resources->gpio_battery_detect);
-	
+
 	/* init power supplier framework */
 	for (i = 0; i < ARRAY_SIZE(htc_power_supplies); i++) {
 		rc = power_supply_register(&pdev->dev, &htc_power_supplies[i]);
 		if (rc)
-			printk(KERN_ERR "Failed to register power supply (%d)\n", rc);	
+			printk(KERN_ERR "Failed to register power supply (%d)\n", rc);
 	}
 
 	/* create htc detail attributes */
 	htc_battery_create_attrs(htc_power_supplies[CHARGER_BATTERY].dev);
 
-	htc_battery_initial = 1;
+	//if ( htc_get_batt_info(&htc_batt_info.rep) < 0 )
+		//printk(KERN_ERR "%s: get info failed\n", __FUNCTION__);
 
-	if (htc_get_batt_info(&htc_batt_info.rep) < 0)
-		printk(KERN_ERR "%s: get info failed\n", __FUNCTION__);
+	/* init static battery settings */
+	if ( init_battery_settings( &htc_batt_info.rep ) < 0)
+		printk(KERN_ERR "%s: init battery settings failed\n", __FUNCTION__);
+
+	htc_battery_initial = 1;
 
 	htc_batt_info.update_time = jiffies;
 	kernel_thread(htc_battery_thread, NULL, CLONE_KERNEL);
-	
+	if (machine_is_htckovsky()) {
+		rc = request_irq(gpio_to_irq(htc_batt_info.resources->gpio_ac_detect),
+				htc_bat_gpio_isr,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				"htc_ac_detect", &htc_batt_info);
+        if (rc)
+            printk(KERN_ERR "IRQ-request rc=%d\n", rc);
+    }
+
 	return 0;
 }
 
@@ -733,7 +950,8 @@ static int __init htc_battery_init(void)
 	wake_lock_init(&vbus_wake_lock, WAKE_LOCK_SUSPEND, "vbus_present");
 	mutex_init(&htc_batt_info.lock);
 	platform_driver_register(&htc_battery_driver);
-	printk(KERN_INFO "HTC Battery Driver initialized\n");
+	printk( KERN_INFO "HTC Battery Driver initialized\n" );
+
 	return 0;
 }
 

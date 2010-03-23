@@ -172,7 +172,7 @@ static struct work_struct probe_work;
 static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type);
 
 
-#if defined(CONFIG_MSM_SMD_7500)
+#if defined(CONFIG_MSM_SMD_6150)
 extern void do_smd_7500_probe(unsigned char *, struct list_head *);
 #else
 static inline void do_smd_7500_probe(unsigned char * a, struct list_head * b) {}

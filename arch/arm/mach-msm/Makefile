@@ -20,7 +20,7 @@ obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o
 obj-$(CONFIG_MSM_SMD) += smd.o smd_tty.o
 # smd_qmi.o
 
-obj-$(CONFIG_MSM_SMD_7500) += smd_7500.o
+obj-$(CONFIG_MSM_SMD_6150) += smd_6150.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_device.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_servers.o
@@ -40,9 +40,11 @@ obj-$(CONFIG_MACH_HTCDIAMOND_CDMA) += board-htcdiamond.o board-htcraphael-navi.o
 obj-$(CONFIG_MACH_HTCBLACKSTONE) += board-htcblackstone.o board-htcblackstone-panel.o htc_wifi_nvs.o mmc.o  pmem.o
 obj-$(CONFIG_MACH_HTCBLACKSTONE) += msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
 
-obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htcblackstone-panel.o htc_wifi_nvs.o board-htckovsky-mmc.o
+obj-$(CONFIG_MACH_HTCKOVSKY) += board-htckovsky.o board-htcblackstone-panel.o htc_wifi_nvs.o mmc.o pmem.o
+obj-$(CONFIG_MACH_HTCKOVSKY) += msm_vibrator.o msm-gpio-keys.o htc_acoustic.o
 obj-$(CONFIG_MACH_HTCTOPAZ) += board-htctopaz.o board-htctopaz-panel.o board-htctopaz-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o msm-gpio-keys.o htc_acoustic.o board-htcraphael-gps.o
-obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium.o board-htctopaz-panel.o board-htcrhodium-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o htc_acoustic.o gps-rfkill.o msm-gpio-keys.o
+obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium.o board-htctopaz-panel.o board-htcrhodium-keypad.o htc_wifi_nvs.o mmc.o pmem.o msm_vibrator.o htc_acoustic.o gps-rfkill.o msm-gpio-keys.o board-htcrhodium-audio.o
+obj-$(CONFIG_MACH_HTCRHODIUM) += board-htcrhodium-proximity.o
 
 
 obj-$(CONFIG_MACH_HALIBUT) += board-halibut.o board-halibut-keypad.o
@@ -59,7 +61,7 @@ obj-$(CONFIG_MACH_SAPPHIRE) += devices_htc.o
 
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 
-obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
+obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o pwrsink.o
 obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
 obj-$(CONFIG_MSM_SMEM_BATTCHG) += htc_battery_smem.o
 obj-$(CONFIG_RFKILL) += board-htcraphael-rfkill.o

@@ -223,10 +223,10 @@ static int __init msm_pmem_init() {
 		case MACH_TYPE_HTCDIAMOND:
 			//SMI 64 + EBI 128
 			pmem_setting.pmem_start=MSM_SMI2_BASE;
-			pmem_setting.pmem_size=16*1024*1024;
+			pmem_setting.pmem_size=12*1024*1024;
 			CALC_PMEM(pmem_adsp, pmem, 0);//adsp is useless currently.
-			CALC_PMEM(fb, pmem_adsp, 0x200000);//640*480*2 (2byte/pixel)(Or 3?) *2 (front+back buffer)=1.2MiB
-			CALC_PMEM(pmem_camera, fb, 8*1024*1024);//To be calculated more precisely
+			CALC_PMEM(fb, pmem_adsp, 2*1025*1023);//640*480*2 (2byte/pixel)(Or 3?) *2 (front+back buffer)=1.2MiB
+			CALC_PMEM(pmem_camera, fb, 0);//To be calculated more precisely
 
 			//GPU1 must be in EBI bank 1
 			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
@@ -244,6 +244,7 @@ static int __init msm_pmem_init() {
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
+		case MACH_TYPE_HTCKOVSKY:
 			//SMI 32 + EBI 2*128
 			pmem_setting.pmem_start=MSM_EBIN_BASE+128*1024*1024-51*1024*1024;
 			pmem_setting.pmem_size=32*1024*1024;//32MB
@@ -254,7 +255,7 @@ static int __init msm_pmem_init() {
 
 			//GPU1 must be in EBI bank 1, Isn't working on Topaz and Rhod
 			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
-			pmem_setting.pmem_gpu1_size=0x800000;
+			pmem_setting.pmem_gpu1_size=8*1024*1024;
 			
 			pmem_setting.ram_console_start=0x8e0000;
 			pmem_setting.ram_console_size=0x0000;

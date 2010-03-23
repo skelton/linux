@@ -35,6 +35,8 @@
 
 #define MODULE_NAME "kionix-kxsd9"
 
+#define I2C_READ_RETRY_TIMES 10
+
 #define KXSD9_DEBUG  0
 #define KXSD9_DUMP   0
 
@@ -74,7 +76,7 @@ struct kxsd9 {
 #define KXSD9_BWIDTH	0xE0	// 111- =50Hz
 
 enum {	/* operation     	   param */
-	KXSD9_CTL_RESET,	// ignored	
+	KXSD9_CTL_RESET,	// ignored
 	KXSD9_CTL_ENABLE,	// 0 = disabled
 	KXSD9_CTL_SCALE,	// 1 (2G) .. 4 (8G)
 	KXSD9_CTL_RATE		// samples per 10 seconds
@@ -83,7 +85,7 @@ enum {	/* operation     	   param */
 static int kxsd9_wrop_enq(struct kxsd9 *kxsd9,unsigned char reg,unsigned char val)
 {
 	int nt;
-	
+
 	nt = (kxsd9->tail + 1) % KXSD9_WROP_BUF;
 	if (nt == kxsd9->head) {
 		// buffer full
@@ -109,7 +111,7 @@ static int kxsd9_wrop_deq(struct kxsd9 *kxsd9,char *buf)
 int kxsd9_control(struct kxsd9 *kxsd9,int oper,int param)
 {
 	int restart;
-	
+
 #if KXSD9_DEBUG
 	printk(KERN_INFO MODULE_NAME ": %s(%d, %d)\n", __func__, oper, param);
 #endif
@@ -121,13 +123,13 @@ int kxsd9_control(struct kxsd9 *kxsd9,int oper,int param)
 			kxsd9_wrop_enq(kxsd9,KXSD9_REG_RST,KXSD9_RST_KEY);
 			kxsd9->pedo_up = kxsd9->pedo_lim = kxsd9->pedo_count = 0;
 			break;
-			
+
 		case KXSD9_CTL_ENABLE:
 			kxsd9->on = !!param;
 			kxsd9_wrop_enq(kxsd9,KXSD9_REG_B,param ?
 					KXSD9_B_CLKHLD | KXSD9_B_ENABLE : 0x00);
 			break;
-			
+
 		case KXSD9_CTL_SCALE:
 			if (param < 1)
 				param = 1;
@@ -137,7 +139,7 @@ int kxsd9_control(struct kxsd9 *kxsd9,int oper,int param)
 			param = 4 - param;
 			kxsd9_wrop_enq(kxsd9,KXSD9_REG_C,KXSD9_BWIDTH | param);
 			break;
-		
+
 		case KXSD9_CTL_RATE:
 			param &= 0x1FFF;
 			restart = (param > kxsd9->rate);
@@ -145,7 +147,7 @@ int kxsd9_control(struct kxsd9 *kxsd9,int oper,int param)
 			break;
 	}
 	if (restart) {
-		hrtimer_start(&kxsd9->timer, ktime_set(0,16 * NSEC_PER_MSEC), 
+		hrtimer_start(&kxsd9->timer, ktime_set(0,16 * NSEC_PER_MSEC),
 				HRTIMER_MODE_REL);
 	}
 	mutex_unlock(&kxsd9->lock);
@@ -155,27 +157,33 @@ int kxsd9_control(struct kxsd9 *kxsd9,int oper,int param)
 static int kxsd9_i2c_read(struct i2c_client *client, unsigned id,
 						char *buf, int len)
 {
-	int r;
-	char outbuffer[2] = { 0, 0 };
-
-	outbuffer[0] = id;
-	// maejrep: Have to separate the "ask" and "read" chunks
-	r = i2c_master_send(client, outbuffer, 1);
-	if (r < 0) {
-		printk(KERN_WARNING "%s: error asking for gsensor data at "
-			"address %02x,%02x: %d\n",
-			__func__, client->addr, id, r);
-		return r;
+	int retry;
+	int ret;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &id,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = buf,
+		}
+	};
+	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
+		ret = i2c_transfer(client->adapter, msgs, 2);
+		if (ret == 2) {
+			return 0;
+		}
+		msleep(10);
+		printk("read retry\n");
 	}
-	mdelay(1);
-	r = i2c_master_recv(client, buf, len);
-	if (r < 0) {
-		printk(KERN_ERR "%s: error reading gsensor data at "
-			"address %02x,%02x: %d\n",
-			__func__, client->addr, id, r);
-		return r;
-	}
-	return 0;
+	dev_err(&client->dev, "i2c_read_block retry over %d\n",
+			I2C_READ_RETRY_TIMES);
+	return -EIO;
 }
 
 static enum hrtimer_restart kxsd9_poll_timer(struct hrtimer *timer)
@@ -208,7 +216,7 @@ static void kxsd9_work(struct work_struct *work)
 #endif
 		err = i2c_master_send(kxsd9->client, buf, 2);
 		if (err < 0) {
-			printk(KERN_WARNING MODULE_NAME 
+			printk(KERN_WARNING MODULE_NAME
 					": %s: error %d\n", __func__, err);
 		}
 		restart_time.tv.nsec = 4 * NSEC_PER_MSEC;
@@ -218,7 +226,7 @@ static void kxsd9_work(struct work_struct *work)
 		x = 0x800 - (buf[2] << 4) - (buf[3] >> 4);
 		y = 0x800 - (buf[0] << 4) - (buf[1] >> 4);
 		z = (buf[4] << 4) + (buf[5] >> 4) - 0x800 - 64; // calib?
-		
+
 		// detect step
 		gabs = x * x + y * y + z * z;
 		if (kxsd9->pedo_up) {
@@ -226,7 +234,7 @@ static void kxsd9_work(struct work_struct *work)
 				kxsd9->pedo_up = 0;
 				kxsd9->pedo_lim = gabs / 2;
 				kxsd9->pedo_count++;
-				input_report_abs(kxsd9->inputdev, ABS_GAS, 
+				input_report_abs(kxsd9->inputdev, ABS_GAS,
 						kxsd9->pedo_count);
 			} else if (kxsd9->pedo_lim > gabs * 2) {
 				kxsd9->pedo_lim = gabs * 2;
@@ -245,7 +253,7 @@ static void kxsd9_work(struct work_struct *work)
 				x, y, z, kxsd9->pedo_count,
 				gabs < KXSD9_FREE_FALL ? "FF" : ""); // free-fall
 #else
-		printk(KERN_INFO "G=( %02X %02X  %02X %02X  %02X %02X )\n", 
+		printk(KERN_INFO "G=( %02X %02X  %02X %02X  %02X %02X )\n",
 				buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
 #endif
 #endif
@@ -253,7 +261,7 @@ static void kxsd9_work(struct work_struct *work)
 		input_report_abs(kxsd9->inputdev, ABS_Y, y);
 		input_report_abs(kxsd9->inputdev, ABS_Z, z);
 		input_sync(kxsd9->inputdev);
-		
+
 		if (kxsd9->on && kxsd9->rate && !kxsd9->susp)
 		{
 			restart_time.tv.nsec = (10000 / kxsd9->rate)
@@ -341,7 +349,7 @@ static ssize_t kxsd9_ctl_enable_store(struct device *dev, struct device_attribut
         return count;
 }
 
-struct device_attribute kxsd9_sysfs_ctl_rate = 
+struct device_attribute kxsd9_sysfs_ctl_rate =
 {
 	.attr = {	.name = "rate",
 			.mode = S_IWUSR | S_IRUGO },
@@ -349,7 +357,7 @@ struct device_attribute kxsd9_sysfs_ctl_rate =
 	.store	= kxsd9_ctl_rate_store,
 };
 
-struct device_attribute kxsd9_sysfs_ctl_scale = 
+struct device_attribute kxsd9_sysfs_ctl_scale =
 {
 	.attr = {	.name = "scale",
 			.mode = S_IWUSR | S_IRUGO },
@@ -357,7 +365,7 @@ struct device_attribute kxsd9_sysfs_ctl_scale =
 	.store	= kxsd9_ctl_scale_store,
 };
 
-struct device_attribute kxsd9_sysfs_ctl_enable = 
+struct device_attribute kxsd9_sysfs_ctl_enable =
 {
 	.attr = {	.name = "enable",
 			.mode = S_IWUSR | S_IRUGO },
@@ -398,10 +406,10 @@ static int kxsd9_probe(struct i2c_client *client, const struct i2c_device_id *id
 		input_set_abs_params(idev, ABS_Z, -2048, 2047, 0, 0);
 		input_set_abs_params(idev, ABS_GAS, 0, 65535, 0, 0);
 		if (!input_register_device(idev)) {
-			kxsd9->inputdev = idev;			
+			kxsd9->inputdev = idev;
 		} else {
 			kxsd9->inputdev = 0;
-			printk(KERN_ERR MODULE_NAME 
+			printk(KERN_ERR MODULE_NAME
 					": Failed to register input device\n");
 		}
 	}
