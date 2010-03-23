@@ -1,6 +1,6 @@
 /*
     microp-klt.c - i2c chip driver for microp-led
-    
+
     Joe Hansche <madcoder@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
@@ -31,13 +31,12 @@
 #include <asm/mach-types.h>
 #include "../../../arch/arm/mach-msm/proc_comm_wince.h"
 
-
-
-
 void micropklt_lcd_ctrl(int v);
 int micropklt_set_lcd_state(int on);
 
 #define MODULE_NAME "microp-klt"
+
+#define I2C_READ_RETRY_TIMES 10
 
 #if 0
  #define D(fmt, arg...) printk(KERN_DEBUG "[KLT] %s: " fmt "\n", __FUNCTION__, ## arg);
@@ -61,8 +60,6 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 	char buffer[4] = { 0, 0, 0, 0 };
 	int idx, b, state;
 
-
-	
 	if ( !strcmp(led_cdev->name, "klt::home") )
 		idx = 0;
 	else if ( !strcmp(led_cdev->name, "klt::back") )
@@ -80,7 +77,6 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 	else
 		return;
 
-	
 	data = container_of(led_cdev, struct microp_klt, leds[idx]);
 	client = data->client;
 
@@ -107,7 +103,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 			//Scale from 0 to 9
 			buffer[1] = (brightness*9)/255;
 
-			printk(KERN_INFO MODULE_NAME ": Setting %s brightness2 to: %d/10\n", 
+			printk(KERN_INFO MODULE_NAME ": Setting %s brightness2 to: %d/10\n",
 				led_cdev->name, buffer[1]);
 			micropklt_write(client, buffer, 2);
 			msleep(1);
@@ -115,7 +111,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
 			buffer[1] = brightness/2 & 0xf0;
 
-			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n", 
+			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n",
 				led_cdev->name, buffer[1]);
 			micropklt_write(client, buffer, 2);
 			msleep(1);
@@ -129,8 +125,63 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 		data->led_states = state;
 		micropklt_write(client, buffer, 3);
 	}
-	
+
 	mutex_unlock(&data->lock);
+}
+
+/**
+ * set_misc_states
+ * function to set the micropklt misc register.
+ * note: experimental and not used yet.
+ * note: its used for enabling the LCM clock ( pure guess ) on the HTC RAPH
+ * note: can be used to cleanup the "send_command" hacks in micropklt_lcd_ctrl.
+ */
+int micropklt_set_misc_states( unsigned mask, unsigned bit_flag )
+{
+	struct microp_klt *data;
+	struct i2c_client *client;
+	unsigned state;
+	int result;
+	char buffer[2] = { MICROP_I2C_WCMD_MISC, 0x00 };
+
+	data = micropklt_t;
+	if ( !data ) return -EAGAIN;
+	client = data->client;
+	state = data->misc_states;
+
+	mutex_lock(&data->lock);
+
+	if ( bit_flag &  MISC_MICP_ISP) {
+		printk( "micropklt, MISC_MICP_ISP bit should NOT be enabled, removing bit!\n" );
+		bit_flag = bit_flag & ~MISC_MICP_ISP;
+	}
+
+	if ( bit_flag & MISC_CAP_SEN_RES_CTRL1 && bit_flag & MISC_CAP_SEN_RES_CTRL2 ) {
+		// its evil to have them both enabled... its one or the other...
+		printk( "microp, MISC_CAP_SEN_RES_CTRL1, MISC_CAP_SEN_RES_CTRL2 are both enabled\n" );
+
+		// log the cmd that set this for debug purposes.
+		printk( "microp, pre bit_flag: 0x%X\n", bit_flag );
+		bit_flag = bit_flag & ~( MISC_CAP_SEN_RES_CTRL1 | MISC_CAP_SEN_RES_CTRL2 );
+		printk( "microp, post bit_flag: 0x%X\n", bit_flag );
+	}
+
+	data->misc_states = data->misc_states & ~bit_flag;					// remove the bit
+	data->misc_states = data->misc_states | ( bit_flag & mask );		// set or not set the bit
+
+	printk("microp, send misc: 0x%X\n", data->misc_states);
+
+	// only send if it has actualy changed
+	if ( data->misc_states != state ) {
+		state = data->misc_states;
+		buffer[1] = data->misc_states & 0xFF;
+		result = micropklt_write(client, buffer, 2);
+	} else {
+		result = 0;
+	}
+
+	mutex_unlock(&data->lock);
+	return result;
 }
 
 int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values)
@@ -163,7 +214,8 @@ int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values)
 }
 EXPORT_SYMBOL(micropklt_set_led_states);
 
-int micropklt_set_color_led_state(int state) {
+int micropklt_set_color_led_state(int state)
+{
 	struct microp_klt *data;
 	struct i2c_client *client;
 	char buffer[5] = { 0, 0, 0, 0, 0 };
@@ -181,6 +233,7 @@ int micropklt_set_color_led_state(int state) {
 		buffer[4] = 0xff;
 	r = micropklt_write(client, buffer, 5);
 	mutex_unlock(&data->lock);
+	return 0;
 }
 
 int micropklt_set_lcd_state(int on)
@@ -205,7 +258,7 @@ void micropklt_lcd_ctrl(int v)
 	// for power up
 	char c1[]={MICROP_I2C_WCMD_MISC,0x48};
 	char c2[]={MICROP_I2C_WCMD_MISC,0x0c};
-        char c3[]={MICROP_I2C_WCMD_AUTO_BL_CTL,0,0};
+	char c3[]={MICROP_I2C_WCMD_AUTO_BL_CTL,0,0};
 
 	// for power down
 	char c7[]={MICROP_I2C_WCMD_MISC,0x4c};
@@ -213,16 +266,15 @@ void micropklt_lcd_ctrl(int v)
 	char c9[]={MICROP_I2C_WCMD_MISC,0x08};
 	printk("Something used micropklt_lcd_ctrl. This function should no longer be used.\n");
 
-
-        data = micropklt_t;
-        if (!data) return;
-        client = data->client;
+    data = micropklt_t;
+    if (!data) return;
+    client = data->client;
 
 	switch(v) {
 	case 1: // power up
 		send_command(c1);
 		break;
-	case 2: 
+	case 2:
 		send_command(c2);
 		break;
 	case 3:
@@ -234,10 +286,9 @@ void micropklt_lcd_ctrl(int v)
 		send_command(c8);
 		send_command(c3);
 		break;
-	case 5: 
+	case 5:
 		send_command(c9);
 		break;
-		
 	}
 }
 
@@ -248,30 +299,30 @@ void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *s
 	int i;
 	struct microp_klt *data;
 	uint16_t delay;
+	char c0[4];
+
 	data = micropklt_t;
 	if (!data) return;
 	mdelay(0x32);
 	for(i = 0; i < count; i++) {
 		delay = spi_table[i].delay;
-		char c0[]={spicmd, spi_table[i].value1, spi_table[i].value2, spi_table[i].value3};
+		c0[0] = spicmd; c0[1] = spi_table[i].value1; c0[2] = spi_table[i].value2; c0[3] = spi_table[i].value3;
 		msleep(1);
 		micropklt_write(data->client, c0, ARRAY_SIZE(c0));
 		udelay(50);
 		if(delay)
 			msleep(delay);
-		  
 	}
-
 }
 
 void micropklt_lcd_precess_cmd(char* cmd, size_t count)
 {
 	struct microp_klt *data;
 	data = micropklt_t;
+	//msleep(1); // capt: why would we need to sleep here?
 	if (!data) return;
-	msleep(1);
 	micropklt_write(data->client, cmd, count);
-	udelay(50);
+	//udelay(50);
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -294,7 +345,7 @@ static int micropklt_remove(struct i2c_client *client)
 	int i;
 
 	data = i2c_get_clientdata(client);
-	
+
 	micropklt_set_led_states(MICROP_KLT_ALL_LEDS, MICROP_KLT_DEFAULT_LED_STATES);
 
 	for (i=0; i<ARRAY_SIZE(data->leds); i++) {
@@ -320,8 +371,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-LED chip driver at "
 	       "addr: 0x%02x\n", client->addr);
-	       
-	
+
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		printk(KERN_ERR MODULE_NAME ": i2c bus not supported\n");
 		return -EINVAL;
@@ -342,10 +393,13 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	micropklt_t = data;
 
 	// Read version
-	micropklt_read(client, MICROP_KLT_ID_VERSION, buf, 2);
-	
+	if( micropklt_read(client, MICROP_KLT_ID_VERSION, buf, 2) < 0 ) {
+		printk( KERN_ERR MODULE_NAME" : unable to read microp firmware version\n" );
+		return -EIO;
+	}
+
 	/* Check version against what we think we should support
-	 * Known supported versions: 
+	 * Known supported versions:
 	 *   0105, 0205, 0a05, 0b05, 0d02
 	 *   8182, 8185
 	 *   0c82, 0c85
@@ -397,12 +451,27 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		break;
 	}
 
+	/* read the current state of the microp misc register, so we know what flags are set
+	 * note: this is purely experimental. Also unsure if its a single byte register only.
+	*/
+	buf[0] = 0;	buf[1] = 0;
+	if ( micropklt_read( client, MICROP_I2C_WCMD_MISC, buf, 2 ) == 0 ) {
+		data->misc_states = buf[0];
+		printk(KERN_INFO MODULE_NAME" : misc led status: 0x%X | 0x%X\n", buf[0], buf[1]);
+	} else {
+		// last misc state used in the send_command series.
+		data->misc_states = 0x0c;
+	}
+
+	/* if for some reason the hardware should support it, but it simply shows the wrong I2C id, its possible the device has been
+	 * set into bootloader mode. See HTC Hero's microp driver for a way to fix this.
+	 */
 	if (!supported) {
 		printk(KERN_WARNING MODULE_NAME ": This hardware is not yet supported: %04x\n", data->version);
 		r = -ENOTSUPP;
 		goto fail;
 	}
-	
+
 	data->led_states = MICROP_KLT_DEFAULT_LED_STATES;
 
 	data->leds[0].name = "klt::home";
@@ -448,7 +517,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 
 	if(machine_is_htctopaz())
 		color_led_address = 0x51;
-	else if (machine_is_htcrhodium()) 
+	else if (machine_is_htcrhodium())
 		color_led_address = 0x50;
 	else
 		color_led_address = 0x0;
@@ -493,35 +562,41 @@ static int micropklt_write(struct i2c_client *client, const char *sendbuf, int l
 		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
 	} else {
 		D("  >>> 0x%08x, 0x%08x -> 0x%08x 0x%08x 0x%08x\n", client->addr,
-		         sendbuf[0], (len > 1 ? sendbuf[1] : 0), 
+		         sendbuf[0], (len > 1 ? sendbuf[1] : 0),
 		         (len > 2 ? sendbuf[2] : 0), (len > 3 ? sendbuf[3] : 0));
 	}
 	return r;
 }
 
-static int micropklt_read(struct i2c_client *client, unsigned id, char *buf, int len)
+static int micropklt_read( struct i2c_client *client, unsigned id, char *buf, int len )
 {
-	int r;
-	char outbuffer[2] = { 0, 0 };
-
-	outbuffer[0] = id;
-	
-	// Have to separate the "ask" and "read" chunks
-	r = i2c_master_send(client, outbuffer, 1);
-	if (r < 0) {
-		printk(KERN_WARNING "micropklt_read: error while asking for "
-			"data address %02x,%02x: %d\n", client->addr, id, r);
-		return r;
+	int retry;
+	int ret;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &id,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = buf,
+		}
+	};
+	for ( retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++ ) {
+		ret = i2c_transfer( client->adapter, msgs, 2 );
+		if ( ret == 2 ) {
+			return 0;
+		}
+		msleep( 10 );
+		printk( KERN_INFO MODULE_NAME " : read retry\n");
 	}
-	mdelay(1);
-	r = i2c_master_recv(client, buf, len);
-	if (r < 0) {
-		printk(KERN_ERR "micropklt_read: error while reading data at "
-			"address %02x,%02x: %d\n", client->addr, id, r);
-		return r;
-	}
-	D("  <<< 0x%02x, 0x%02x -> %02x %02x", client->addr, id, buf[0], buf[1]);
-	return 0;
+	dev_err( &client->dev, "i2c_read_block retry over %d\n",
+			I2C_READ_RETRY_TIMES );
+	return -EIO;
 }
 
 static u16 sleep_state=0,old_state;
@@ -546,7 +621,7 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 }
 
 static int micropklt_resume(struct i2c_client *client)
-{ 
+{
 	D("resuming device...");
 //	char cmd[]={0x20,0x48};
 //	send_command(cmd);
@@ -645,7 +720,7 @@ static int micropklt_dbg_light_get(void *dat, u64 *val) {
 	char buffer[4] = { 0, 0, 0, 0 };
 	data = micropklt_t;
 	if (!data) return -EAGAIN;
-	
+
 	client = data->client;
 	mutex_lock(&data->lock);
 	if(!auto_bl && machine_is_htctopaz()) {
@@ -911,11 +986,12 @@ static int micropklt_dbg_color_led_get(void *dat, u64 *val) {
 
 static int micropklt_dbg_color_led_set(void *dat, u64 val)
 {
-	if(color_led_address==0) return -ENODEV;
 	struct microp_klt *data;
 	struct i2c_client *client;
 	char buffer[5] = { 0, 0, 0, 0, 0 };
 	int r;
+
+	if(color_led_address==0) return -ENODEV;
 
 	data = micropklt_t;
 	if (!data) return -EAGAIN;

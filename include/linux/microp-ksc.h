@@ -1,3 +1,6 @@
+#ifndef _MICROP_KSC_H
+#define _MICROP_KSC_H
+
 // OR'ed with scancode on the release event
 #define MICROP_KSC_RELEASED_BIT 0x80
 #define MICROP_KSC_SCANCODE_MASK (MICROP_KSC_RELEASED_BIT - 1)
@@ -19,3 +22,5 @@ enum {
 extern int micropksc_read_scancode_kovsky(unsigned char *scancode, unsigned char *isdown, unsigned char *clamshell);
 extern int micropksc_read_scancode(unsigned char *scancode, unsigned char *isdown);
 extern int micropksc_set_led(unsigned int led, int value);
+
+#endif

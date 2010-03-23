@@ -1,6 +1,10 @@
 /**
  * These are combined into a bitmask to turn individual LEDs on
  */
+
+ #ifndef _MICROP_KLT_H
+#define _MICROP_KLT_H
+
 #include <linux/leds.h>
 #include <linux/earlysuspend.h>
 enum microp_led_t {
@@ -28,6 +32,7 @@ static struct microp_klt {
 	struct i2c_client *client;
 	struct mutex lock;
 	u16 led_states;
+	u8 misc_states;
 	unsigned short version;
 	struct led_classdev leds[MICROP_KLT_LED_CNT];
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -52,6 +57,12 @@ static struct microp_klt {
 // Default state is LCD backlight on, LEDs off
 #define MICROP_KLT_DEFAULT_LED_STATES ( (1U << MICROP_KLT_BKL_LCD) | MICROP_KLT_LEDS_OFF)
 #define MICROP_KLT_ALL_LEDS	0xffff
+
+/** micropklt misc register bit flags
+ */
+#define MISC_CAP_SEN_RES_CTRL1	0x02
+#define MISC_CAP_SEN_RES_CTRL2	0x40
+#define MISC_MICP_ISP						0x80
 
 /**
  * I2C data address IDs
@@ -85,3 +96,4 @@ extern int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values);
 extern int micropklt_set_lcd_state(int on);
 extern int micropklt_set_kbd_state(int on);
 
+#endif
