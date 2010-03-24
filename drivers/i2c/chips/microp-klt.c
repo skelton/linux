@@ -454,14 +454,15 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	/* read the current state of the microp misc register, so we know what flags are set
 	 * note: this is purely experimental. Also unsure if its a single byte register only.
 	*/
-	buf[0] = 0;	buf[1] = 0;
+	// seems to be RAPH only
+	/*buf[0] = 0;	buf[1] = 0;
 	if ( micropklt_read( client, MICROP_I2C_WCMD_MISC, buf, 2 ) == 0 ) {
 		data->misc_states = buf[0];
 		printk(KERN_INFO MODULE_NAME" : misc led status: 0x%X | 0x%X\n", buf[0], buf[1]);
 	} else {
 		// last misc state used in the send_command series.
 		data->misc_states = 0x0c;
-	}
+	}*/
 
 	/* if for some reason the hardware should support it, but it simply shows the wrong I2C id, its possible the device has been
 	 * set into bootloader mode. See HTC Hero's microp driver for a way to fix this.
