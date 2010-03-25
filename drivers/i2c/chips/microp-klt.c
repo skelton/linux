@@ -329,13 +329,14 @@ void micropklt_lcd_precess_cmd(char* cmd, size_t count)
 {
 	struct microp_klt *data;
 	data = micropklt_t;
-	//msleep(1); // capt: why would we need to sleep here?
 	if (!data) return;
+
+	msleep(1);
 
 	mutex_lock(&data->lock);
 	micropklt_write(data->client, cmd, count);
 	mutex_unlock(&data->lock);
-	//udelay(50);
+	udelay(50);
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -397,6 +398,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		return -ENOMEM;
 	}
 
+	// maybe seperate the read and write mutex.
 	mutex_init(&data->lock);
 	mutex_lock(&data->lock);
 

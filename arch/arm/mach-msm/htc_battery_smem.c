@@ -383,6 +383,7 @@ int htc_cable_status_update(int status)
 {
 	int rc = 0;
 	unsigned source;
+	unsigned last_source;
 
 	if (!htc_battery_initial)
 		return 0;
@@ -395,6 +396,8 @@ int htc_cable_status_update(int status)
 
 	if(fake_charger)
 		status=CHARGER_USB;
+
+	last_source = htc_batt_info.rep.charging_source;
 
 	switch(status) {
 	case CHARGER_BATTERY:
@@ -423,7 +426,7 @@ int htc_cable_status_update(int status)
 	htc_battery_set_charging(status);
 	msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
 
-	if ((source == CHARGER_USB) || (source==CHARGER_AC)) {
+	if ( last_source !=  source && ( ( source == CHARGER_USB) || (source==CHARGER_AC))) {
 		wake_lock(&vbus_wake_lock);
 	} else {
 		/* give userspace some time to see the uevent and update
@@ -432,10 +435,13 @@ int htc_cable_status_update(int status)
 		wake_lock_timeout(&vbus_wake_lock, HZ / 2);
 	}
 
-	/* if the power source changes, all power supplies may change state */
-	power_supply_changed(&htc_power_supplies[CHARGER_BATTERY]);
-	power_supply_changed(&htc_power_supplies[CHARGER_USB]);
-	power_supply_changed(&htc_power_supplies[CHARGER_AC]);
+	/* make sure that we only change the powersupply state if we really have to */
+	if (source == CHARGER_BATTERY || last_source == CHARGER_BATTERY)
+		power_supply_changed(&htc_power_supplies[CHARGER_BATTERY]);
+	if (source == CHARGER_USB || last_source == CHARGER_USB)
+		power_supply_changed(&htc_power_supplies[CHARGER_USB]);
+	if (source == CHARGER_AC || last_source == CHARGER_AC)
+		power_supply_changed(&htc_power_supplies[CHARGER_AC]);
 
 	return rc;
 }
