@@ -270,6 +270,8 @@ void micropklt_lcd_ctrl(int v)
     if (!data) return;
     client = data->client;
 
+	mutex_lock(&data->lock);
+
 	switch(v) {
 	case 1: // power up
 		send_command(c1);
@@ -290,6 +292,8 @@ void micropklt_lcd_ctrl(int v)
 		send_command(c9);
 		break;
 	}
+
+	mutex_unlock(&data->lock);
 }
 
 EXPORT_SYMBOL(micropklt_lcd_ctrl);
@@ -303,7 +307,11 @@ void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *s
 
 	data = micropklt_t;
 	if (!data) return;
+
 	mdelay(0x32);
+
+	mutex_lock(&data->lock);
+
 	for(i = 0; i < count; i++) {
 		delay = spi_table[i].delay;
 		c0[0] = spicmd; c0[1] = spi_table[i].value1; c0[2] = spi_table[i].value2; c0[3] = spi_table[i].value3;
@@ -313,6 +321,8 @@ void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *s
 		if(delay)
 			msleep(delay);
 	}
+
+	mutex_unlock(&data->lock);
 }
 
 void micropklt_lcd_precess_cmd(char* cmd, size_t count)
@@ -321,7 +331,10 @@ void micropklt_lcd_precess_cmd(char* cmd, size_t count)
 	data = micropklt_t;
 	//msleep(1); // capt: why would we need to sleep here?
 	if (!data) return;
+
+	mutex_lock(&data->lock);
 	micropklt_write(data->client, cmd, count);
+	mutex_unlock(&data->lock);
 	//udelay(50);
 }
 
@@ -550,6 +563,7 @@ err_led_classdev_register_failed:
 		led_classdev_unregister(&data->leds[i]);
 	}
 fail:
+	mutex_unlock(&data->lock);
 	kfree(data);
 	micropklt_t = 0;
 	return r;
@@ -675,8 +689,6 @@ MODULE_VERSION("0.1");
 module_init(micropklt_init);
 module_exit(micropklt_exit);
 
-
-
 #if defined(CONFIG_DEBUG_FS)
 static int micropklt_dbg_leds_set(void *dat, u64 val)
 {
@@ -710,7 +722,6 @@ static int micropklt_dbg_light_set(void *data, u64 val)
 {
 	return 0;
 }
-
 
 static int micropklt_dbg_light_get(void *dat, u64 *val) {
 	struct microp_klt *data;
