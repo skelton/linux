@@ -383,7 +383,7 @@ unsigned long long sched_clock(void)
 		saved_ticks_valid = 0;
 	}
 	local_irq_restore(irq_flags);
-	return result; 
+	return result;
 }
 
 #ifdef CONFIG_MSM7X00A_USE_GP_TIMER
@@ -467,8 +467,8 @@ static void __init msm_timer_init(void)
 		struct msm_clock *clock = &msm_clocks[i];
 		struct clock_event_device *ce = &clock->clockevent;
 		struct clocksource *cs = &clock->clocksource;
-//		writel(0, clock->regbase + TIMER_ENABLE);
-//		writel(0, clock->regbase + TIMER_CLEAR);
+		writel(0, clock->regbase + TIMER_ENABLE);
+		writel(0, clock->regbase + TIMER_CLEAR);
 		writel(~0, clock->regbase + TIMER_MATCH_VAL);
 
 		ce->mult = div_sc(clock->freq, NSEC_PER_SEC, ce->shift);
