@@ -279,8 +279,14 @@ static uint32_t msm_timer_sync_smem_clock(int exit_sleep)
 	smsm_change_state(SMSM_TIMEWAIT, SMSM_TIMEINIT);
 	entry_time = msm_read_timer_count(clock);
 	timeout = entry_time + timeout_delta;
-	while (*smem_clock != 0 && check_timeout(clock, timeout))
-		;
+	while (*smem_clock != 0 && check_timeout(clock, timeout)) {
+		uint32_t astate = smsm_get_state();
+		if ((astate & SMSM_TIMEWAIT) || !(astate & SMSM_TIMEINIT)) {
+				//printk(KERN_INFO "get_smem_clock: modem overwrote "
+					//"apps state %x\n", astate);
+			smsm_change_state(SMSM_TIMEWAIT, SMSM_TIMEINIT);
+		}
+	}
 	if (*smem_clock)
 		printk(KERN_INFO "get_smem_clock: exit timeout state %x "
 		       "clock %u in %d ticks\n", state, *smem_clock,
