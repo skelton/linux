@@ -106,7 +106,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 			printk(KERN_INFO MODULE_NAME ": Setting %s brightness2 to: %d/10\n",
 				led_cdev->name, buffer[1]);
 			micropklt_write(client, buffer, 2);
-			msleep(1);
+			//msleep(1);
 		} else {
 			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
 			buffer[1] = brightness/2 & 0xf0;
@@ -114,7 +114,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n",
 				led_cdev->name, buffer[1]);
 			micropklt_write(client, buffer, 2);
-			msleep(1);
+			//msleep(1);
 		}
 	}
 
@@ -410,7 +410,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	// Read version
 	if( micropklt_read(client, MICROP_KLT_ID_VERSION, buf, 2) < 0 ) {
 		printk( KERN_ERR MODULE_NAME" : unable to read microp firmware version\n" );
-		return -EIO;
+		r = -EIO;
+		goto fail;
 	}
 
 	/* Check version against what we think we should support
@@ -542,6 +543,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 
 	// Set default LED state
 	micropklt_set_led_states(MICROP_KLT_ALL_LEDS, MICROP_KLT_DEFAULT_LED_STATES);
+
 	if(machine_is_htctopaz())	// Enable keypadled with device
 		micropklt_set_led_states(0x1, 0x1);
 
@@ -633,7 +635,8 @@ static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 	micropklt_set_led_states(0xffff, sleep_state);
 	//Sleeping is GOOD !
 	//It's GREEN ! (on topa/rhod.)
-	micropklt_set_color_led_state(1);
+	if ( machine_is_htctopaz() || machine_is_htcrhodium() )
+		micropklt_set_color_led_state(1);
 	return 0;
 }
 
@@ -646,7 +649,9 @@ static int micropklt_resume(struct i2c_client *client)
 	micropklt_set_led_states(0xffff,old_state);
 	//Being awake is BAD !
 	//It's RED ! (on topa/rhod.) (ok it's amber.)
-	micropklt_set_color_led_state(2);
+
+	if ( machine_is_htctopaz() || machine_is_htcrhodium() )
+		micropklt_set_color_led_state(2);
 	return 0;
 }
 #else
@@ -976,10 +981,9 @@ static int micropklt_dbg_gpi_get(void *dat, u64 *val) {
 	client = data->client;
 
 	mutex_lock(&data->lock);
-
 	r = micropklt_read(client, MICROP_I2C_RCMD_GPI_STATUS, val, 2);
-
 	mutex_unlock(&data->lock);
+
 	return 0;
 }
 
@@ -1021,7 +1025,6 @@ static int micropklt_dbg_color_led_set(void *dat, u64 val)
 	mutex_unlock(&data->lock);
 	return 0;
 }
-
 
 DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_color_led_fops,
 		micropklt_dbg_color_led_get,
