@@ -426,9 +426,9 @@ int htc_cable_status_update(int status)
 	htc_battery_set_charging(status);
 	msm_hsusb_set_vbus_state((source==CHARGER_USB) || (source==CHARGER_AC));
 
-	if ( last_source !=  source && ( ( source == CHARGER_USB) || (source==CHARGER_AC))) {
+	if (  source == CHARGER_USB || source==CHARGER_AC ) {
 		wake_lock(&vbus_wake_lock);
-	} else {
+	} else if(last_source != source) {
 		/* give userspace some time to see the uevent and update
 		 * LED state or whatnot...
 		 */
