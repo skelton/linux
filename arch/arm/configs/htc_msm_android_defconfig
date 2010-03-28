@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.27
-# Thu Mar 18 03:51:25 2010
+# Sun Mar 28 13:45:36 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -690,7 +690,7 @@ CONFIG_MTD_MSM_NAND=y
 # CONFIG_MTD_SLRAM is not set
 # CONFIG_MTD_PHRAM is not set
 # CONFIG_MTD_MTDRAM is not set
-# CONFIG_MTD_BLOCK2MTD is not set
+CONFIG_MTD_BLOCK2MTD=m
 
 #
 # Disk-On-Chip Device Drivers
