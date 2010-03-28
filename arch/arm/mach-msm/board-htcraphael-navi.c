@@ -32,7 +32,7 @@
  * volume-up, volume-down) and a touch sensitive surface.
  * The left and right buttons have multiple functions. The touch pad is
  * used to determine where a button was pressed. The touch pad also
- * contains a scroll wheel around the center button. 
+ * contains a scroll wheel around the center button.
  *
  * Heavily based on
  *   microp-ksc.c (by Joe Hansche <madcoder@gmail.com>)
@@ -588,15 +588,12 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	gpio_direction_input(navi->info->gpio_tp);
 	navi->tp_irq = gpio_to_irq(navi->info->gpio_tp);
 	if (request_irq(navi->tp_irq, raphnavi_irq_handler,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW, 
+			IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW,
 			"raphnavi_tp", navi) != 0)
 		goto fail_tp_irq;
-//	set_irq_wake(navi->tp_irq, 1);
+
 	if(wake&WAKE_ON_TOUCH)
 		set_irq_wake(navi->tp_irq, 1);
-	else
-		set_irq_wake(navi->tp_irq, 0);
-	disable_irq(navi->tp_irq);
 
 #ifdef RAPHNAVI_LID_SWITCH
 	if (machine_is_htcraphael() || machine_is_htcraphael_cdma()) {
@@ -605,11 +602,10 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		gpio_direction_input(navi->info->gpio_lid);
 		navi->sw_irq = gpio_to_irq(navi->info->gpio_lid);
 		if (request_irq(navi->sw_irq, raphnavi_irq_handler,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"raphnavi_lid", navi) != 0)
 			goto fail_sw_irq;
 		set_irq_wake(navi->sw_irq, 1);
-		disable_irq(navi->sw_irq);
 	}
 #endif
 
@@ -629,20 +625,15 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	}
 	for(i = 0; i < navi->info->ncols; i++) {
 		irq = gpio_to_irq(navi->info->cols[i]);
-		if (request_irq(irq, raphnavi_irq_handler, IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
+		if (request_irq(irq, raphnavi_irq_handler, IRQF_DISABLED | IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
 			goto fail_gpio_irq;
 		if(wake&WAKE_ON_HARD)
 			set_irq_wake(irq, 1);
-		else
-			set_irq_wake(irq, 0);
-		disable_irq(irq);
 	}
-	{
-		irq=gpio_to_irq(navi->info->cols[1]);
-		if(wake&WAKE_ON_VOL)
-			set_irq_wake(irq, 1);
-		else
-			set_irq_wake(irq, 0);
+
+	if ( !( wake & WAKE_ON_HARD && ( wake & WAKE_ON_VOL ) ) ) {
+		irq = gpio_to_irq( navi->info->cols[1] );
+		set_irq_wake( irq, 1 );
 	}
 
 	idev = input_allocate_device();
