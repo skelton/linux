@@ -433,6 +433,8 @@ int htc_cable_status_update(int status)
 		 * LED state or whatnot...
 		 */
 		wake_lock_timeout(&vbus_wake_lock, HZ / 2);
+	} else {
+		wake_unlock(&vbus_wake_lock);
 	}
 
 	/* make sure that we only change the powersupply state if we really have to */
