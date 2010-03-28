@@ -402,6 +402,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 	int rc = 0;
 	unsigned int plls_enabled = 0, pll;
 	unsigned int v_val;
+	unsigned int n_val=0;
 	strt_s = cur_s = drv_state.current_speed;
 
 	WARN_ONCE(cur_s == NULL, "acpuclk_set_rate: not initialized\n");
@@ -411,7 +412,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 	if (rate == (cur_s->a11clk_khz * 1000))
 		return 0;
 
-	for (tgt_s = acpu_freq_tbl; tgt_s->a11clk_khz != 0; tgt_s++) {
+	for (tgt_s = acpu_freq_tbl; tgt_s->a11clk_khz != 0; tgt_s++, n_val++) {
 		if (tgt_s->a11clk_khz == (rate / 1000))
 			break;
 	}
@@ -420,7 +421,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		return -EINVAL;
 
 	if(user_vdd)    // Switch to the user VREG
-		v_val = vdd_user_data[tgt_s-acpu_freq_tbl];
+		v_val = vdd_user_data[n_val];
 	else
 		v_val = tgt_s->vdd;
 
@@ -523,10 +524,6 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 			pr_err("Setting AXI min rate failed!\n");
 	}
 
-	/* Nothing else to do for power collapse */
-	if (reason == SETRATE_PC)
-		return 0;
-
 	/* Disable PLLs we are not using anymore. */
 	plls_enabled &= ~(1 << tgt_s->pll);
 	for (pll = ACPU_PLL_0; pll <= ACPU_PLL_2; pll++)
@@ -539,14 +536,18 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		}
 
 	/* Drop VDD level if we can. */
-	if (tgt_s->vdd < strt_s->vdd) {
-		if (acpuclk_set_vdd_level(tgt_s->vdd) < 0)
+	if (v_val < strt_s->vdd) {
+		if (acpuclk_set_vdd_level(v_val) < 0)
 			printk(KERN_ERR "acpuclock: Unable to drop ACPU vdd\n");
 	}
 
 #if PERF_SWITCH_DEBUG
 	printk(KERN_DEBUG "%s: ACPU speed change complete\n", __FUNCTION__);
 #endif
+
+	/* Nothing else to do for power collapse */
+	if (reason == SETRATE_PC)
+		return 0;
 out:
 	if (reason == SETRATE_CPUFREQ)
 		mutex_unlock(&drv_state.lock);
