@@ -484,16 +484,6 @@ static short battery_table_4[] = {
 	0,	0
 };
 
-static short battery_table_2[] = {
-	0,      0,
-	0xb10,  0,
-	0xb50,  30,
-	0xbe0,  65,
-	0xcac,  100,
-	0x1000, 100,
-	0,	0
-};
-
 /* 2 byte alligned */
 struct htc_batt_info_u16 {
 	volatile u16 batt_id;
@@ -512,14 +502,129 @@ struct htc_batt_info_u32 {
 	volatile u32 batt_discharge;
 };
 
+/* todo convert to more readable code */
+ int batt_current_temp_correction(s64 R0/* temp */, s64 R1, s64 R2)
+ {
+		s64 R3;
+		s64 R4;
+
+		if ( R0 > 250 ) {
+			R0 = 0;
+		} else {
+			R1 = abs((int)R1);
+			R3 = 250 - R0;
+			R1 = R3 * R1;
+			R0 = R1 * R2;
+			R4 = R0 * 8;
+
+			R1 = (R4 * 0x32C88B7BLL) >> 32;
+			R3 = (R0 * 8) - R1;
+			R3 = R1 + ( R3 / 2 );
+			R0 = R3 >> 20;
+		}
+
+		R1 = R2 * 8;
+		R3 = (R1 * 0xCCCCCCCD) >> 32; // part of div 10
+		R3 = R3 >> 3;
+
+		if (R0 < R3)
+			R0 = R3;
+
+		return R0;
+}
+
+static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor )
+{
+	int volt_discharge_resistor;
+	int voltage_0;
+	int voltage_1;
+	int voltage_2;
+	int voltage_max = 3808;		// top most value of the graph
+	int temp_correction;
+	int temp_correction_const;
+	int result;
+	int temp_correct_volt;
+	int corrected_volt;
+	int corr_return;
+
+   if ( vendor != 1 ) {
+	   voltage_0 = 0xdb0 | 0x0E;		// 3518 mV
+	   voltage_1 = 0xe50 | 0x04;		// 3668 mV
+	   voltage_2 = 0xe90 | 0x0F;		// 3743 mV
+	   voltage_max |= 0x0A;				// 3818 mV
+	   temp_correction_const = 23;	// 23
+	   temp_correction = 150;			// 150
+	} else {
+	   voltage_0 = 0xd80 | 0x07;		// 3463 mV
+	   voltage_1 = 0xe40 | 0x0F;		// 3663 mV
+	   voltage_2 = 0xea0 | 0x03;		// 3747 mV
+	   voltage_max |= 0x05;				// 3813 mV
+	   temp_correction_const = 11;	// 11
+	   temp_correction = 200;			// 200
+	}
+
+	/* if we are charging we don't have to calculate the voltage over the discharge current resistor */
+	if ( charge > 0 ) {
+		volt_discharge_resistor = 0;
+	} else {
+		if ( vendor == 1 ) {
+			volt_discharge_resistor = ( abs( charge ) * 22 ) / 100;
+		} else {
+			volt_discharge_resistor = ( abs( charge ) * 27 ) / 100;
+		}
+
+		/* wierd code I know... :S something related to overflow shit :S */
+		if ( volt_discharge_resistor < 0 )															//volt_discharge_resistor += volt_discharge_resistor >> 31;
+			volt_discharge_resistor = volt_discharge_resistor + 1;
+	}
+
+	if ( temp >= 250 )
+		temp_correct_volt = 0;
+	else
+		temp_correct_volt = ( temp_correction_const * ( ( 250 - temp ) * abs( charge ) ) ) / 10000;
+
+	corrected_volt = volt + volt_discharge_resistor;
+
+	/* calculate the voltage offset because of the temperature and current use */
+	corr_return = batt_current_temp_correction( temp, charge, temp_correction );
+
+	if ( voltage_max - temp_correct_volt > corrected_volt ) {
+		if ( voltage_2 - temp_correct_volt > corrected_volt ) {
+			if ( voltage_1 - temp_correct_volt > corrected_volt ) {
+				if ( ( corr_return - temp_correct_volt ) + voltage_0 > corrected_volt ) {
+					result = 0;
+				} else {
+					result = ( ( ( ( corrected_volt - corr_return ) - voltage_0 ) + temp_correct_volt ) * 3 ) / ( ( voltage_1 - corr_return ) - voltage_1 );
+				}
+			} else {
+				result = ( ( ( ( corrected_volt - voltage_1 ) + temp_correct_volt ) * 16 ) / ( voltage_2 - voltage_1 ) ) + 3;
+			}
+		} else {
+			result = ( ( ( ( corrected_volt - voltage_2 ) + temp_correct_volt ) * 31 ) / ( voltage_max - voltage_2 ) ) + 19;
+		}
+	} else {
+		result = ( ( ( ( corrected_volt - voltage_max ) + temp_correct_volt ) * 50 ) / ( ( ( temp_correct_volt - voltage_max ) + 0x1000 ) + 29 ) ) + 50;
+	}
+
+	/* would be stupid if we report more than 100% */
+	if ( result > 100 )
+		result = 100;
+
+	return result;
+ }
+
 static int htc_get_batt_info(struct battery_info_reply *buffer)
 {
 	int i, capacity, v;
-	short *battery_table;
+	short av_volt = 0, av_curr = 0, av_temp = 0, av_index = 0;
 
 	volatile struct htc_batt_info_u32 *batt_32 = NULL;
 	volatile struct htc_batt_info_u16 *batt_16 = NULL;
 	struct msm_dex_command dex;
+
+	/* don't do work when we aren't initialized */
+	if ( htc_battery_initial == 0 )
+		return 0;
 
 	if ( buffer == NULL )
 		return -EINVAL;
@@ -538,17 +643,47 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		batt_32 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
 		// FIXME: Adding factors to make these numbers come out sane, but they're not being calculated correctly.
 		v = (batt_32->batt_vol * 9 / 7) + (batt_32->batt_discharge / 7) - (batt_32->batt_charge / 28);
-		battery_table = battery_table_4;
+
 		buffer->batt_id = batt_32->batt_id;
 		buffer->batt_temp = batt_32->batt_temp / 12;
 		buffer->batt_vol = batt_32->batt_vol * 9 / 7;
 		buffer->batt_current = batt_32->batt_charge;
-	} else if (htc_batt_info.resources->smem_field_size == 2) {
+
+		v = (v < 0) ? 0 : (v > 0xfff) ? 0xfff : v;
+		capacity = 100;
+		for (i=2; battery_table_4[i]; i+=2) {
+			if (v<battery_table_4[i]) {
+				capacity = battery_table_4[i-1] + ((v - battery_table_4[i-2]) * (battery_table_4[i+1] - battery_table_4[i-1])) / (battery_table_4[i]-battery_table_4[i-2]);
+				break;
+			}
+		}
+
+		if ( buffer->level < 5 )
+			buffer->level = 5;
+	}
+	else if (htc_batt_info.resources->smem_field_size == 2)
+	{
 		batt_16 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
 
-		// don't add the batt_charge here as it still needs to be corrected.
-		v = batt_16->batt_vol;// - ( batt_16->batt_charge / 36 );
-		battery_table = battery_table_2;
+		/* simple 5x avarage on readings */
+		for ( i = 0; i < 5; i++ )
+		{
+			msm_proc_comm_wince(&dex, 0);
+
+			//if ( batt_16->batt_vol > av_volt )
+			//	av_volt = batt_16->batt_vol;
+			av_volt += batt_16->batt_vol;
+
+			av_curr+=batt_16->batt_charge;
+			av_temp+=batt_16->batt_temp;
+			msleep(2);
+		}
+
+		//batt_16->batt_vol = av_volt;
+		batt_16->batt_vol = av_volt / 5;
+		batt_16->batt_charge = av_curr;
+		batt_16->batt_temp = av_temp / 5;
+
 		buffer->batt_id = batt_16->batt_id;
 
 		/* initial corrected voltage reporting
@@ -562,8 +697,9 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		 * todo: add ADC_REF and ADC_REF 1/2 corrections.
 		 */
 		buffer->batt_vol = batt_16->batt_vol;
-		buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / htc_adc_range; 								// apply a linear correction.
-		buffer->batt_vol = ( ( htc_adc_a * buffer->batt_vol ) + htc_adc_b ) / 1000;
+		buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / 0x1000; 								// apply a linear correction.
+		//buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / htc_adc_range; 								// apply a linear correction.
+		//buffer->batt_vol = ( ( htc_adc_a * buffer->batt_vol ) + htc_adc_b ) / 1000;
 
 		/* Despite its very plauseble that the next piece if code is correct, there is no way
 		 * to be sure of it. Android doesn't support "current" info in its battery reports. So
@@ -571,58 +707,34 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		 */
 		buffer->batt_current = batt_16->batt_charge;
 		buffer->batt_current = ( buffer->batt_current * 2600 ) / htc_adc_range;					// apply a linear correction.
-		buffer->batt_current = ( ( htc_adc_a * buffer->batt_current ) + htc_adc_b )  / 1000;
+		//buffer->batt_current = ( ( htc_adc_a * buffer->batt_current ) + htc_adc_b )  / 1000;
 
 		// temperature adc correction
 		buffer->batt_temp = ( batt_16->batt_temp * 2600 ) / htc_adc_range;
 		buffer->batt_temp = ( ( htc_adc_a * buffer->batt_temp ) + htc_adc_b ) / 1000;
 
 		// ( RAPH tested )
-		int temp = ( buffer->batt_temp * 18 ) / ( 2600 - buffer->batt_temp );
+		av_index = ( buffer->batt_temp * 18 ) / ( 2600 - buffer->batt_temp );
 
 		// everything below 8 is HOT
-		if ( temp < 8 )
-			temp = 8;
+		if ( av_index < 8 )
+			av_index = 8;
 
 		// max size of the table, everything higher than 1347 would
 		// cause the battery to freeze in a instance.
-		if ( temp > 1347 )
-			temp = 1347;
+		if ( av_index > 1347 )
+			av_index = 1347;
 
-		buffer->batt_temp = temp_table[ temp - 8 ];
+		buffer->batt_temp = temp_table[ av_index - 8 ];
+
+		/* todo: fix batt discharge current... */
+		buffer->level = GetBatteryDischargeLevel( buffer->batt_vol, -buffer->batt_current, buffer->batt_temp, batt_vendor );
 
 	} else {
 		printk(KERN_WARNING MODULE_NAME ": unsupported smem_field_size\n");
 		mutex_unlock(&htc_batt_info.lock);
 		return -ENOTSUPP;
 	}
-
-#if 0
-	for (i=0x85;i<=0x8a;i++)
-	{
-	 dex.cmd = i;
-	 dex_test=0;
-	 msm_proc_comm_wince(&dex, &dex_test);
-	 printk("dex_batt: 0x%x = 0x%x\n",i,dex_test);
-	}
-	 printk("dex_batt: 0x%x = 0x%x 0x%x 0x%x 0x%x\n",PCOM_GET_BATTERY_DATA,
-	  buffer->batt_id,  buffer->batt_temp, buffer->batt_vol, buffer->batt_current);
-#endif
-
-	v = (v < 0) ? 0 : (v > 0xfff) ? 0xfff : v;
-	capacity = 100;
-	for (i=2; battery_table[i]; i+=2) {
-		if (v<battery_table[i]) {
-			capacity = battery_table[i-1] + ((v - battery_table[i-2]) * (battery_table[i+1] - battery_table[i-1])) / (battery_table[i]-battery_table[i-2]);
-			break;
-		}
-	}
-	// since this is not very accurate, stop the phone from thinking it has 0 capacity.
-
-	if( capacity <5 )
-		capacity = 5;
-
-	buffer->level = capacity;
 
 	if(debug_mask&DEBUG_BATT) {
 		if (htc_batt_info.resources->smem_field_size == 4) {
@@ -651,6 +763,8 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 				batt_16->batt_charge,
 				batt_16->batt_discharge
 				);
+
+			printk( "batt: current battery level: %u\n" , buffer->level );
 		}
 	}
 
