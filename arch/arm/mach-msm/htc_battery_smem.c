@@ -658,6 +658,8 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 			}
 		}
 
+		buffer->level = capacity;
+
 		if ( buffer->level < 5 )
 			buffer->level = 5;
 	}
