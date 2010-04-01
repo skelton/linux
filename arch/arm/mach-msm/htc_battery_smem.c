@@ -699,7 +699,10 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		 * todo: add ADC_REF and ADC_REF 1/2 corrections.
 		 */
 		buffer->batt_vol = batt_16->batt_vol;
-		buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / 0x1000; 								// apply a linear correction.
+		if(!machine_is_htcrhodium()) {
+			//Rhodium voltage seems accurate on itself
+			buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / 0x1000; // apply a linear correction.
+		}
 		//buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / htc_adc_range; 								// apply a linear correction.
 		//buffer->batt_vol = ( ( htc_adc_a * buffer->batt_vol ) + htc_adc_b ) / 1000;
 
@@ -728,6 +731,11 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 			av_index = 1347;
 
 		buffer->batt_temp = temp_table[ av_index - 8 ];
+
+		if(machine_is_htcrhodium())
+			//temp reading from rhodium seems totally stupid (even in wince)
+			//So set it to "too hot for you"
+			buffer->batt_temp=250;
 
 		/* todo: fix batt discharge current... */
 		buffer->level = GetBatteryDischargeLevel( buffer->batt_vol, -buffer->batt_current, buffer->batt_temp, batt_vendor );
