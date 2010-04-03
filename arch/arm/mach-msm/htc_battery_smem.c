@@ -629,21 +629,23 @@ static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor 
 	 * note: the linear correction value can be different on every model.
 	 * todo: add ADC_REF and ADC_REF 1/2 corrections.
 	 */
-	buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / htc_adc_range; 								// apply a linear correction.
+	//buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / htc_adc_range; 								// apply a linear correction.
+	buffer->batt_vol = ( buffer->batt_vol * 0x1450 ) / 0x1000; 								// apply a linear correction.
 	//buffer->batt_vol = ( ( htc_adc_a * buffer->batt_vol ) + htc_adc_b ) / 1000;
 
 	/* Despite its very plauseble that the next piece if code is correct, there is no way
 	 * to be sure of it. Android doesn't support "current" info in its battery reports. So
 	 * there is no way to be sure.
 	 */
-	buffer->batt_current = ( buffer->batt_current * 2600 ) / htc_adc_range;					// apply a linear correction.
+	//buffer->batt_current = ( buffer->batt_current * 2600 ) / htc_adc_range;					// apply a linear correction.
+	buffer->batt_current = ( buffer->batt_current * 2600 ) / 0x1000;					// apply a linear correction.
 	//buffer->batt_current = ( ( htc_adc_a * buffer->batt_current ) + htc_adc_b )  / 1000;
 
 	// temperature adc correction
-	buffer->batt_temp = ( buffer->batt_temp * 2600 ) / htc_adc_range;
+	//buffer->batt_temp = ( buffer->batt_temp * 2600 ) / htc_adc_range;
+	buffer->batt_temp = ( buffer->batt_temp * 2600 ) / 0x1000;
 	//buffer->batt_temp = ( ( htc_adc_a * buffer->batt_temp ) + htc_adc_b ) / 1000;
 
-	// ( RAPH tested )
 	av_index = ( buffer->batt_temp * 18 ) / ( 2600 - buffer->batt_temp );
 
 	// everything below 8 is HOT
@@ -734,33 +736,27 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	mutex_lock(&htc_batt_info.lock);
 
 	if (htc_batt_info.resources->smem_field_size == 4) {
-		msm_proc_comm_wince(&dex, 0);
 
 		batt_32 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
-		// FIXME: Adding factors to make these numbers come out sane, but they're not being calculated correctly.
-		v = (batt_32->batt_vol * 9 / 7) + (batt_32->batt_discharge / 7) - (batt_32->batt_charge / 28);
 
-		buffer->batt_id = batt_32->batt_id;
-		buffer->batt_temp = batt_32->batt_temp / 12;
-		buffer->batt_vol = batt_32->batt_vol * 9 / 7;
-		buffer->batt_current = batt_32->batt_charge;
+		/* simple 5x avarage on readings */
+		for ( i = 0; i < 5; i++ ) {
+			msm_proc_comm_wince(&dex, 0);
 
-		v = (v < 0) ? 0 : (v > 0xfff) ? 0xfff : v;
-		capacity = 100;
-		for (i=2; battery_table_4[i]; i+=2) {
-			if (v<battery_table_4[i]) {
-				capacity = battery_table_4[i-1] + ((v - battery_table_4[i-2]) * (battery_table_4[i+1] - battery_table_4[i-1])) / (battery_table_4[i]-battery_table_4[i-2]);
-				break;
-			}
+			if ( batt_32->batt_vol > av_volt )
+				av_volt = batt_32->batt_vol;
+
+			av_curr+=batt_32->batt_charge;
+			av_temp+=batt_32->batt_temp;
+			msleep(2);
 		}
 
-		buffer->level = capacity;
+		buffer->batt_vol = av_volt;
+		buffer->batt_current = av_curr; /* this one is NOT divided by 5 on purpose, its because this way we can get a easy current * 5 without the loss, DON'T CHANGE IT */
+		buffer->batt_temp = av_temp / 5;
+		buffer->batt_id = batt_32->batt_id;
 
-		if ( buffer->level < 5 )
-			buffer->level = 5;
-	}
-	else if (htc_batt_info.resources->smem_field_size == 2)
-	{
+	} else if (htc_batt_info.resources->smem_field_size == 2) {
 		batt_16 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
 
 		/* simple 5x avarage on readings */
@@ -781,19 +777,20 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		buffer->batt_temp = av_temp / 5;
 		buffer->batt_id = batt_16->batt_id;
 
-		/* platform spec battery correction */
-		if ( machine_is_htcraphael() || machine_is_htcraphael_cdma() || machine_is_htcdiamond() || machine_is_htcdiamond_cdma() ) {
-			htc_raph_batt_corr( buffer );
-		} else if ( machine_is_htcrhodium() || machine_is_htctopaz() ) {
-			htc_rhod_batt_corr( buffer );
-		} else {
-			/* fallback for not supported devices */
-			htc_raph_batt_corr( buffer );
-		}
 	} else {
 		printk(KERN_WARNING MODULE_NAME ": unsupported smem_field_size\n");
 		mutex_unlock(&htc_batt_info.lock);
 		return -ENOTSUPP;
+	}
+
+	/* platform spec battery correction */
+	if ( machine_is_htcraphael() || machine_is_htcraphael_cdma() || machine_is_htcdiamond() || machine_is_htcdiamond_cdma() ) {
+		htc_raph_batt_corr( buffer );
+	} else if ( machine_is_htcrhodium() || machine_is_htctopaz() ) {
+		htc_rhod_batt_corr( buffer );
+	} else {
+		/* fallback for not supported devices */
+		htc_raph_batt_corr( buffer );
 	}
 
 	if(debug_mask&DEBUG_BATT) {
