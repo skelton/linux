@@ -278,7 +278,6 @@ static int micropksc_read(struct i2c_client *client, unsigned id, char *buf, int
 #if CONFIG_PM
 static int micropksc_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-	flush_scheduled_work();
 	D("suspending device...");
 	return 0;
 }
