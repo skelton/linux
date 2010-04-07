@@ -1,7 +1,7 @@
 /*
     microp-keypad.c - i2c keyboard driver found on certain HTC Phones
     Depends on microp-ksc and microp-klt i2c chip drivers
-    
+
     Joe Hansche <madcoder@gmail.com>
     Based in part on htc-spi-kbd.c from Kevin2
 
@@ -37,82 +37,80 @@ static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, uns
 
 // Rhodium keymapping by VicBush
 // Right now its for all Rhodium models. Tested on RHOD400
-
 static int microp_keymap_rhodium[] = {
-               			KEY_B, //KEY_RESERVED, // invalid
-     	KEY_BACK, //Back key
+        KEY_B, //KEY_RESERVED, // invalid
+        KEY_BACK, //Back key
         KEY_Q,
-     	KEY_HOME, //Mute button on back of device
+        KEY_HOME, //Mute button on back of device
         KEY_CAMERA,
         KEY_A,
         KEY_F,
         KEY_S,
         KEY_D,
-     	KEY_SEND, //Send Key
-    	KEY_MENU, //Windows Key
-        			KEY_S, //KEY_RESERVED, // 0x0b   //Unknown
+        KEY_SEND, //Send Key
+        KEY_MENU, //Windows Key
+        KEY_S, //KEY_RESERVED, // 0x0b   //Unknown
         KEY_I,
         KEY_K,
         KEY_J,
         KEY_H,
         KEY_G,
-       	KEY_A,
+        KEY_A,
         KEY_4,
-        			KEY_1, //KEY_RESERVED, // 0x13  //Unknown
-       				KEY_2, //KEY_RESERVED, // 0x14	//Unknown
-       	KEY_L,
-       	KEY_I,
+        KEY_1, //KEY_RESERVED, // 0x13  //Unknown
+        KEY_2, //KEY_RESERVED, // 0x14	//Unknown
+        KEY_L,
+        KEY_I,
         KEY_P,
-       	KEY_O,
+        KEY_O,
         KEY_B,
         KEY_9,
         KEY_8,
         KEY_N,
-    	KEY_ENTER,
+        KEY_ENTER,
         KEY_M,
         KEY_C,
         KEY_V,
-	KEY_0, 
-       	KEY_U,
+        KEY_0,
+        KEY_U,
         KEY_E,
         KEY_R,
         KEY_Q,
         KEY_T,
         KEY_Y,
         KEY_W,
-        		KEY_UP,  //ARROW KEY
-       	KEY_1, 	
-       	KEY_2,
-     			KEY_DOWN, //KEY_LEFT,	//KEY_DOWN,   //ITS KEY DOWN FOR SURE!!!! STILL DOESN't GO DOWN THO
+        KEY_UP,  //ARROW KEY
+        KEY_1,
+        KEY_2,
+        KEY_DOWN, //KEY_LEFT,	//KEY_DOWN,   //ITS KEY DOWN FOR SURE!!!! STILL DOESN't GO DOWN THO
         KEY_3,
         KEY_4,
         KEY_5,
-    			KEY_LEFT, 	//KEY_LEFT,	//ARROW KEY
+        KEY_LEFT, 	//KEY_LEFT,	//ARROW KEY
         KEY_6,
-        			KEY_2,			//KEY_RESERVED, // 0x32 //Unknown
-   	KEY_SPACE,
-	KEY_BACKSPACE,
+        KEY_2,			//KEY_RESERVED, // 0x32 //Unknown
+        KEY_SPACE,
+        KEY_BACKSPACE,
         KEY_7,
-   			KEY_RIGHT,		//KEY_UNKNOWN,  // ARROW KEY
-        			KEY_SPACE, //UNKNOWN
-        			KEY_X,	//KEY_COMMA, //UNKNOWN
-   	KEY_EMAIL,
-    	KEY_DOT,
-       	KEY_FN,  //Doesn't do anything?
-	KEY_LEFTSHIFT,
-     	KEY_Z,
-   	KEY_X,
-   	KEY_COMMA,
-  	KEY_COMPOSE, //Brings up search box?
-        			KEY_C, //KEY_SLASH,  //Unknown
-    	KEY_COMMA,
-        			KEY_6, 			//Unknown
-        			KEY_8,			//Unknown
-        			KEY_1, //KEY_RESERVED, // 0x45	//Unknown
-        			KEY_2, //KEY_RESERVED, // 0x46	//Unknown
-        			KEY_P, //KEY_EMAIL,	//Unknown
+        KEY_RIGHT,		//KEY_UNKNOWN,  // ARROW KEY
+        KEY_SPACE, //UNKNOWN
+        KEY_X,	//KEY_COMMA, //UNKNOWN
+        KEY_EMAIL,
+        KEY_DOT,
+        KEY_FN,  //Doesn't do anything?
+        KEY_LEFTSHIFT,
+        KEY_Z,
+        KEY_X,
+        KEY_COMMA,
+        KEY_COMPOSE, //Brings up search box?
+        KEY_C, //KEY_SLASH,  //Unknown
+        KEY_COMMA,
+        KEY_6, 			//Unknown
+        KEY_8,			//Unknown
+        KEY_1, //KEY_RESERVED, // 0x45	//Unknown
+        KEY_2, //KEY_RESERVED, // 0x46	//Unknown
+        KEY_P, //KEY_EMAIL,	//Unknown
 };
-
 
 // This is raph800's default keymap.  can be remapped by userland
 static int microp_keymap_raph800[] = {
@@ -268,7 +266,6 @@ static int microp_keymap_raph100[] = {
 
 // This is htckovsky keymap.  can be remapped by userland
 static int microp_keymap_htckovsky[] = {
-
 	KEY_RESERVED, // invalid
 	KEY_ENTER,
 	KEY_LEFT,
@@ -349,10 +346,16 @@ static int microp_keymap_htckovsky[] = {
 	KEY_VOLUMEDOWN,
 };
 
+struct microp_key_led {
+	unsigned led:4;
+	unsigned on:1;
+};
+
 static struct microp_keypad {
 	struct mutex lock;
 	struct delayed_work keypad_work;
 	struct delayed_work clamshell_work;
+	struct delayed_work led_work;
 
 	struct microp_keypad_platform_data *pdata;
 	struct platform_device *pdev;
@@ -363,6 +366,7 @@ static struct microp_keypad {
 
 	int keypress_irq;
 	int clamshell_irq;
+	struct microp_key_led led_status;
 } * microp_keypad_t;
 
 static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
@@ -370,7 +374,7 @@ static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
 	struct microp_keypad *data;
 	data = (struct microp_keypad *)handle;
 
-	disable_irq(data->keypress_irq);	
+	disable_irq(data->keypress_irq);
 	schedule_work(&data->keypad_work.work);
 	return IRQ_HANDLED;
 }
@@ -384,7 +388,7 @@ static void microp_keypad_work(struct work_struct *work)
 	key = 0;
 
 	mutex_lock(&data->lock);
-	
+
 	do
 	{
 		if (machine_is_htckovsky() || machine_is_htcrhodium()) {
@@ -399,7 +403,7 @@ static void microp_keypad_work(struct work_struct *work)
 #endif
 			// Allow input subsystem to use a scancode even if our keymap doesn't define it
 			input_event(data->input, EV_MSC, MSC_SCAN, key);
-			
+
 			if (key < data->keycount)
 			{
 				input_report_key(data->input, data->keymap[key], isdown);
@@ -438,13 +442,13 @@ static void microp_keypad_clamshell_work(struct work_struct *work)
 {
 	struct microp_keypad *data;
 	int closed;
-	
+
 	data = container_of(work, struct microp_keypad, clamshell_work.work);
 
 	mutex_lock(&data->lock);
 	closed = !gpio_get_value(data->pdata->clamshell.gpio);
 #if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_WARNING "%s: clamshell is %s\n", __func__, 
+	printk(KERN_WARNING "%s: clamshell is %s\n", __func__,
 			closed ? "closed" : "open");
 #endif
 	micropklt_set_kbd_state(!closed);
@@ -461,7 +465,7 @@ static int microp_keypad_remove(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	data = platform_get_drvdata(pdev);
-	
+
 	if (pdata->backlight_gpio > 0)
 		gpio_set_value(pdata->backlight_gpio, 0);
 
@@ -470,16 +474,29 @@ static int microp_keypad_remove(struct platform_device *pdev)
 
 	if ( pdata->clamshell.irq > 0 )
 		free_irq(pdata->clamshell.irq, data);
-	
+
 	flush_scheduled_work();
 	kfree(data);
 	printk("microp_keypad_remove\n");
 	return 0;
 }
 
+static void microp_led_work(struct work_struct *work)
+{
+	struct microp_keypad *data;
+
+	data = container_of(work, struct microp_keypad, led_work.work);
+
+	mutex_lock(&data->lock);
+	micropksc_set_led(data->led_status.led, data->led_status.on);
+	mutex_unlock(&data->lock);
+}
+
 static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
 	unsigned int led;
+	struct microp_keypad *data = microp_keypad_t;
+
 	if (type == EV_LED)
 	{
 		switch (code)
@@ -501,7 +518,11 @@ static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, uns
 			default:
 				return -1;
 		}
-		return micropksc_set_led(led, value);
+
+		data->led_status.led = led;
+		data->led_status.on = value;
+		schedule_work(&data->led_work.work);
+		return 0;
 	}
 	return -1;
 }
@@ -512,7 +533,7 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	struct input_dev *input = NULL;
 	struct microp_keypad_platform_data *pdata = pdev->dev.platform_data;
 	int r, i;
-	
+
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP keypad driver\n");
 
 	data = kzalloc(sizeof *data, GFP_KERNEL);
@@ -521,10 +542,11 @@ static int microp_keypad_probe(struct platform_device *pdev)
 		printk(KERN_ERR MODULE_NAME ": Not enough memory\n");
 		return -ENOMEM;
 	}
-	
+
 	mutex_init(&data->lock);
 	INIT_DELAYED_WORK(&data->keypad_work, microp_keypad_work);
-	
+	INIT_DELAYED_WORK(&data->led_work, microp_led_work);
+
 	// Initialize input device
 	input = input_allocate_device();
 	if (!input)
@@ -583,7 +605,7 @@ static int microp_keypad_probe(struct platform_device *pdev)
 		}
 	}
 	data->keycount = i;
-	
+
 	r = input_register_device(input);
 	if (r)
 		goto fail;
@@ -592,16 +614,16 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	data->input = input;
 	data->pdata = pdata;
 	platform_set_drvdata(pdev, data);
-	
+
 	data->keypress_irq = 0;
 	for (i = 0; i < pdev->num_resources; i++)
 	{
-		if (pdev->resource[i].flags == IORESOURCE_IRQ && 
+		if (pdev->resource[i].flags == IORESOURCE_IRQ &&
 			pdev->resource[i].start > 0)
 		{
 			data->keypress_irq = pdev->resource[i].start;
-			r = request_irq(data->keypress_irq, microp_keypad_interrupt, 
-		                IRQF_TRIGGER_FALLING | IRQF_SAMPLE_RANDOM, 
+			r = request_irq(data->keypress_irq, microp_keypad_interrupt,
+		                IRQF_TRIGGER_FALLING | IRQF_SAMPLE_RANDOM,
 		                MODULE_NAME, data);
 			if (r < 0)
 			{

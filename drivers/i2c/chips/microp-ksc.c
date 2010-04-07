@@ -20,7 +20,6 @@
 #include <linux/workqueue.h> /* for keyboard LED worker */
 #include <linux/microp-ksc.h>
 
-
 static int micropksc_read(struct i2c_client *, unsigned, char *, int);
 static int micropksc_write(struct i2c_client *, const char *, int);
 static int micropksc_probe(struct i2c_client *, const struct i2c_device_id *id);
@@ -49,7 +48,7 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 	struct microp_ksc *data;
 	struct i2c_client *client;
 	unsigned char key, isdown;
-	char buffer[8] = "\0\0\0\0\0\0\0\0";
+	char buffer[3] = "\0\0\0";
 
 	if (!micropksc_t) {
 		if (outkey)
@@ -58,8 +57,6 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 	}
 
 	data = micropksc_t;
-
-	mutex_lock(&data->lock);
 
 	client = data->client;
 	key = 0;
@@ -70,13 +67,11 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 	isdown = (buffer[0] & MICROP_KSC_RELEASED_BIT) == 0;
 
 	//TODO: Find out what channel 0x11 is for
-	micropksc_read(client, MICROP_KSC_ID_MODIFIER, buffer, 2);
+	//micropksc_read(client, MICROP_KSC_ID_MODIFIER, buffer, 2);
 	if (outkey)
 		*outkey = key;
 	if (outdown)
 		*outdown = isdown;
-
-	mutex_unlock(&data->lock);
 
 	return 0;
 }
@@ -87,7 +82,7 @@ int micropksc_read_scancode_kovsky(unsigned char *outkey, unsigned char *outdown
 	struct microp_ksc *data;
 	struct i2c_client *client;
 	unsigned char key, isdown, clamshell;
-	char buffer[8] = "\0\0\0\0\0\0\0\0";
+	char buffer[3] = "\0\0\0";
 
 	if (!micropksc_t) {
 		if (outkey)
@@ -96,8 +91,6 @@ int micropksc_read_scancode_kovsky(unsigned char *outkey, unsigned char *outdown
 	}
 
 	data = micropksc_t;
-
-	mutex_lock(&data->lock);
 
 	client = data->client;
 	key = 0;
@@ -117,8 +110,6 @@ int micropksc_read_scancode_kovsky(unsigned char *outkey, unsigned char *outdown
 	if (outclamshell)
 		*outclamshell = clamshell;
 
-	mutex_unlock(&data->lock);
-
 	return 0;
 }
 EXPORT_SYMBOL(micropksc_read_scancode_kovsky);
@@ -126,6 +117,8 @@ EXPORT_SYMBOL(micropksc_read_scancode_kovsky);
 int micropksc_set_led(unsigned int led, int on)
 {
 	struct microp_ksc *data;
+	struct i2c_client *client;
+	char buffer[3] = { MICROP_KSC_ID_LED, 0, 0 };
 
 	if (!micropksc_t)
 		return -EAGAIN;
@@ -133,8 +126,7 @@ int micropksc_set_led(unsigned int led, int on)
 		return -EINVAL;
 
 	data = micropksc_t;
-
-	mutex_lock(&data->lock);
+	client = data->client;
 
 	if (led == MICROP_KSC_LED_RESET)
 		data->led_state = 0;
@@ -143,27 +135,13 @@ int micropksc_set_led(unsigned int led, int on)
 	else
 		data->led_state &= ~led;
 
-	schedule_work(&data->work);
+	buffer[1] = 0x16 - (data->led_state << 1);
 
-	mutex_unlock(&data->lock);
+	micropksc_write(client, buffer, 2);
 
 	return 0;
 }
 EXPORT_SYMBOL(micropksc_set_led);
-
-static void micropksc_led_work_func(struct work_struct *work)
-{
-	struct microp_ksc *data;
-	struct i2c_client *client;
-	char buffer[3] = { MICROP_KSC_ID_LED, 0, 0 };
-
-	data = container_of(work, struct microp_ksc, work);
-	client = data->client;
-
-	buffer[1] = 0x16 - (data->led_state << 1);
-
-	micropksc_write(client, buffer, 2);
-}
 
 /**
  * The i2c buffer holds all the keys that are pressed,
@@ -210,8 +188,6 @@ static int micropksc_remove(struct i2c_client *client)
 
 	data = i2c_get_clientdata(client);
 
-	cancel_work_sync(&data->work);
-
 	kfree(data);
 	return 0;
 }
@@ -235,10 +211,6 @@ static int micropksc_probe(struct i2c_client *client, const struct i2c_device_id
 	}
 
 	micropksc_t = data;
-
-	INIT_WORK(&data->work, micropksc_led_work_func);
-	mutex_init(&data->lock);
-
 	data->client = client;
 	i2c_set_clientdata(client, data);
 
@@ -342,6 +314,7 @@ static int __init micropksc_init(void)
 {
 	micropksc_t = NULL;
 	printk(KERN_INFO "microp-ksc: Registering MicroP-KEY driver\n");
+
 	return i2c_add_driver(&micropksc_driver);
 }
 
