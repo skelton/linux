@@ -33,7 +33,14 @@
 
 #define MICROP_DEBUG 0
 
+#if defined(MICROP_DEBUG) && MICROP_DEBUG
+ #define DLOG(fmt, arg...) printk(fmt, ## arg);
+#else
+ #define DLOG(fmt, arg...) do {} while(0)
+#endif
+
 static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+static void microp_backlight_timeout(struct work_struct *work);
 
 // Rhodium keymapping by VicBush
 // Right now its for all Rhodium models. Tested on RHOD400
@@ -353,20 +360,21 @@ struct microp_key_led {
 
 static struct microp_keypad {
 	struct mutex lock;
-	struct delayed_work keypad_work;
-	struct delayed_work clamshell_work;
-	struct delayed_work led_work;
+	struct work_struct keypad_work;
+	struct work_struct clamshell_work;
+	struct work_struct led_work;
+	struct delayed_work backlight_work;
 
 	struct microp_keypad_platform_data *pdata;
 	struct platform_device *pdev;
 
 	struct input_dev *input;
+
+	struct microp_key_led led_status;
 	int *keymap;
 	int keycount;
-
 	int keypress_irq;
 	int clamshell_irq;
-	struct microp_key_led led_status;
 } * microp_keypad_t;
 
 static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
@@ -375,19 +383,30 @@ static irqreturn_t microp_keypad_interrupt(int irq, void *handle)
 	data = (struct microp_keypad *)handle;
 
 	disable_irq(data->keypress_irq);
-	schedule_work(&data->keypad_work.work);
+	schedule_work(&data->keypad_work);
+
 	return IRQ_HANDLED;
 }
 
 static void microp_keypad_work(struct work_struct *work)
 {
 	struct microp_keypad *data;
+	struct microp_keypad_platform_data *pdata;
 	unsigned char key, isdown, clamshell;
 
-	data = container_of(work, struct microp_keypad, keypad_work.work);
+	data = container_of(work, struct microp_keypad, keypad_work);
+	pdata = data->pdata;
 	key = 0;
 
 	mutex_lock(&data->lock);
+
+	// on key press enable backlight
+	if (pdata->backlight_gpio > 0)
+		gpio_set_value(pdata->backlight_gpio, 1);
+
+	if ( work_pending( &data->backlight_work.work ) )
+		cancel_delayed_work_sync(&data->backlight_work);
+	schedule_delayed_work(&data->backlight_work, HZ * 5); // 5 seconds?
 
 	do
 	{
@@ -398,9 +417,7 @@ static void microp_keypad_work(struct work_struct *work)
 		}
 		if (key != 0)
 		{
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-			printk(KERN_INFO " :::   Scancode = %02x; currently pressed: %01x\n", key, isdown);
-#endif
+			DLOG(KERN_INFO " :::   Scancode = %02x; currently pressed: %01x\n", key, isdown);
 			// Allow input subsystem to use a scancode even if our keymap doesn't define it
 			input_event(data->input, EV_MSC, MSC_SCAN, key);
 
@@ -408,16 +425,14 @@ static void microp_keypad_work(struct work_struct *work)
 			{
 				input_report_key(data->input, data->keymap[key], isdown);
 				input_sync(data->input);
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-				printk(KERN_INFO "       Input keycode = %d, scancode = %d\n", data->keymap[key], key);
-#endif
+
+				DLOG(KERN_INFO "       Input keycode = %d, scancode = %d\n", data->keymap[key], key);
 			}
 		}
 		if (machine_is_htckovsky() || machine_is_htcrhodium()) {
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-			printk(KERN_WARNING "%s: clamshell is %s\n", __func__,
+			DLOG(KERN_WARNING "%s: clamshell is %s\n", __func__,
 						!clamshell ? "closed" : "open");
-#endif
+
 			micropklt_set_kbd_state(!clamshell);
 			input_report_switch(data->input, SW_LID, !clamshell);
 		}
@@ -434,7 +449,7 @@ static irqreturn_t microp_keypad_clamshell_interrupt(int irq, void *handle)
 	data = (struct microp_keypad *)handle;
 
 	disable_irq(data->clamshell_irq);
-	schedule_work(&data->clamshell_work.work);
+	schedule_work(&data->clamshell_work);
 	return IRQ_HANDLED;
 }
 
@@ -443,14 +458,12 @@ static void microp_keypad_clamshell_work(struct work_struct *work)
 	struct microp_keypad *data;
 	int closed;
 
-	data = container_of(work, struct microp_keypad, clamshell_work.work);
+	data = container_of(work, struct microp_keypad, clamshell_work);
 
 	mutex_lock(&data->lock);
 	closed = !gpio_get_value(data->pdata->clamshell.gpio);
-#if defined(MICROP_DEBUG) && MICROP_DEBUG
-	printk(KERN_WARNING "%s: clamshell is %s\n", __func__,
+	DLOG(KERN_WARNING "%s: clamshell is %s\n", __func__,
 			closed ? "closed" : "open");
-#endif
 	micropklt_set_kbd_state(!closed);
 	input_report_switch(data->input, SW_LID, closed);
 	input_sync(data->input);
@@ -485,7 +498,7 @@ static void microp_led_work(struct work_struct *work)
 {
 	struct microp_keypad *data;
 
-	data = container_of(work, struct microp_keypad, led_work.work);
+	data = container_of(work, struct microp_keypad, led_work);
 
 	mutex_lock(&data->lock);
 	micropksc_set_led(data->led_status.led, data->led_status.on);
@@ -521,10 +534,22 @@ static int microp_keypad_led_event(struct input_dev *dev, unsigned int type, uns
 
 		data->led_status.led = led;
 		data->led_status.on = value;
-		schedule_work(&data->led_work.work);
+		schedule_work(&data->led_work);
 		return 0;
 	}
 	return -1;
+}
+
+static void microp_backlight_timeout(struct work_struct *work)
+{
+	struct microp_keypad *data;
+	struct microp_keypad_platform_data *pdata;
+	data = container_of(work, struct microp_keypad, backlight_work.work);
+
+	pdata = data->pdata;
+
+	if (pdata->backlight_gpio > 0)
+		gpio_set_value(pdata->backlight_gpio, 0);
 }
 
 static int microp_keypad_probe(struct platform_device *pdev)
@@ -544,8 +569,9 @@ static int microp_keypad_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&data->lock);
-	INIT_DELAYED_WORK(&data->keypad_work, microp_keypad_work);
-	INIT_DELAYED_WORK(&data->led_work, microp_led_work);
+	INIT_WORK(&data->keypad_work, microp_keypad_work);
+	INIT_WORK(&data->led_work, microp_led_work);
+	INIT_DELAYED_WORK(&data->backlight_work, microp_backlight_timeout);
 
 	// Initialize input device
 	input = input_allocate_device();
@@ -657,18 +683,16 @@ static int microp_keypad_probe(struct platform_device *pdev)
 		set_bit(EV_SW, input->evbit);
 		input_set_capability(input, EV_SW, SW_LID);
 
-		INIT_DELAYED_WORK(&data->clamshell_work, microp_keypad_clamshell_work);
-		schedule_work(&data->clamshell_work.work);
+		INIT_WORK(&data->clamshell_work, microp_keypad_clamshell_work);
+		schedule_work(&data->clamshell_work);
 	}
 	if(machine_is_htcrhodium() || machine_is_htckovsky()) {
 		set_bit(EV_SW, input->evbit);
 		input_set_capability(input, EV_SW, SW_LID);
 	}
-	//TODO: turn this off; on keypress, turn it on, with timeout delay after last keypress to turn it off
+
 	if ( pdata->backlight_gpio > 0 )
-	{
-		gpio_direction_output( pdata->backlight_gpio, 1 );
-	}
+		gpio_direction_output( pdata->backlight_gpio, 0 );
 
 	microp_keypad_t = data;
 
@@ -686,14 +710,12 @@ static int microp_keypad_suspend(struct platform_device *pdev, pm_message_t mesg
 	struct microp_keypad_platform_data *pdata = pdev->dev.platform_data;
 	if (pdata->backlight_gpio > 0)
 		gpio_set_value(pdata->backlight_gpio, 0);
+	flush_scheduled_work();
 	return 0;
 }
 
 static int microp_keypad_resume(struct platform_device *pdev)
 {
-	struct microp_keypad_platform_data *pdata = pdev->dev.platform_data;
-	if (pdata->backlight_gpio > 0)
-		gpio_set_value(pdata->backlight_gpio, 1);
 	return 0;
 }
 #else
