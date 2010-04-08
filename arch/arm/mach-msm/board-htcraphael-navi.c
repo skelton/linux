@@ -543,7 +543,7 @@ static void navi_suspend(struct early_suspend *h) {
 			disable_irq(gpio_to_irq(in_navi->info->cols[col]));
 	if(wake&WAKE_ON_VOL)
 		enable_irq(gpio_to_irq(in_navi->info->cols[1]));
-	if(!wake&WAKE_ON_TOUCH)
+	if(!(wake&WAKE_ON_TOUCH))
 		disable_irq(in_navi->tp_irq);
 }
 
