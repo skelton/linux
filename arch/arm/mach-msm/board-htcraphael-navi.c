@@ -26,6 +26,8 @@
 
 #define MODULE_NAME "raph_navi_pad"
 
+#define I2C_READ_RETRY_TIMES 10
+
 /*
  * Jobo: Driver for the navipad on the HTC Touch Pro (Raphael) and Diamond
  * The navipad has 7 buttons in a gpio matrix (left, up, center, down, right,
@@ -64,7 +66,7 @@ enum {
 static int inversion=0;
 module_param_named(inversion, inversion, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-static int wake=3;
+static int wake=0;
 module_param_named(wake, wake, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static int alt_keymap=0;
@@ -182,7 +184,7 @@ struct raphnavi {
 	int sw_irq;
 	struct hrtimer timer;
 	struct mutex lock;
-	struct delayed_work work;
+	struct work_struct work;
 #ifdef CONFIG_ANDROID_POWER
 	android_suspend_lock_t suspend_lock;
 #endif
@@ -215,7 +217,6 @@ static struct raphnavi *in_navi;
 
 static ktime_t raphnavi_gpio_poll_time = {.tv.nsec =  40 * NSEC_PER_MSEC };
 
-
 static void raphnavi_report_key(struct raphnavi *navi, int keycode, int pressed)
 {
 	input_report_key(navi->inputdev, keycode, pressed);
@@ -235,7 +236,6 @@ static void raphnavi_report_lidswitch(struct raphnavi *navi, int opened)
 	input_sync(navi->inputdev);
 }
 #endif
-
 
 static void raphnavi_button(struct raphnavi *navi,int btnidx,int pressed)
 {
@@ -399,25 +399,33 @@ static void raphnavi_pad(struct raphnavi *navi, char *data)
 
 static int raphnavi_i2c_read(struct i2c_client *client, unsigned id, char *buf, int len)
 {
-	int r;
-	char outbuffer[2] = { 0, 0 };
-
-	outbuffer[0] = id;
-	// maejrep: Have to separate the "ask" and "read" chunks
-	r = i2c_master_send(client, outbuffer, 1);
-	if (r < 0) {
-		printk(KERN_WARNING "%s: error while asking for "
-			"navi address %02x,%02x: %d\n", __func__, client->addr, id, r);
-		return r;
+	int retry;
+	int ret;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &id,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = buf,
+		}
+	};
+	for ( retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++ ) {
+		ret = i2c_transfer( client->adapter, msgs, 2 );
+		if ( ret == 2 ) {
+			return 0;
+		}
+		msleep( 10 );
+		printk( KERN_INFO MODULE_NAME " : read retry\n");
 	}
-	mdelay(1);
-	r = i2c_master_recv(client, buf, len);
-	if (r < 0) {
-		printk(KERN_ERR "%s: error while reading navi at "
-			"address %02x,%02x: %d\n", __func__, client->addr, id, r);
-		return r;
-	}
-	return 0;
+	dev_err( &client->dev, "i2c_read_block retry over %d\n",
+			I2C_READ_RETRY_TIMES );
+	return -EIO;
 }
 
 static irqreturn_t raphnavi_irq_handler(int irq, void *dev_id)
@@ -425,13 +433,12 @@ static irqreturn_t raphnavi_irq_handler(int irq, void *dev_id)
 	int i;
 	struct raphnavi *navi = dev_id;
 
-
 	if (irq == navi->tp_irq || irq == navi->sw_irq) {
 		disable_irq(navi->tp_irq);
 #ifdef RAPHNAVI_LID_SWITCH
 		disable_irq(navi->sw_irq);
 #endif
-		schedule_work(&navi->work.work);
+		schedule_work(&navi->work);
 	} else {
 		for(i = 0; i < navi->info->ncols; i++)
 			disable_irq(gpio_to_irq(navi->info->cols[i]));
@@ -451,7 +458,7 @@ static void raphnavi_work(struct work_struct *work)
 	int err;
 	char buffer[RAPHNAVI_I2C_MSGLEN];
 
-	navi = container_of(work, struct raphnavi, work.work);
+	navi = container_of(work, struct raphnavi, work);
 	mutex_lock(&navi->lock);
 #ifdef RAPHNAVI_LID_SWITCH
 	if (machine_is_htcraphael()) {
@@ -469,7 +476,7 @@ static void raphnavi_work(struct work_struct *work)
 	err = raphnavi_i2c_read(navi->client, 1, buffer, RAPHNAVI_I2C_MSGLEN);
 	if (!err)
 		raphnavi_pad(navi,buffer);
-	raphnavi_i2c_read(navi->client, 1, buffer, RAPHNAVI_I2C_MSGLEN); //XXX: maejrep: Why do we have to do this a second time?
+	//raphnavi_i2c_read(navi->client, 1, buffer, RAPHNAVI_I2C_MSGLEN); //XXX: maejrep: Why do we have to do this a second time?
 	mutex_unlock(&navi->lock);
 #ifdef RAPHNAVI_LID_SWITCH
 	enable_irq(navi->sw_irq);
@@ -540,18 +547,29 @@ static void navi_suspend(struct early_suspend *h) {
 	int col;
 	if(!(wake&WAKE_ON_HARD))
 		for(col = 0; col < in_navi->info->ncols; col++)
+		{
+			if ( wake&WAKE_ON_VOL && col == 1 ) // just don't disable it
+				continue;
 			disable_irq(gpio_to_irq(in_navi->info->cols[col]));
-	if(wake&WAKE_ON_VOL)
-		enable_irq(gpio_to_irq(in_navi->info->cols[1]));
+		}
 	if(!(wake&WAKE_ON_TOUCH))
 		disable_irq(in_navi->tp_irq);
+
+	// cancel pending work..
+	cancel_work_sync(&in_navi->work);
 }
 
 static void navi_resume(struct early_suspend *h) {
 	int col;
-	for(col = 0; col < in_navi->info->ncols; col++)
-		enable_irq(gpio_to_irq(in_navi->info->cols[col]));
-	enable_irq(in_navi->tp_irq);
+	if(!(wake&WAKE_ON_HARD))
+		for(col = 0; col < in_navi->info->ncols; col++)
+		{
+			if ( wake&WAKE_ON_VOL && col == 1 ) // just don't enable it as it is already enabled
+				continue;
+			enable_irq(gpio_to_irq(in_navi->info->cols[col]));
+		}
+	if(!(wake&WAKE_ON_TOUCH))
+		enable_irq(in_navi->tp_irq);
 }
 
 static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -577,7 +595,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	}
 	in_navi=navi;
 	mutex_init(&navi->lock);
-	INIT_DELAYED_WORK(&navi->work, raphnavi_work);
+	INIT_WORK(&navi->work, raphnavi_work);
 	navi->info = &navi_info;
 	navi->client = client;
 	i2c_set_clientdata(client, navi);
@@ -588,7 +606,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	gpio_direction_input(navi->info->gpio_tp);
 	navi->tp_irq = gpio_to_irq(navi->info->gpio_tp);
 	if (request_irq(navi->tp_irq, raphnavi_irq_handler,
-			IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW,
 			"raphnavi_tp", navi) != 0)
 		goto fail_tp_irq;
 
@@ -602,7 +620,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		gpio_direction_input(navi->info->gpio_lid);
 		navi->sw_irq = gpio_to_irq(navi->info->gpio_lid);
 		if (request_irq(navi->sw_irq, raphnavi_irq_handler,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"raphnavi_lid", navi) != 0)
 			goto fail_sw_irq;
 		set_irq_wake(navi->sw_irq, 1);
@@ -625,13 +643,13 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 	}
 	for(i = 0; i < navi->info->ncols; i++) {
 		irq = gpio_to_irq(navi->info->cols[i]);
-		if (request_irq(irq, raphnavi_irq_handler, IRQF_DISABLED | IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
+		if (request_irq(irq, raphnavi_irq_handler, IRQF_TRIGGER_LOW, "raphnavi_gpio", navi) != 0)
 			goto fail_gpio_irq;
 		if(wake&WAKE_ON_HARD)
 			set_irq_wake(irq, 1);
 	}
 
-	if ( !( wake & WAKE_ON_HARD && ( wake & WAKE_ON_VOL ) ) ) {
+	if ( !( wake & WAKE_ON_HARD) && ( wake & WAKE_ON_VOL ) ) {
 		irq = gpio_to_irq( navi->info->cols[1] );
 		set_irq_wake( irq, 1 );
 	}
@@ -698,7 +716,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 			break;
 	};
 
-	schedule_work(&navi->work.work);
+	schedule_work(&navi->work);
 
 	hrtimer_init(&navi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	navi->timer.function = raphnavi_kp_timer;
