@@ -2,7 +2,7 @@
  * Broadcom Dongle Host Driver (DHD), Linux-specific network interface
  * Basically selected code segments from usb-cdc.c and usb-rndis.c
  *
- * Copyright (C) 1999-2009, Broadcom Corporation
+ * Copyright (C) 1999-2010, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c,v 1.65.4.9.2.12.2.46 2009/10/28 10:35:11 Exp $
+ * $Id: dhd_linux.c,v 1.65.4.9.2.12.2.60.4.4 2010/03/25 05:07:49 Exp $
  */
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
@@ -314,6 +314,10 @@ module_param(dhd_dpc_prio, int, 0);
 /* DPC thread priority, -1 to use tasklet */
 extern int dhd_dongle_memsize;
 module_param(dhd_dongle_memsize, int, 0);
+
+/* Network inteface name */
+char iface_name[IFNAMSIZ];
+module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 #define DAEMONIZE(a) daemonize(a); \
@@ -712,11 +716,15 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, struct ether_addr *addr)
 	return ret;
 }
 
+#ifdef SOFTAP
+extern struct net_device *ap_net_dev;
+#endif
+
 static void
 dhd_op_if(dhd_if_t *ifp)
 {
 	dhd_info_t	*dhd;
-	int			ret = 0;
+	int			ret = 0, err = 0;
 
 	ASSERT(ifp && ifp->info && ifp->idx);	/* Virtual interfaces only */
 
@@ -743,15 +751,29 @@ dhd_op_if(dhd_if_t *ifp)
 		if (ret == 0) {
 			strcpy(ifp->net->name, ifp->name);
 			memcpy(netdev_priv(ifp->net), &dhd, sizeof(dhd));
-			if (dhd_net_attach(&dhd->pub, ifp->idx) != 0) {
-				DHD_ERROR(("%s: dhd_net_attach failed\n", __FUNCTION__));
+			if ((err = dhd_net_attach(&dhd->pub, ifp->idx)) != 0) {
+				DHD_ERROR(("%s: dhd_net_attach failed, err %d\n",
+					__FUNCTION__, err));
 				ret = -EOPNOTSUPP;
-			} else
+			} else {
+#ifdef SOFTAP
+				 /* semaphore that the soft AP CODE waits on */
+				extern struct semaphore  ap_eth_sema;
+
+				/* save ptr to wl0.1 netdev for use in wl_iw.c  */
+				ap_net_dev = ifp->net;
+				 /* signal to the SOFTAP 'sleeper' thread, wl0.1 is ready */
+				up(&ap_eth_sema);
+#endif
+				DHD_TRACE(("\n ==== pid:%x, net_device for if:%s created ===\n\n",
+					current->pid, ifp->net->name));
 				ifp->state = 0;
+			}
 		}
 		break;
 	case WLC_E_IF_DEL:
 		if (ifp->net != NULL) {
+			DHD_TRACE(("\n%s: got 'WLC_E_IF_DEL' state\n", __FUNCTION__));
 			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
 			ret = DHD_DEL_IF;	/* Make sure the free_netdev() is called */
@@ -764,10 +786,15 @@ dhd_op_if(dhd_if_t *ifp)
 	}
 
 	if (ret < 0) {
-		if (ifp->net)
+		if (ifp->net) {
 			free_netdev(ifp->net);
+		}
 		dhd->iflist[ifp->idx] = NULL;
 		MFREE(dhd->pub.osh, ifp, sizeof(*ifp));
+#ifdef SOFTAP
+		if (ifp->net == ap_net_dev)
+			ap_net_dev = NULL;     /* NULL SOFTAP global as well */
+#endif /*  SOFTAP */
 	}
 }
 
@@ -785,8 +812,30 @@ _dhd_sysioc_thread(void *data)
 		dhd_os_wake_lock(&dhd->pub);
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			if (dhd->iflist[i]) {
+#ifdef SOFTAP
+				bool in_ap = (ap_net_dev != NULL);
+#endif /* SOFTAP */
+
 				if (dhd->iflist[i]->state)
 					dhd_op_if(dhd->iflist[i]);
+
+#ifdef SOFTAP
+				if (dhd->iflist[i] == NULL) {
+					DHD_TRACE(("%s: interface %d just been removed!\n\n", __FUNCTION__, i));
+					continue;
+				}
+
+				if (in_ap && dhd->set_macaddress) {
+					DHD_TRACE(("attempt to set MAC for %s in AP Mode blocked.\n", dhd->iflist[i]->net->name));
+					dhd->set_multicast = FALSE;
+					continue;
+				} else if (in_ap && dhd->set_multicast) {
+					DHD_TRACE(("attempt to set MULTICAST list for %s in AP Mode blocked.\n", dhd->iflist[i]->net->name));
+					dhd->set_macaddress = FALSE;
+					continue;
+				}
+#endif /* SOFTAP */
+
 				if (dhd->set_multicast) {
 					dhd->set_multicast = FALSE;
 					_dhd_set_multicast_list(dhd, i);
@@ -889,7 +938,8 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Reject if down */
 	if (!dhd->pub.up || (dhd->pub.busstate == DHD_BUS_DOWN)) {
-		DHD_ERROR(("%s: xmit rejected due to dhd bus down status \n", __FUNCTION__));
+		DHD_ERROR(("%s: xmit rejected pub.up=%d busstate=%d\n",
+			 __FUNCTION__, dhd->pub.up, dhd->pub.busstate));
 		netif_stop_queue(net);
 		return -ENODEV;
 	}
@@ -1473,6 +1523,7 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	ifidx = dhd_net2idx(dhd, net);
 	DHD_TRACE(("%s: ifidx %d, cmd 0x%04x\n", __FUNCTION__, ifidx, cmd));
+
 	if (ifidx == DHD_BAD_IF)
 		return -1;
 
@@ -1744,6 +1795,18 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	memcpy(netdev_priv(net), &dhd, sizeof(dhd));
 	dhd->pub.osh = osh;
 
+	/* Set network interface name if it was provided as module parameter */
+	if (iface_name[0]) {
+		int len;
+		char ch;
+		strncpy(net->name, iface_name, IFNAMSIZ);
+		net->name[IFNAMSIZ - 1] = 0;
+		len = strlen(net->name);
+		ch = net->name[len - 1];
+		if ((ch > '9' || ch < '0') && (len < IFNAMSIZ - 2))
+			strcat(net->name, "%d");
+	}
+
 	if (dhd_add_if(dhd, 0, (void *)net, net->name, NULL, 0, 0) == DHD_BAD_IF)
 		goto fail;
 
@@ -2000,8 +2063,9 @@ dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	printf("%s: Broadcom Dongle Host Driver mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", net->name,
 	       dhd->pub.mac.octet[0], dhd->pub.mac.octet[1], dhd->pub.mac.octet[2],
 	       dhd->pub.mac.octet[3], dhd->pub.mac.octet[4], dhd->pub.mac.octet[5]);
+	wl_iw_iscan_set_scan_broadcast_prep(net, 1);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && 1
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	up(&dhd_registration_sem);
 #endif 
 	return 0;
@@ -2289,17 +2353,8 @@ dhd_os_wd_timer(void *bus, uint wdtick)
 {
 	dhd_pub_t *pub = bus;
 	dhd_info_t *dhd = (dhd_info_t *)pub->info;
-
-#if !defined(CONTINUOUS_WATCHDOG)
 	static uint save_dhd_watchdog_ms = 0;
-#endif /* !defined(CONTINUOUS_WATCHDOG) */
 
-#if defined(CONTINUOUS_WATCHDOG)
-	dhd_watchdog_ms = (uint)wdtick;
-	mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
-
-	dhd->wd_timer_valid = TRUE;
-#else
 	/* Totally stop the timer */
 	if (!wdtick && dhd->wd_timer_valid == TRUE) {
 		del_timer_sync(&dhd->timer);
@@ -2317,7 +2372,6 @@ dhd_os_wd_timer(void *bus, uint wdtick)
 		dhd->wd_timer_valid = TRUE;
 		save_dhd_watchdog_ms = wdtick;
 	}
-#endif /* defined(CONTINUTOUS_WATCHDOG) */
 }
 
 void *
@@ -2498,7 +2552,7 @@ dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
 
 void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar)
 {
-#if 1 && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 	struct dhd_info *dhdinfo =  dhd->info;
 	dhd_os_sdunlock(dhd);
 	wait_event_interruptible_timeout(dhdinfo->ctrl_wait, (*lockvar == FALSE), HZ * 2);
@@ -2509,27 +2563,28 @@ void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar)
 
 void dhd_wait_event_wakeup(dhd_pub_t *dhd)
 {
-#if 1 && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 	struct dhd_info *dhdinfo =  dhd->info;
 	if (waitqueue_active(&dhdinfo->ctrl_wait))
 		wake_up_interruptible(&dhdinfo->ctrl_wait);
 #endif
 	return;
 }
+
 int
 dhd_dev_reset(struct net_device *dev, uint8 flag)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-        /* Turning off watchdog */
-        if (flag)
-                dhd_os_wd_timer(&dhd->pub, 0);
+	/* Turning off watchdog */
+	if (flag)
+		dhd_os_wd_timer(&dhd->pub, 0);
 
 	dhd_bus_devreset(&dhd->pub, flag);
 
-        /* Turning on watchdog back */
-        if (!flag)
-                dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
+	/* Turning on watchdog back */
+	if (!flag)
+		dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
 
 	DHD_ERROR(("%s:  WLAN OFF DONE\n", __FUNCTION__));
 
@@ -2583,7 +2638,7 @@ int dhd_os_wake_lock_timeout(dhd_pub_t *pub)
 		ret = dhd->wl_packet;
 #ifdef CONFIG_HAS_WAKELOCK
 		if (dhd->wl_packet)
-			wake_lock_timeout(&dhd->wl_rxwake, (HZ >> 1));
+			wake_lock_timeout(&dhd->wl_rxwake, HZ);
 #endif
 		dhd->wl_packet = 0;
 		spin_unlock_irqrestore(&dhd->wl_lock, flags);
