@@ -557,6 +557,9 @@ static void navi_suspend(struct early_suspend *h) {
 
 	// cancel pending work..
 	cancel_work_sync(&in_navi->work);
+
+	// make sure that all the leds are off
+	micropklt_set_led_states(RAPHNAVI_KLT_LED_MASK, 0);
 }
 
 static void navi_resume(struct early_suspend *h) {
