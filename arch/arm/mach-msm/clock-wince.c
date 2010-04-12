@@ -23,8 +23,10 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <mach/msm_rpcrouter.h>
 
 #include <mach/msm_iomap.h>
+#include <mach/amss_para.h>
 #include <asm/io.h>
 
 #include "clock.h"
@@ -116,7 +118,8 @@ static unsigned int idx2pll(uint32_t idx)
 
  return ret;
 }
-static struct msm_clock_params msm_clock_parameters[] = {
+
+static struct msm_clock_params msm_clock_parameters_def[] = {
 	// Full ena/md/ns clock
 	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, .name="SDC1_CLK",},
 	{ .clk_id = SDC2_CLK, .idx =  8, .offset = 0xac, .name="SDC2_CLK",},
@@ -148,6 +151,41 @@ static struct msm_clock_params msm_clock_parameters[] = {
 	{ .clk_id = I2C_CLK, .offset = 0x68, .ns_only = 0xa00, .name="I2C_CLK"},
 //	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
 };
+
+static struct msm_clock_params msm_clock_parameters_6125[] = {
+	// Full ena/md/ns clock
+	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, .name="SDC1_CLK",},
+	{ .clk_id = SDC2_CLK, .idx =  8, .offset = 0xac, .name="SDC2_CLK",},
+	{ .clk_id = SDC3_CLK, .idx = 27, .offset = 0xb4, .name="SDC3_CLK",},
+	{ .clk_id = SDC4_CLK, .idx = 28, .offset = 0xbc, .name="SDC4_CLK",},
+	{ .clk_id = UART1DM_CLK, .idx = 17, .offset = 0xd4, .name="UART1DM_CLK",},
+	{ .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xdc, .name="UART2DM_CLK",},
+
+	{ .clk_id = USB_HS_CLK, .idx = 25, .offset = 0x2c0, .ns_only = 0xb59, .name="USB_HS_CLK",},
+	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa8c, .name="GRP_CLK", }, // these both enable the GRP and IMEM clocks.
+	{ .clk_id = IMEM_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa8c, .name="IMEM_CLK", },
+
+
+	// MD/NS only; offset = Ns reg
+	{ .clk_id = VFE_CLK, .offset = 0x44, .name="VFE_CLK", },
+
+	// Enable bit only; bit = 1U << idx
+	{ .clk_id = MDP_CLK, .idx = 9, .name="MDP_CLK",},
+
+
+	// NS-reg only; offset = Ns reg, ns_only = Ns value
+	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
+/*#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
+	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa19, .name="PMDH_CLK"},
+#else*/
+	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa21, .name="PMDH_CLK"},
+//#endif
+
+	{ .clk_id = I2C_CLK, .offset = 0x68, .ns_only = 0xa00, .name="I2C_CLK"},
+//	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
+};
+
+static struct msm_clock_params* msm_clock_parameters;
 
 void fix_mddi_clk_black() {
 	msm_clock_parameters[12].ns_only=0xa19;
@@ -274,7 +312,7 @@ static inline struct msm_clock_params msm_clk_get_params(uint32_t id)
 {
 	int i;
 	struct msm_clock_params empty = { };
-	for (i = 0; i < ARRAY_SIZE(msm_clock_parameters); i++) {
+	for (i = 0; i < ARRAY_SIZE(msm_clock_parameters_def); i++) {
 		if (id == msm_clock_parameters[i].clk_id) {
 			return msm_clock_parameters[i];
 		}
@@ -722,7 +760,15 @@ EXPORT_SYMBOL(clk_set_flags);
 void __init msm_clock_init(void)
 {
 	struct clk *clk;
-
+	switch(__amss_version) {
+		case 6125:
+			msm_clock_parameters = msm_clock_parameters_6125;
+		break;
+		default:
+			msm_clock_parameters = msm_clock_parameters_def;
+		break;
+	}
+	
 	spin_lock_init(&clocks_lock);
 	mutex_lock(&clocks_mutex);
 	for (clk = msm_clocks; clk && clk->name; clk++) {
@@ -744,17 +790,50 @@ void __init msm_clock_init(void)
  * Disable any clocks that belong to us (CLKFLAG_AUTO_OFF) but have
  * not been explicitly enabled by a clk_enable() call.
  */
+
+#define PMIC_API_PROG		0x30000055
+#define PMIC_API_VERS 		0x0
+#define PMIC_API_GET_KHZ_PROC	0x1
+static void get_clk_khz(void)
+{
+	struct msm_rpc_endpoint *pmic_ep;
+	int rc;
+	struct {
+		struct rpc_request_hdr hdr;
+		uint32_t data[1];
+	} req;
+	
+	pmic_ep = msm_rpc_connect(PMIC_API_PROG, PMIC_API_VERS, 0);
+	if (IS_ERR(pmic_ep)) {
+		printk(KERN_ERR "%s: init rpc failed! error: %ld\n",
+				__func__, PTR_ERR(pmic_ep));
+		goto close;
+	}
+	unsigned i;
+	pr_info("IMEM OLD: VAL = %d\n", readl(MSM_IMEM_BASE ));
+	req.data[0] = cpu_to_be32(1);
+	rc = msm_rpc_call(pmic_ep, PMIC_API_GET_KHZ_PROC, &req, sizeof(req), 5 * HZ);
+	if (rc < 0)
+		printk(KERN_ERR "%s: rpc call failed! (%d)\n", __func__, rc);
+	
+	msleep(100),
+	pr_info("IMEM NEW: VAL = %d\n", readl(MSM_IMEM_BASE ));
+
+close:
+	msm_rpc_close(pmic_ep);
+}
+
 static int __init clock_late_init(void)
 {
 	unsigned long flags;
 	struct clk *clk;
 	unsigned count = 0;
-
 	// reset imem config, I guess all devices need this so somewhere here would be good.
 	// it needs to be moved to somewhere else.
 	// note: this needs to be done before all clocks get disabled.
 	writel( 0, MSM_IMEM_BASE );
 	pr_info("reset imem_config\n");
+	get_clk_khz();
 
 	mutex_lock(&clocks_mutex);
 	list_for_each_entry(clk, &clocks, list) {
