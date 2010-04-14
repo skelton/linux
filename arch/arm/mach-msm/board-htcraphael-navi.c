@@ -444,7 +444,7 @@ static irqreturn_t raphnavi_irq_handler(int irq, void *dev_id)
 			disable_irq(gpio_to_irq(navi->info->cols[i]));
 		for(i = 0; i < navi->info->nrows; i++)
 			gpio_set_value(navi->info->rows[i],1);
-		hrtimer_start(&navi->timer, ktime_set(0, 0), HRTIMER_MODE_REL);
+		hrtimer_start(&navi->timer, ktime_set(0, 10000), HRTIMER_MODE_REL);
 	}
 #ifdef CONFIG_ANDROID_POWER
 	android_lock_suspend(&navi->suspend_lock);
@@ -514,7 +514,7 @@ static enum hrtimer_restart raphnavi_kp_timer(struct hrtimer *timer)
 	navi->current_row = row;
 	if (row < navi->info->nrows) {
 		gpio_set_value(navi->info->rows[row], 0);
-		hrtimer_start(timer, ktime_set(0, 0), HRTIMER_MODE_REL);
+		hrtimer_start(timer, ktime_set(0, 10000), HRTIMER_MODE_REL);
 		return HRTIMER_NORESTART;
 	}
 
@@ -723,7 +723,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 
 	hrtimer_init(&navi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	navi->timer.function = raphnavi_kp_timer;
-	hrtimer_start(&navi->timer, ktime_set(0, 0), HRTIMER_MODE_REL);
+	hrtimer_start(&navi->timer, ktime_set(0, 10000), HRTIMER_MODE_REL);
 	return 0;
 
 fail_idev_reg:
