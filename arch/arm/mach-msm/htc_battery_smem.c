@@ -390,7 +390,7 @@ int htc_cable_status_update(int status)
 
 	mutex_lock(&htc_batt_info.lock);
 	if(readl(MSM_SHARED_RAM_BASE+0xfc00c))
-		status=CHARGER_USB;	/* vbus present */
+		status=CHARGER_AC;	/* vbus present, says AC to have full speed charging. (perhaps breaks kovsky ?) */
 	else
 		status=CHARGER_BATTERY;	/* no vbus present */
 
