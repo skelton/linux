@@ -246,11 +246,11 @@ static int __init msm_pmem_init() {
 		case MACH_TYPE_HTCRHODIUM:
 		case MACH_TYPE_HTCKOVSKY:
 			//SMI 32 + EBI 2*128
-			pmem_setting.pmem_start=MSM_EBIN_BASE+128*1024*1024-51*1024*1024;
+			pmem_setting.pmem_start=MSM_EBIN_BASE+128*1024*1024-34*1024*1024;
 			pmem_setting.pmem_size=32*1024*1024;//32MB
-			CALC_PMEM(pmem_adsp, pmem, 16*1024*1024);//16MB
+			CALC_PMEM(pmem_adsp, pmem, 0);//16MB
 			CALC_PMEM(fb, pmem_adsp, 2*1024*1024);//2MB
-			CALC_PMEM(pmem_camera, fb, 1024*1024);//1MB
+			CALC_PMEM(pmem_camera, fb, 0);//1MB
 			//Total 51MB
 
 			//GPU1 must be in EBI bank 1, Isn't working on Topaz and Rhod

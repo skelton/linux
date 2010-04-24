@@ -375,15 +375,19 @@ static struct platform_device msm_device_usb_mass_storage = {
 	},
 };
 #endif
-void __init msm_add_usb_devices(void (*phy_reset) (void), void (*phy_shutdown) (void), char *init_seq)
+void __init msm_add_usb_devices(void (*phy_reset) (void), void (*phy_shutdown) (void), int *init_seq)
 {
+	// get size of init_seq
+	int size=0;
+	while (!(init_seq[size++]<0));
+
 	if (phy_reset)
 		msm_hsusb_pdata.phy_reset = phy_reset;
 
 	if (phy_shutdown)
 		msm_hsusb_pdata.phy_shutdown = phy_shutdown;
 	if(init_seq)
-		memcpy(msm_hsusb_pdata.phy_init_seq, init_seq, 7);
+		memcpy(msm_hsusb_pdata.phy_init_seq, init_seq, size*sizeof(int));
 
 	msm_hsusb_pdata.serial_number="000000000000";
 	platform_device_register(&msm_device_hsusb);

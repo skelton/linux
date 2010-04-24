@@ -49,7 +49,7 @@ enum {
 
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 
-void __init msm_add_usb_devices(void (*phy_reset) (void), void (*phy_shutdown) (void), char *init_seq);
+void __init msm_add_usb_devices(void (*phy_reset) (void), void (*phy_shutdown) (void), int *init_seq);
 void __init msm_add_mem_devices(struct msm_pmem_setting *setting);
 void __init msm_init_pmic_vibrator(void);
 

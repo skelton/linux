@@ -121,68 +121,68 @@ static unsigned int idx2pll(uint32_t idx)
 
 static struct msm_clock_params msm_clock_parameters_def[] = {
 	// Full ena/md/ns clock
-	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, .name="SDC1_CLK",},
-	{ .clk_id = SDC2_CLK, .idx =  8, .offset = 0xac, .name="SDC2_CLK",},
-	{ .clk_id = SDC3_CLK, .idx = 27, .offset = 0xb4, .name="SDC3_CLK",},
-	{ .clk_id = SDC4_CLK, .idx = 28, .offset = 0xbc, .name="SDC4_CLK",},
-	{ .clk_id = UART1DM_CLK, .idx = 17, .offset = 0xd4, .name="UART1DM_CLK",},
-	{ .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xdc, .name="UART2DM_CLK",},
+	{ .clk_id = SDC1_CLK,		.idx =  7,	.offset = 0xa4,					 .name="SDC1_CLK",},
+	{ .clk_id = SDC2_CLK,		.idx =  8,	.offset = 0xac,					 .name="SDC2_CLK",},
+	{ .clk_id = SDC3_CLK,		.idx = 27,	.offset = 0xb4,					 .name="SDC3_CLK",},
+	{ .clk_id = SDC4_CLK,		.idx = 28,	.offset = 0xbc,					 .name="SDC4_CLK",},
+	{ .clk_id = UART1DM_CLK,	.idx = 17,	.offset = 0xd4,					 .name="UART1DM_CLK",},
+	{ .clk_id = UART2DM_CLK,	.idx = 26,	.offset = 0xdc,					 .name="UART2DM_CLK",},
 
-	{ .clk_id = USB_HS_CLK, .idx = 25, .offset = 0x2c0, .ns_only = 0xb00, .name="USB_HS_CLK",},
-	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80, .name="GRP_CLK", }, // these both enable the GRP and IMEM clocks.
-	{ .clk_id = IMEM_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa80, .name="IMEM_CLK", },
+	{ .clk_id = USB_HS_CLK,		.idx = 25,	.offset = 0x2c0,	.ns_only = 0xb00,	.name="USB_HS_CLK",},
+	{ .clk_id = GRP_CLK,		.idx = 3,							.name="GRP_CLK", },
+	{ .clk_id = IMEM_CLK,		.idx = 3,							.name="IMEM_CLK", },
 
 
 	// MD/NS only; offset = Ns reg
-	{ .clk_id = VFE_CLK, .offset = 0x44, .name="VFE_CLK", },
+	{ .clk_id = VFE_CLK,				.offset = 0x44,					.name="VFE_CLK", },
 
 	// Enable bit only; bit = 1U << idx
-	{ .clk_id = MDP_CLK, .idx = 9, .name="MDP_CLK",},
+	{ .clk_id = MDP_CLK,		.idx = 9,							.name="MDP_CLK",},
 
 
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
-	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
+	{ .clk_id = GP_CLK,				.offset = 0x5c,			.ns_only = 0xa06,	.name="GP_CLK" },
 /*#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
-	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa19, .name="PMDH_CLK"},
+	{ .clk_id = PMDH_CLK,				.offset = 0x8c,			.ns_only = 0xa19,	.name="PMDH_CLK"},
 #else*/
-	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa0c, .name="PMDH_CLK"},
+	{ .clk_id = PMDH_CLK,				.offset = 0x8c,			.ns_only = 0xa0c,	.name="PMDH_CLK"},
 //#endif
 
-	{ .clk_id = I2C_CLK, .offset = 0x68, .ns_only = 0xa00, .name="I2C_CLK"},
-//	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
+	{ .clk_id = I2C_CLK,				.offset = 0x68,			.ns_only = 0xa00,	.name="I2C_CLK"},
+//	{ .clk_id = UART1_CLK,				.offset = 0xe0,			.ns_only = 0xa00,	.name="UART1_CLK"},
 };
 
 static struct msm_clock_params msm_clock_parameters_6125[] = {
 	// Full ena/md/ns clock
-	{ .clk_id = SDC1_CLK, .idx =  7, .offset = 0xa4, .name="SDC1_CLK",},
-	{ .clk_id = SDC2_CLK, .idx =  8, .offset = 0xac, .name="SDC2_CLK",},
-	{ .clk_id = SDC3_CLK, .idx = 27, .offset = 0xb4, .name="SDC3_CLK",},
-	{ .clk_id = SDC4_CLK, .idx = 28, .offset = 0xbc, .name="SDC4_CLK",},
-	{ .clk_id = UART1DM_CLK, .idx = 17, .offset = 0xd4, .name="UART1DM_CLK",},
-	{ .clk_id = UART2DM_CLK, .idx = 26, .offset = 0xdc, .name="UART2DM_CLK",},
+	{ .clk_id = SDC1_CLK,		.idx =  7,	.offset = 0xa4,						.name="SDC1_CLK",},
+	{ .clk_id = SDC2_CLK,		.idx =  8,	.offset = 0xac,						.name="SDC2_CLK",},
+	{ .clk_id = SDC3_CLK,		.idx = 27,	.offset = 0xb4,						.name="SDC3_CLK",},
+	{ .clk_id = SDC4_CLK,		.idx = 28,	.offset = 0xbc,						.name="SDC4_CLK",},
+	{ .clk_id = UART1DM_CLK,	.idx = 17,	.offset = 0xd4,						.name="UART1DM_CLK",},
+	{ .clk_id = UART2DM_CLK,	.idx = 26,	.offset = 0xdc,						.name="UART2DM_CLK",},
 
-	{ .clk_id = USB_HS_CLK, .idx = 25, .offset = 0x2c0, .ns_only = 0xb59, .name="USB_HS_CLK",},
-	{ .clk_id = GRP_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa8c, .name="GRP_CLK", }, // these both enable the GRP and IMEM clocks.
-	{ .clk_id = IMEM_CLK, .idx = 3, .offset = 0x84, .ns_only = 0xa8c, .name="IMEM_CLK", },
+	{ .clk_id = USB_HS_CLK,		.idx = 25,	.offset = 0x2c0,		.ns_only = 0xb59,	.name="USB_HS_CLK",},
+	{ .clk_id = GRP_CLK,		.idx = 3,								.name="GRP_CLK", },
+	{ .clk_id = IMEM_CLK,		.idx = 3,								.name="IMEM_CLK", },
 
 
 	// MD/NS only; offset = Ns reg
-	{ .clk_id = VFE_CLK, .offset = 0x44, .name="VFE_CLK", },
+	{ .clk_id = VFE_CLK,				.offset = 0x44,						.name="VFE_CLK", },
 
 	// Enable bit only; bit = 1U << idx
-	{ .clk_id = MDP_CLK, .idx = 9, .name="MDP_CLK",},
+	{ .clk_id = MDP_CLK,		.idx = 9,								.name="MDP_CLK",},
 
 
 	// NS-reg only; offset = Ns reg, ns_only = Ns value
-	{ .clk_id = GP_CLK, .offset = 0x5c, .ns_only = 0xa06, .name="GP_CLK" },
+	{ .clk_id = GP_CLK,				.offset = 0x5c,			.ns_only = 0xa06,	.name="GP_CLK" },
 /*#if defined(CONFIG_MACH_HTCBLACKSTONE) || defined(CONFIG_MACH_HTCKOVSKY)
-	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa19, .name="PMDH_CLK"},
+	{ .clk_id = PMDH_CLK,				.offset = 0x8c,			.ns_only = 0xa19,	.name="PMDH_CLK"},
 #else*/
-	{ .clk_id = PMDH_CLK, .offset = 0x8c, .ns_only = 0xa21, .name="PMDH_CLK"},
+	{ .clk_id = PMDH_CLK,				.offset = 0x8c,			.ns_only = 0xa21,	.name="PMDH_CLK"},
 //#endif
 
-	{ .clk_id = I2C_CLK, .offset = 0x68, .ns_only = 0xa00, .name="I2C_CLK"},
-//	{ .clk_id = UART1_CLK, .offset = 0xe0, .ns_only = 0xa00, .name="UART1_CLK"},
+	{ .clk_id = I2C_CLK,				.offset = 0x68,			.ns_only = 0xa00,	.name="I2C_CLK"},
+//	{ .clk_id = UART1_CLK,				.offset = 0xe0,			.ns_only = 0xa00,	.name="UART1_CLK"},
 };
 
 static struct msm_clock_params* msm_clock_parameters;
@@ -495,6 +495,7 @@ static inline int pc_pll_request(unsigned id, unsigned on)
 static int pc_clk_enable(uint32_t id)
 {
 	struct msm_clock_params params;
+	int done=0;
 	params = msm_clk_get_params(id);
 
 	//XXX: too spammy, extreme debugging only: D(KERN_DEBUG "%s: %d\n", __func__, id);
@@ -502,20 +503,21 @@ static int pc_clk_enable(uint32_t id)
 	if ( id == IMEM_CLK || id == GRP_CLK )
 	{
 		set_grp_clk( 1 );
-		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
-		return 0;
+		//writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
+		done=1;
 	}
 
 	if (params.idx)
 	{
 		writel(readl(MSM_CLK_CTL_BASE) | (1U << params.idx), MSM_CLK_CTL_BASE);
-		return 0;
-	} else if (params.ns_only > 0 && params.offset)
+		done=1;
+	}
+	if (params.ns_only > 0 && params.offset)
 	{
 		writel((readl(MSM_CLK_CTL_BASE + params.offset) &0xfffff000) | params.ns_only, MSM_CLK_CTL_BASE + params.offset);
-		return 0;
+		done=1;
 	}
-	if(debug_mask&DEBUG_UNKNOWN_ID)
+	if(!done && debug_mask&DEBUG_UNKNOWN_ID)
 		printk(KERN_WARNING "%s: FIXME! enabling a clock that doesn't have an ena bit "
 		       "or ns-only offset: %u\n", __func__, id);
 

@@ -390,7 +390,7 @@ int htc_cable_status_update(int status)
 
 	mutex_lock(&htc_batt_info.lock);
 	if(readl(MSM_SHARED_RAM_BASE+0xfc00c))
-		status=CHARGER_USB;	/* vbus present */
+		status=CHARGER_AC;	/* vbus present, says AC to have full speed charging. (perhaps breaks kovsky ?) */
 	else
 		status=CHARGER_BATTERY;	/* no vbus present */
 
@@ -835,6 +835,8 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 			printk( "batt: current battery level: %u\n" , buffer->level );
 		}
 	}
+	if(buffer->level<5)
+		buffer->level=5;
 
 	if (gpio_get_value(htc_batt_info.resources->gpio_charger_enable) == 0) {
 		buffer->charging_enabled = 1;
