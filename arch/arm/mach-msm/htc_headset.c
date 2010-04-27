@@ -87,6 +87,14 @@
 #define H2W_DBG(fmt, arg...) do {} while (0)
 #endif
 
+#ifdef CONFIG_MSM_ADSP
+void snd_set_device(int device,int ear_mute, int mic_mute);
+int snd_ini();
+#else
+void snd_set_device(int device, int ear_mute, int mic_mute) {};
+int snd_ini() {}
+#endif
+
 static struct workqueue_struct *g_detection_work_queue;
 static void detection_work(struct work_struct *work);
 static DECLARE_WORK(g_detection_work, detection_work);
@@ -647,7 +655,7 @@ static void remove_headset(void)
 
 	hi->htc_headset_flag = 0;
 	hi->debounce_time = ktime_set(0, 100000000);  /* 100 ms */
-
+	snd_set_device(0,0,0);
 }
 
 #ifdef CONFIG_MSM_SERIAL_DEBUGGER
@@ -745,6 +753,7 @@ static void insert_headset(int type)
 #ifdef CONFIG_MSM_SERIAL_DEBUGGER
 	msm_serial_debug_enable(false);
 #endif
+	snd_set_device(0,0,0);
 
 }
 #if 0
