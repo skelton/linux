@@ -97,7 +97,7 @@ static uint8_t msm_irq_to_smsm[NR_MSM_IRQS] = {
 	[INT_MDDI_CLIENT] = 3,
 	[INT_USB_OTG] = 4,
 
-	[INT_PWB_I2C] = 5,
+/* [INT_PWB_I2C] = 5 -- not usable */
 	[INT_SDC1_0] = 6,
 	[INT_SDC1_1] = 7,
 	[INT_SDC2_0] = 8,
@@ -267,9 +267,9 @@ void msm_irq_enter_sleep1(bool arm9_wake, int from_idle)
 	struct smsm_interrupt_info int_info;
 	if (arm9_wake) {
 		int_info.aArm_en_mask = msm_irq_smsm_wake_enable[!from_idle];
-	//	int_info.aArm_en_mask = 0;//0x00c40000; // hard coded for now - MJ
 		int_info.aArm_interrupts_pending = 0;
-		int_info.aArm_wakeup_reason=0;
+		// clear the wakeup reason when we go to sleep, MJ's work.
+		int_info.aArm_wakeup_reason = 0;
 		smsm_set_interrupt_info(&int_info);
 	}
 }
@@ -281,10 +281,10 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 
 	if (from_idle && !arm9_wake)
 		return 0;
-	writel(0x80,VIC_INT_CLEAR0);
-	udelay(10);
+	//writel(0x80,VIC_INT_CLEAR0);
+	//udelay(10);
 	if (msm_irq_debug_mask & IRQ_DEBUG_SLEEP)
-		printk("irq_sleep %x %x %x %x %x %x\n",
+		printk("enter_sleep2 | irq_sleep %x %x %x %x %x %x\n",
 			readl(VIC_INT_SELECT0),
 			readl(VIC_INT_SELECT1),
 			readl(VIC_IRQ_STATUS0),
@@ -324,10 +324,6 @@ int msm_irq_enter_sleep2(bool arm9_wake, int from_idle)
 			printk(KERN_INFO "msm_irq_enter_sleep cleared "
 			       "int %d (%d)\n", irq, pend_irq);
 	}
-
-	// Make really sure all the interrupts are cleared - MJ
-	writel(0xffffffff, VIC_INT_CLEAR0);
-	writel(0xffffffff, VIC_INT_CLEAR1);
 
 	if (arm9_wake) {
 		msm_irq_set_type(INT_A9_M2A_6, IRQF_TRIGGER_RISING);
@@ -400,7 +396,7 @@ void msm_irq_exit_sleep2(void)
 			printk(KERN_INFO "msm_irq_exit_sleep2: irq %d "
 			       "still pending %x now %x %x\n", i, pending,
 			       readl(VIC_IRQ_STATUS0), readl(VIC_IRQ_STATUS1));
-#if 0 /* debug intetrrupt trigger */
+#if 0 /* debug interrupt trigger */
 		if (readl(VIC_IRQ_STATUS0 + reg_offset) & reg_mask)
 			writel(reg_mask, VIC_INT_CLEAR0 + reg_offset);
 #endif
@@ -455,6 +451,10 @@ void __init msm_init_irq(void)
 	writel(0, VIC_INT_SELECT0);
 	writel(0, VIC_INT_SELECT1);
 
+	/* clear interrupts */
+	writel(0xffffffff, VIC_INT_CLEAR0);
+	writel(0xffffffff, VIC_INT_CLEAR1);
+
 	/* disable all INTs */
 	writel(0, VIC_INT_EN0);
 	writel(0, VIC_INT_EN1);
@@ -470,18 +470,20 @@ void __init msm_init_irq(void)
 		set_irq_handler(n, handle_level_irq);
 /* TODO */
 #if defined(CONFIG_MSM_AMSS_VERSION_WINCE)
-               if (n == INT_DEBUG_TIMER_EXP)
-               {
-                       set_irq_flags(n, IRQF_NOAUTOEN);
-               }
-               else
-               {
-                       set_irq_flags(n, IRQF_VALID);
-               }
+		if (n == INT_DEBUG_TIMER_EXP) {
+			set_irq_flags(n, IRQF_NOAUTOEN);
+		} else {
+			set_irq_flags(n, IRQF_VALID);
+		}
 #else
 		set_irq_flags(n, IRQF_VALID);
 #endif
 	}
+
+/* indicate to the priority hardware that the current interrupt is being
+ * serviced (if there is any pending irq).
+ */
+	(void)readl(VIC_IRQ_VEC_RD);
 }
 
 #if defined(CONFIG_MSM_FIQ_SUPPORT)
