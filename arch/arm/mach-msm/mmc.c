@@ -212,15 +212,15 @@ static unsigned int sdslot_status(struct device *dev)
 	return (!status);
 }
 
-#define RAPH_MMC_VDD	MMC_VDD_165_195 | MMC_VDD_20_21 | MMC_VDD_21_22 \
+#define RAPH_MMC_VDD	/*MMC_VDD_165_195 | MMC_VDD_20_21 | MMC_VDD_21_22 \
 			| MMC_VDD_22_23 | MMC_VDD_23_24 | MMC_VDD_24_25 \
 			| MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 \
-			| MMC_VDD_28_29 | MMC_VDD_29_30
+			| MMC_VDD_28_29 | */MMC_VDD_29_30
 
 static struct mmc_platform_data sdslot_data = {
 	.ocr_mask	= RAPH_MMC_VDD,
 	.status		= sdslot_status,
-	.translate_vdd	= sdslot_switchvdd,
+//	.translate_vdd	= sdslot_switchvdd,
 };
 
 /* ---- WIFI ---- */
