@@ -247,7 +247,7 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 	return next;
 }
 
-asmlinkage unsigned long sys_brk(unsigned long brk)
+SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
 	unsigned long rlim, retval;
 	unsigned long newbrk, oldbrk;
@@ -575,9 +575,9 @@ again:			remove_next = 1 + (end > next->vm_end);
 
 	/*
 	 * When changing only vma->vm_end, we don't really need
-	 * anon_vma lock: but is that case worth optimizing out?
+	 * anon_vma lock.
 	 */
-	if (vma->anon_vma)
+	if (vma->anon_vma && (insert || importer || start != vma->vm_start))
 		anon_vma = vma->anon_vma;
 	if (anon_vma) {
 		spin_lock(&anon_vma->lock);
@@ -1930,7 +1930,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 
 EXPORT_SYMBOL(do_munmap);
 
-asmlinkage long sys_munmap(unsigned long addr, size_t len)
+SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {
 	int ret;
 	struct mm_struct *mm = current->mm;
@@ -2070,6 +2070,9 @@ void exit_mmap(struct mm_struct *mm)
 	/* mm's last user has gone, and its about to be pulled down */
 	arch_exit_mmap(mm);
 	mmu_notifier_release(mm);
+
+	if (!mm->mmap)	/* Can happen if dup_mmap() received an OOM */
+		return;
 
 	lru_add_drain();
 	flush_cache_mm(mm);
