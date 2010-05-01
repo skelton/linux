@@ -187,8 +187,13 @@ static struct msm_clock_params msm_clock_parameters_6125[] = {
 
 static struct msm_clock_params* msm_clock_parameters;
 
-void fix_mddi_clk_black() {
-	msm_clock_parameters[12].ns_only=0xa19;
+void fix_mddi_clk_black(void) {
+		int i;
+		for (i = 0; i < ARRAY_SIZE(msm_clock_parameters_def); i++)
+				if (msm_clock_parameters_def[i].clk_id == PMDH_CLK) {
+						msm_clock_parameters_def[i].ns_only=0xa19;
+						break;
+		}
 }
 
 // This formula is used to generate md and ns reg values
