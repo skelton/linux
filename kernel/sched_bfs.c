@@ -766,10 +766,9 @@ static inline void clear_cpuidle_map(unsigned long cpu)
 {
 }
 
-/* Always called from a busy cpu on UP */
 static inline int suitable_idle_cpus(struct task_struct *p)
 {
-	return 0;
+	return uprq->curr == uprq->idle;
 }
 
 static inline void resched_suitable_idle(struct task_struct *p)
@@ -1159,10 +1158,10 @@ static void try_preempt(struct task_struct *p, struct rq *this_rq)
 #else /* CONFIG_SMP */
 static void try_preempt(struct task_struct *p, struct rq *this_rq)
 {
-	if (p->prio < this_rq->rq_prio ||
-	    (p->prio == this_rq->rq_prio && p->policy == SCHED_NORMAL &&
-	     time_before(p->deadline, this_rq->rq_deadline)))
-		resched_task(this_rq->curr);
+	if (p->prio < uprq->rq_prio ||
+	    (p->prio == uprq->rq_prio && p->policy == SCHED_NORMAL &&
+	     time_before(p->deadline, uprq->rq_deadline)))
+		resched_task(uprq->curr);
 	return;
 }
 #endif /* CONFIG_SMP */
@@ -3396,8 +3395,8 @@ SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
  * sys_sched_yield - yield the current processor to other threads.
  *
  * This function yields the current CPU to other tasks. It does this by
- * zeroing the rq timeslice, which will reset the deadline, and then
- * scheduling away.
+ * scheduling away the current task. If it still has the earliest deadline
+ * it will be scheduled again as the next task.
  */
 SYSCALL_DEFINE0(sched_yield)
 {
@@ -3407,7 +3406,6 @@ SYSCALL_DEFINE0(sched_yield)
 	p = current;
 	rq = task_grq_lock_irq(p);
 	schedstat_inc(rq, yld_count);
-	rq->rq_time_slice = 0;
 	requeue_task(p);
 
 	/*
