@@ -117,6 +117,66 @@ extern struct group_info init_groups;
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
  */
+#ifdef CONFIG_SCHED_BFS
+#define INIT_TASK(tsk)	\
+{									\
+	.state		= 0,						\
+	.stack		= &init_thread_info,				\
+	.usage		= ATOMIC_INIT(2),				\
+	.flags		= PF_KTHREAD,					\
+	.lock_depth	= -1,						\
+	.prio		= NORMAL_PRIO,					\
+	.static_prio	= MAX_PRIO-20,					\
+	.normal_prio	= NORMAL_PRIO,					\
+	.deadline	= 0,						\
+	.policy		= SCHED_NORMAL,					\
+	.cpus_allowed	= CPU_MASK_ALL,					\
+	.mm		= NULL,						\
+	.active_mm	= &init_mm,					\
+	.run_list	= LIST_HEAD_INIT(tsk.run_list),			\
+	.time_slice	= HZ,					\
+	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
+	.ptraced	= LIST_HEAD_INIT(tsk.ptraced),			\
+	.ptrace_entry	= LIST_HEAD_INIT(tsk.ptrace_entry),		\
+	.real_parent	= &tsk,						\
+	.parent		= &tsk,						\
+	.children	= LIST_HEAD_INIT(tsk.children),			\
+	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
+	.group_leader	= &tsk,						\
+	.group_info	= &init_groups,					\
+	.cap_effective	= CAP_INIT_EFF_SET,				\
+	.cap_inheritable = CAP_INIT_INH_SET,				\
+	.cap_permitted	= CAP_FULL_SET,					\
+	.cap_bset 	= CAP_INIT_BSET,				\
+	.securebits     = SECUREBITS_DEFAULT,				\
+	.user		= INIT_USER,					\
+	.comm		= "swapper",					\
+	.thread		= INIT_THREAD,					\
+	.fs		= &init_fs,					\
+	.files		= &init_files,					\
+	.signal		= &init_signals,				\
+	.sighand	= &init_sighand,				\
+	.nsproxy	= &init_nsproxy,				\
+	.pending	= {						\
+		.list = LIST_HEAD_INIT(tsk.pending.list),		\
+		.signal = {{0}}},					\
+	.blocked	= {{0}},					\
+	.alloc_lock	= __SPIN_LOCK_UNLOCKED(tsk.alloc_lock),		\
+	.journal_info	= NULL,						\
+	.cpu_timers	= INIT_CPU_TIMERS(tsk.cpu_timers),		\
+	.fs_excl	= ATOMIC_INIT(0),				\
+	.pi_lock	= __SPIN_LOCK_UNLOCKED(tsk.pi_lock),		\
+	.pids = {							\
+		[PIDTYPE_PID]  = INIT_PID_LINK(PIDTYPE_PID),		\
+		[PIDTYPE_PGID] = INIT_PID_LINK(PIDTYPE_PGID),		\
+		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),		\
+	},								\
+	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
+	INIT_IDS							\
+	INIT_TRACE_IRQFLAGS						\
+	INIT_LOCKDEP							\
+}
+#else /* CONFIG_SCHED_BFS */
 #define INIT_TASK(tsk)	\
 {									\
 	.state		= 0,						\
@@ -180,7 +240,7 @@ extern struct group_info init_groups;
 	INIT_TRACE_IRQFLAGS						\
 	INIT_LOCKDEP							\
 }
-
+#endif /* CONFIG_SCHED_BFS */
 
 #define INIT_CPU_TIMERS(cpu_timers)					\
 {									\

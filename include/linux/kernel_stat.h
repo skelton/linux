@@ -52,10 +52,13 @@ static inline int kstat_irqs(int irq)
 	return sum;
 }
 
-extern void account_user_time(struct task_struct *, cputime_t);
-extern void account_user_time_scaled(struct task_struct *, cputime_t);
-extern void account_system_time(struct task_struct *, int, cputime_t);
-extern void account_system_time_scaled(struct task_struct *, cputime_t);
-extern void account_steal_time(struct task_struct *, cputime_t);
+extern void account_user_time(struct task_struct *, cputime_t, cputime_t);
+extern void account_system_time(struct task_struct *, int, cputime_t, cputime_t);
+extern void account_steal_time(cputime_t);
+extern void account_idle_time(cputime_t);
+
+extern void account_process_tick(struct task_struct *, int user);
+extern void account_steal_ticks(unsigned long ticks);
+extern void account_idle_ticks(unsigned long ticks);
 
 #endif /* _LINUX_KERNEL_STAT_H */
