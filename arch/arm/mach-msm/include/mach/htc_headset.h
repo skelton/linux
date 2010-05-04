@@ -24,6 +24,7 @@ struct h2w_platform_data {
 	int h2w_data;
 	int debug_uart;
 	int headset_mic_35mm;
+	int jack_inverted;
 	void (*config_cpld)(int);
 	void (*init_cpld)(void);
 	void (*set_dat)(int);

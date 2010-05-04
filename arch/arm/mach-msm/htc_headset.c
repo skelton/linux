@@ -128,6 +128,7 @@ struct h2w_info {
 	int (*get_dat)(void);
 	int (*get_clk)(void);
 
+	int jack_inverted;
 	int htc_headset_flag;
 	int btn_11pin_35mm_flag;
 
@@ -854,7 +855,7 @@ static void detection_work(struct work_struct *work)
 
 	H2W_DBG("");
 
-	if (gpio_get_value(hi->cable_in1) != 0) {
+	if (gpio_get_value(hi->cable_in1) != hi->jack_inverted) {
 		/* Headset not plugged in */
 		if (switch_get_state(&hi->sdev) != H2W_NO_DEVICE)
 			remove_headset();
@@ -1015,7 +1016,7 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
 	H2W_DBG("value2 = %d (%d retries), device=%d",
 		value2, (10-retry_limit), switch_get_state(&hi->sdev));
 
-	if ((switch_get_state(&hi->sdev) == H2W_NO_DEVICE) ^ value2) {
+	if ((switch_get_state(&hi->sdev) == H2W_NO_DEVICE) ^ value2 ^ hi->jack_inverted) {
 		if (switch_get_state(&hi->sdev) & BIT_HEADSET)
 			hi->ignore_btn = 1;
 		/* Do the rest of the work in timer context */
@@ -1145,6 +1146,7 @@ static int h2w_probe(struct platform_device *pdev)
 	hi->get_dat = pdata->get_dat;
 	hi->get_clk = pdata->get_clk;
 	hi->speed = H2W_50KHz;
+	hi->jack_inverted = pdata->jack_inverted;
 	/* obtain needed VREGs */
 	if (pdata->power_name)
 		hi->vreg_h2w = vreg_get(0, pdata->power_name);
