@@ -61,13 +61,13 @@ static void config_gpio_table(struct msm_gpio_config *table, int len)
 /* ---- SDCARD ---- */
 
 static struct msm_gpio_config sdcard_on_gpio_table_gsm[] = {
-/*                   num,alt                                                   */
-	DEX_GPIO_CFG( 62, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* CLK */
-	DEX_GPIO_CFG( 63, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* CMD */
-	DEX_GPIO_CFG( 64, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT3 */
-	DEX_GPIO_CFG( 65, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT2 */
-	DEX_GPIO_CFG( 66, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT1 */
-	DEX_GPIO_CFG( 67, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA, 0 ), /* DAT0 */
+/*               num,alt                                                   */
+	DEX_GPIO_CFG( 62, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CLK */
+	DEX_GPIO_CFG( 63, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* CMD */
+	DEX_GPIO_CFG( 64, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT3 */
+	DEX_GPIO_CFG( 65, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT2 */
+	DEX_GPIO_CFG( 66, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT1 */
+	DEX_GPIO_CFG( 67, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA, 0 ), /* DAT0 */
 };
 
 static struct msm_gpio_config sdcard_off_gpio_table_gsm[] = {
@@ -173,12 +173,13 @@ static uint32_t sdslot_switchvdd(struct device *dev, unsigned int vdd)
 			printk(KERN_ERR "%s: Error enabling vreg (%d)\n",
 			       __func__, rc);
 		}
+
 		config_gpio_table(mmc_pdata.sdcard_on_gpio_table,
 				  mmc_pdata.sdcard_on_gpio_table_size);
 		sdslot_vreg_enabled = 1;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mmc_vdd_table); i++) {
+/*	for (i = 0; i < ARRAY_SIZE(mmc_vdd_table); i++) {
 		if (mmc_vdd_table[i].mask == (1 << vdd)) {
 #if DEBUG_SDSLOT_VDD
 			printk("%s: Setting level to %u\n",
@@ -194,6 +195,7 @@ static uint32_t sdslot_switchvdd(struct device *dev, unsigned int vdd)
 			return 0;
 		}
 	}
+*/
 
 	printk(KERN_ERR "%s: Invalid VDD %d specified\n", __func__, vdd);
 	return 0;
@@ -212,15 +214,15 @@ static unsigned int sdslot_status(struct device *dev)
 	return (!status);
 }
 
-#define RAPH_MMC_VDD	/*MMC_VDD_165_195 | MMC_VDD_20_21 | MMC_VDD_21_22 \
+#define RAPH_MMC_VDD	MMC_VDD_165_195 | MMC_VDD_20_21 | MMC_VDD_21_22 \
 			| MMC_VDD_22_23 | MMC_VDD_23_24 | MMC_VDD_24_25 \
 			| MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 \
-			| MMC_VDD_28_29 | */MMC_VDD_29_30
+			| MMC_VDD_28_29 | MMC_VDD_29_30
 
 static struct mmc_platform_data sdslot_data = {
 	.ocr_mask	= RAPH_MMC_VDD,
 	.status		= sdslot_status,
-//	.translate_vdd	= sdslot_switchvdd,
+	.translate_vdd	= sdslot_switchvdd,
 };
 
 /* ---- WIFI ---- */
