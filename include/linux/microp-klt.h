@@ -62,7 +62,7 @@ static struct microp_klt {
  */
 #define MISC_CAP_SEN_RES_CTRL1	0x02
 #define MISC_CAP_SEN_RES_CTRL2	0x40
-#define MISC_MICP_ISP						0x80
+#define MISC_MICP_ISP			0x80
 
 /**
  * I2C data address IDs
