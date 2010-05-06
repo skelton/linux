@@ -63,6 +63,20 @@ enum {
 	WAKE_ON_TOUCH=4
 };
 
+/* i2c commands */
+#define COMMAND_GET_ABSOLUTE_PACKET				0x00
+#define COMMAND_GET_VERSION						0x09
+#define COMMAND_SET_POWER_IDLE					0x11
+#define COMMAND_SET_POWER_SLEEP					0x12
+#define COMMAND_SET_INTERRUPT_FOR_ACTION_AREA	0x14
+#define COMMAND_CLEAR_INTERRUPT_FOR_ACTION_AREA	0x15
+
+#if 0
+ #define D(fmt, arg...) printk(KERN_DEBUG "[KLT] %s: " fmt "\n", __FUNCTION__, ## arg);
+#else
+ #define D(fmt, arg...) do {} while(0)
+#endif
+
 static int inversion=0;
 module_param_named(inversion, inversion, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -82,7 +96,6 @@ struct raphnavi_info {
 	int gpio_tp;	// signals touch pad activity
 	int gpio_lid;	// keyboard slider lid switch
 };
-
 
 // #define RAPHNAVI_DEBUG
 // #define RAPHNAVI_LID_SWITCH /* drivers/input/keyboard/microp-keypad.c handles this now. */
@@ -397,6 +410,20 @@ static void raphnavi_pad(struct raphnavi *navi, char *data)
 	micropklt_set_led_states(RAPHNAVI_KLT_LED_MASK, leds);
 }
 
+static int raphnavi_i2c_write(struct i2c_client *client, const char *sendbuf, int len)
+{
+	int r;
+	r = i2c_master_send(client, sendbuf, len);
+	if (r < 0) {
+		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
+	} else {
+		D("  >>> 0x%08x, 0x%08x -> 0x%08x 0x%08x 0x%08x\n", client->addr,
+		         sendbuf[0], (len > 1 ? sendbuf[1] : 0),
+		         (len > 2 ? sendbuf[2] : 0), (len > 3 ? sendbuf[3] : 0));
+	}
+	return r;
+}
+
 static int raphnavi_i2c_read(struct i2c_client *client, unsigned id, char *buf, int len)
 {
 	int retry;
@@ -476,7 +503,7 @@ static void raphnavi_work(struct work_struct *work)
 	err = raphnavi_i2c_read(navi->client, 1, buffer, RAPHNAVI_I2C_MSGLEN);
 	if (!err)
 		raphnavi_pad(navi,buffer);
-	//raphnavi_i2c_read(navi->client, 1, buffer, RAPHNAVI_I2C_MSGLEN); //XXX: maejrep: Why do we have to do this a second time?
+
 	mutex_unlock(&navi->lock);
 #ifdef RAPHNAVI_LID_SWITCH
 	enable_irq(navi->sw_irq);
@@ -543,11 +570,30 @@ static enum hrtimer_restart raphnavi_kp_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+extern int micropklt_set_misc_states( unsigned mask, unsigned bit_flag );
+
+/* reset the navi PSOC trough microp */
+static int reset_navi()
+{
+	return micropklt_set_misc_states(0xFF, MISC_CAP_SEN_RES_CTRL2);
+}
+
+/* send a command to the navi
+ * command list is defined at the start of this file.
+ */
+static int navi_write_command(unsigned cmd)
+{
+	unsigned char data[3];
+	data[0] = 0;
+	data[1] = cmd;
+	data[2] = 0;
+	return raphnavi_i2c_write(in_navi->client, data, 3);
+}
+
 static void navi_suspend(struct early_suspend *h) {
 	int col;
 	if(!(wake&WAKE_ON_HARD))
-		for(col = 0; col < in_navi->info->ncols; col++)
-		{
+		for(col = 0; col < in_navi->info->ncols; col++) {
 			if ( wake&WAKE_ON_VOL && col == 1 ) // just don't disable it
 				continue;
 			disable_irq(gpio_to_irq(in_navi->info->cols[col]));
@@ -560,13 +606,19 @@ static void navi_suspend(struct early_suspend *h) {
 
 	// make sure that all the leds are off
 	micropklt_set_led_states(RAPHNAVI_KLT_LED_MASK, 0);
+
+	reset_navi();
+	msleep(60); // sleep 60 ms
+	navi_write_command(COMMAND_SET_POWER_SLEEP);
 }
 
 static void navi_resume(struct early_suspend *h) {
 	int col;
+
+	// reset navi so it gets out of sleep
+	reset_navi();
 	if(!(wake&WAKE_ON_HARD))
-		for(col = 0; col < in_navi->info->ncols; col++)
-		{
+		for(col = 0; col < in_navi->info->ncols; col++) {
 			if ( wake&WAKE_ON_VOL && col == 1 ) // just don't enable it as it is already enabled
 				continue;
 			enable_irq(gpio_to_irq(in_navi->info->cols[col]));
