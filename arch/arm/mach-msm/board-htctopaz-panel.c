@@ -33,7 +33,6 @@ static struct clk *gp_clk;
 #define SYSTEM_BLOCK1_BASE     0x160000
 #define SYSTEM_BLOCK2_BASE     0x170000
 
-
 #define	DPSUS       (MDDI_CLIENT_CORE_BASE|0x24)
 #define	SYSCLKENA   (MDDI_CLIENT_CORE_BASE|0x2C)
 #define	PWM0OFF	      (PWM_BLOCK_BASE|0x1C)
@@ -377,7 +376,7 @@ static struct vreg *vreg_lcd_2;	/* LCD2 */
 #define GPIOSEL_VWAKEINT (1U << 0)
 #define INTMASK_VWAKEOUT (1U << 0)
 
-static void htcraphael_process_mddi_table(struct msm_mddi_client_data *client_data,
+static void htctopaz_process_mddi_table(struct msm_mddi_client_data *client_data,
 				     struct mddi_table *table, size_t count)
 {
 	int i;
@@ -397,23 +396,19 @@ static void htcraphael_process_mddi_table(struct msm_mddi_client_data *client_da
 
 extern void  micropklt_lcd_ctrl(int);
 
-static void htcraphael_mddi_power_client(struct msm_mddi_client_data *client_data,
+static void htctopaz_mddi_power_client(struct msm_mddi_client_data *client_data,
 				    int on)
 {
-	printk("htcraphael_mddi_power_client(%d)\n", on);
+	printk("htctopaz_mddi_power_client(%d)\n", on);
 #if 0
-#warning htcraphael_mddi_power_client not yet implemented
+#warning htctopaz_mddi_power_client not yet implemented
 #endif
 
 
 	return 0;
-
-	
 }
 
-
-
-static int htcraphael_mddi_epson_client_init(
+static int htctopaz_mddi_epson_client_init(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
@@ -421,7 +416,7 @@ static int htcraphael_mddi_epson_client_init(
 	int panel_id;
 
 /*	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_epson_init_table,
+	htctopaz_process_mddi_table(client_data, mddi_epson_init_table,
 				 ARRAY_SIZE(mddi_epson_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
@@ -538,14 +533,14 @@ static int htctopaz_mddi_hitachi_panel_deinit(
 	return 0;
 }
 
-static int htcraphael_mddi_epson_client_uninit(
+static int htctopaz_mddi_epson_client_uninit(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
 	return 0;
 }
 
-static int htcraphael_mddi_toshiba_client_init(
+static int htctopaz_mddi_toshiba_client_init(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
@@ -556,7 +551,7 @@ static int htcraphael_mddi_toshiba_client_init(
 	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
-	htcraphael_process_mddi_table(client_data, mddi_toshiba_init_table,
+	htctopaz_process_mddi_table(client_data, mddi_toshiba_init_table,
 				 ARRAY_SIZE(mddi_toshiba_init_table));
 	client_data->auto_hibernate(client_data, 1);
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
@@ -567,14 +562,14 @@ static int htcraphael_mddi_toshiba_client_init(
 	return 0;
 }
 
-static int htcraphael_mddi_toshiba_client_uninit(
+static int htctopaz_mddi_toshiba_client_uninit(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
 	return 0;
 }
 
-static int htcraphael_mddi_panel_unblank(
+static int htctopaz_mddi_panel_unblank(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
@@ -602,7 +597,7 @@ static int htcraphael_mddi_panel_unblank(
 
 }
 
-static int htcraphael_mddi_panel_blank(
+static int htctopaz_mddi_panel_blank(
 	struct msm_mddi_bridge_platform_data *bridge_data,
 	struct msm_mddi_client_data *client_data)
 {
@@ -632,10 +627,10 @@ static int htcraphael_mddi_panel_blank(
 extern struct resource resources_msm_fb[];
 
 struct msm_mddi_bridge_platform_data toshiba_client_data = {
-	.init = htcraphael_mddi_toshiba_client_init,
-	.uninit = htcraphael_mddi_toshiba_client_uninit,
-	.blank = htcraphael_mddi_panel_blank,
-	.unblank = htcraphael_mddi_panel_unblank,
+	.init = htctopaz_mddi_toshiba_client_init,
+	.uninit = htctopaz_mddi_toshiba_client_uninit,
+	.blank = htctopaz_mddi_panel_blank,
+	.unblank = htctopaz_mddi_panel_unblank,
 	.fb_data = {
 		.xres = 480,
 		.yres = 800, //orux
@@ -645,10 +640,10 @@ struct msm_mddi_bridge_platform_data toshiba_client_data = {
 
 
 struct msm_mddi_bridge_platform_data epson_client_data = {
-	.init = htcraphael_mddi_epson_client_init,
-	.uninit = htcraphael_mddi_epson_client_uninit,
-	.blank = htcraphael_mddi_panel_blank,
-	.unblank = htcraphael_mddi_panel_unblank,
+	.init = htctopaz_mddi_epson_client_init,
+	.uninit = htctopaz_mddi_epson_client_uninit,
+	.blank = htctopaz_mddi_panel_blank,
+	.unblank = htctopaz_mddi_panel_unblank,
 	.fb_data = {
 		.xres = 480,
 		.yres = 800, //orux
@@ -658,7 +653,7 @@ struct msm_mddi_bridge_platform_data epson_client_data = {
 
 struct msm_mddi_platform_data mddi_pdata = {
 	.clk_rate = 122880000,
-	.power_client = htcraphael_mddi_power_client,
+	.power_client = htctopaz_mddi_power_client,
 	.fb_resource = resources_msm_fb,
 	.num_clients = 4,
 	.client_platform_data = {
