@@ -135,6 +135,10 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
  * note: experimental and not used yet.
  * note: its used for enabling the LCM clock ( pure guess ) on the HTC RAPH
  * note: can be used to cleanup the "send_command" hacks in micropklt_lcd_ctrl.
+ *
+ * example:
+ * - micropklt_set_misc_states(0xFF, 4) would set bit 3.
+ * - micropklt_set_misc_states(0x0, 4) would clear bit 3.
  */
 int micropklt_set_misc_states( unsigned mask, unsigned bit_flag )
 {
@@ -169,17 +173,21 @@ int micropklt_set_misc_states( unsigned mask, unsigned bit_flag )
 	data->misc_states = data->misc_states & ~bit_flag;					// remove the bit
 	data->misc_states = data->misc_states | ( bit_flag & mask );		// set or not set the bit
 
-	printk("microp, send misc: 0x%X\n", data->misc_states);
-
 	// only send if it has actualy changed
 	if ( data->misc_states != state ) {
 		state = data->misc_states;
 		buffer[1] = data->misc_states & 0xFF;
 		result = micropklt_write(client, buffer, 2);
+		//printk("microp, 0x%X -> 0x%X\n", state, data->misc_states);
+		
 	} else {
 		result = 0;
 	}
 
+	// don't store the reset flags
+	if( data->misc_states & ( MISC_CAP_SEN_RES_CTRL2 | MISC_CAP_SEN_RES_CTRL1 ) )
+		data->misc_states = data->misc_states & ~( MISC_CAP_SEN_RES_CTRL2 | MISC_CAP_SEN_RES_CTRL1 );
+	
 	mutex_unlock(&data->lock);
 	return result;
 }
@@ -266,6 +274,9 @@ void micropklt_lcd_ctrl(int v)
 	char c9[]={MICROP_I2C_WCMD_MISC,0x08};
 	printk("Something used micropklt_lcd_ctrl. This function should no longer be used.\n");
 
+	// this function is obsolete
+	return;
+
     data = micropklt_t;
     if (!data) return;
     client = data->client;
@@ -278,6 +289,7 @@ void micropklt_lcd_ctrl(int v)
 		break;
 	case 2:
 		send_command(c2);
+
 		break;
 	case 3:
 		send_command(c3);
@@ -467,18 +479,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		break;
 	}
 
-	/* read the current state of the microp misc register, so we know what flags are set
-	 * note: this is purely experimental. Also unsure if its a single byte register only.
-	*/
-	// seems to be RAPH only
-	/*buf[0] = 0;	buf[1] = 0;
-	if ( micropklt_read( client, MICROP_I2C_WCMD_MISC, buf, 2 ) == 0 ) {
-		data->misc_states = buf[0];
-		printk(KERN_INFO MODULE_NAME" : misc led status: 0x%X | 0x%X\n", buf[0], buf[1]);
-	} else {
-		// last misc state used in the send_command series.
-		data->misc_states = 0x0c;
-	}*/
+	// microp misc state init value.
+	data->misc_states = 0x0c;
 
 	/* if for some reason the hardware should support it, but it simply shows the wrong I2C id, its possible the device has been
 	 * set into bootloader mode. See HTC Hero's microp driver for a way to fix this.
@@ -623,16 +625,18 @@ static u16 sleep_state=0,old_state;
 static int micropklt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	D("suspending device...");
+
 //	char cmd[]={0x20,0x08};
 //	send_command(cmd);
-//	micropklt_lcd_ctrl(4);
 	if(sleep_state==-1) {
 	if(micropklt_t)
 		old_state=micropklt_t->led_states;
 	else
 		old_state=0;
 	}
+	
 	micropklt_set_led_states(0xffff, sleep_state);
+	//micropklt_set_led_states(0xffff, 0); old_state=0;
 	//Sleeping is GOOD !
 	//It's GREEN ! (on topa/rhod.)
 	if ( machine_is_htctopaz() || machine_is_htcrhodium() )
@@ -645,7 +649,6 @@ static int micropklt_resume(struct i2c_client *client)
 	D("resuming device...");
 //	char cmd[]={0x20,0x48};
 //	send_command(cmd);
-//	micropklt_lcd_ctrl(1);
 	micropklt_set_led_states(0xffff,old_state);
 	//Being awake is BAD !
 	//It's RED ! (on topa/rhod.) (ok it's amber.)

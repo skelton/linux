@@ -137,7 +137,7 @@ extern int micropklt_lcd_precess_cmd(char*, size_t);
 
 static struct vreg *vreg_mddi_1v5;
 static struct vreg *vreg_lcm_2v85;
-extern void  micropklt_lcd_ctrl(int);
+extern int micropklt_set_misc_states( unsigned mask, unsigned bit_flag );
 static void htcblackstone_mddi_power_client(struct msm_mddi_client_data *client_data,
 				    int on)
 {
@@ -176,7 +176,7 @@ static int htcblackstone_mddi_epson_panel_init(
 	gpio_configure(RAPH100_LCD_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
 	gpio_set_value(RAPH100_LCD_PWR2, 1);
 	msleep(10);
-	micropklt_lcd_ctrl(2);
+	micropklt_set_misc_states( 0xFF, 4 );
 	*/
 	
 	if(!no_bkl_off) {
