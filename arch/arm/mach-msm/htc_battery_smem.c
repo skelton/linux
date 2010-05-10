@@ -38,6 +38,7 @@
 
 static struct wake_lock vbus_wake_lock;
 static struct work_struct bat_work;
+static int bat_suspended = 0;
 
 #define TRACE_BATT 1
 
@@ -99,6 +100,60 @@ static unsigned int cache_time = 1000;
 
 static int htc_battery_initial = 0;
 
+// simple maf filter stuff
+#define BATT_MAF_SIZE 8
+static short volt_maf_buffer[BATT_MAF_SIZE];
+static short volt_maf_size = 0;
+static short volt_maf_last = 0;
+
+static void maf_add_value( short volt )
+{
+	// check if we need to correct the index
+	if ( volt_maf_last == BATT_MAF_SIZE-1 )
+		volt_maf_last = 0;
+
+	// add value to filter buffer
+	volt_maf_buffer[volt_maf_last] = volt;
+	volt_maf_last++;
+
+	if ( volt_maf_size != BATT_MAF_SIZE-1 )
+		volt_maf_size++;	
+}
+
+//calculated on the fly.... no caching
+static short maf_get_avarage()
+{
+	int i;
+	int maf_temp;
+
+	// make sure we only do it when we have data
+	if ( volt_maf_size == 0 )
+		return 0;
+
+	// no need todo the avaraging
+	if ( volt_maf_size == 1 )
+		return volt_maf_buffer[0];
+
+	// our start value is the first sample
+	maf_temp = volt_maf_buffer[0];
+
+	for (i=1; i < volt_maf_size; i++) {
+		maf_temp = ( maf_temp + volt_maf_buffer[i] ) / 2;		
+	}
+
+	return maf_temp;
+}
+
+static void maf_clear()
+{
+	int i;
+	for ( i = 0; i < BATT_MAF_SIZE;i++ )
+		volt_maf_buffer[i] = 0;
+
+	volt_maf_size = 0;
+	volt_maf_last = 0;
+}
+
 /* ADC linear correction numbers.
  */
 static u32 htc_adc_a = 0;					// Account for Divide Resistors
@@ -107,8 +162,8 @@ static u32 htc_adc_range = 0x1000;	// 12 bit adc range correction.
 static u32 batt_vendor = 0;
 
 // todo: use readl
-#define GET_BATT_ID 				*(int *)( MSM_SHARED_RAM_BASE + 0xFC0DC )
-#define GET_ADC_VREF 			*(int *)( MSM_SHARED_RAM_BASE + 0xFC0E0 )
+#define GET_BATT_ID 		*(int *)( MSM_SHARED_RAM_BASE + 0xFC0DC )
+#define GET_ADC_VREF 		*(int *)( MSM_SHARED_RAM_BASE + 0xFC0E0 )
 #define GET_ADC_0_5_VREF 	*(int *)( MSM_SHARED_RAM_BASE + 0xFC0E4 )
 
 static int get_battery_id_detection( struct battery_info_reply *buffer );
@@ -304,7 +359,6 @@ static int init_batt_gpio(void)
 
 gpio_failed:
 	return -EINVAL;
-
 }
 
 /*
@@ -732,49 +786,24 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	}
 
 	dex.cmd = PCOM_GET_BATTERY_DATA;
+	msm_proc_comm_wince(&dex, 0);
 
 	mutex_lock(&htc_batt_info.lock);
 
 	if (htc_batt_info.resources->smem_field_size == 4) {
-
 		batt_32 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
 
-		/* simple 5x avarage on readings */
-		for ( i = 0; i < 5; i++ ) {
-			msm_proc_comm_wince(&dex, 0);
-
-			if ( batt_32->batt_vol > av_volt )
-				av_volt = batt_32->batt_vol;
-
-			av_curr+=batt_32->batt_charge;
-			av_temp+=batt_32->batt_temp;
-			msleep(2);
-		}
-
-		buffer->batt_vol = av_volt;
-		buffer->batt_current = av_curr; /* this one is NOT divided by 5 on purpose, its because this way we can get a easy current * 5 without the loss, DON'T CHANGE IT */
-		buffer->batt_temp = av_temp / 5;
+		buffer->batt_vol = batt_32->batt_vol;
+		buffer->batt_current = batt_32->batt_charge;
+		buffer->batt_temp = batt_32->batt_temp;
 		buffer->batt_id = batt_32->batt_id;
 
 	} else if (htc_batt_info.resources->smem_field_size == 2) {
 		batt_16 = (void *)(MSM_SHARED_RAM_BASE + htc_batt_info.resources->smem_offset);
 
-		/* simple 5x avarage on readings */
-		for ( i = 0; i < 5; i++ )
-		{
-			msm_proc_comm_wince(&dex, 0);
-
-			if ( batt_16->batt_vol > av_volt )
-				av_volt = batt_16->batt_vol;
-
-			av_curr+=batt_16->batt_charge;
-			av_temp+=batt_16->batt_temp;
-			msleep(2);
-		}
-
-		buffer->batt_vol = av_volt;
-		buffer->batt_current = av_curr; /* this one is NOT divided by 5 on purpose, its because this way we can get a easy current * 5 without the loss, DON'T CHANGE IT */
-		buffer->batt_temp = av_temp / 5;
+		buffer->batt_vol = batt_16->batt_vol;
+		buffer->batt_current = batt_16->batt_charge;
+		buffer->batt_temp = batt_16->batt_temp;
 		buffer->batt_id = batt_16->batt_id;
 
 	} else {
@@ -782,6 +811,12 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 		mutex_unlock(&htc_batt_info.lock);
 		return -ENOTSUPP;
 	}
+
+	// add the corrected value to the maf filter
+	maf_add_value( buffer->batt_vol );
+
+	// calculate the avarage
+	buffer->batt_vol = maf_get_avarage();
 
 	/* platform spec battery correction */
 	if ( machine_is_htcraphael() || machine_is_htcraphael_cdma() || machine_is_htcdiamond() || machine_is_htcdiamond_cdma() ) {
@@ -949,6 +984,7 @@ static int htc_battery_get_property(struct power_supply *psy,
 
 void htc_battery_external_power_changed(struct power_supply *psy) {
 	BATT("external power changed\n");
+	maf_clear();
 	schedule_work(&bat_work);
 	return;
 }
@@ -1070,7 +1106,8 @@ static int htc_battery_thread(void *data)
 
 	while (!signal_pending((struct task_struct *)current)) {
 		msleep(10000);
-		power_supply_changed(&htc_power_supplies[CHARGER_BATTERY]);
+		if (!bat_suspended)
+			power_supply_changed(&htc_power_supplies[CHARGER_BATTERY]);
 	}
 	return 0;
 }
@@ -1129,12 +1166,31 @@ static int htc_battery_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#if CONFIG_PM
+static int htc_battery_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	bat_suspended = 1;
+	return 0;
+}
+
+static int htc_battery_resume(struct i2c_client *client)
+{
+	bat_suspended = 0;
+	return 0;
+}
+#else
+ #define htc_battery_suspend NULL
+ #define htc_battery_resume NULL
+#endif
+
 static struct platform_driver htc_battery_driver = {
 	.probe	= htc_battery_probe,
 	.driver	= {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,
 	},
+	.suspend = htc_battery_suspend,
+	.resume = htc_battery_resume,
 };
 
 static int __init htc_battery_init(void)
