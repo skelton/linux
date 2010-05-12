@@ -70,6 +70,12 @@ static ssize_t machtype_show(struct class *class, char *buf)
 	return sprintf(buf, "%d\n", machine_arch_type);
 }
 
+extern unsigned int __amss_version; // amss_para.c
+static ssize_t amss_show(struct class *class, char *buf)
+{
+	return sprintf(buf, "%d\n", __amss_version);
+}
+
 static ssize_t battery_show(struct class *class, char *buf)
 {
 	int *values_32;
@@ -101,6 +107,7 @@ static struct class_attribute htc_hw_class_attrs[] = {
 	__ATTR_RO(battery),
 	__ATTR_RO(radio),
 	__ATTR_RO(machtype),
+	__ATTR_RO(amss),
 	__ATTR(vibrate, 0222, NULL, vibrate_store),
 	__ATTR(test,0222, NULL, test_store),
 	__ATTR_NULL,
