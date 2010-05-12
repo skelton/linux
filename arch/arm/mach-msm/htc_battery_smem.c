@@ -700,7 +700,10 @@ static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor 
 	buffer->batt_temp = ( buffer->batt_temp * 2600 ) / 0x1000;
 	//buffer->batt_temp = ( ( htc_adc_a * buffer->batt_temp ) + htc_adc_b ) / 1000;
 
-	av_index = ( buffer->batt_temp * 18 ) / ( 2600 - buffer->batt_temp );
+	if (machine_is_htctopaz())
+		av_index = ( buffer->batt_temp * 200 ) / ( 2600 - buffer->batt_temp );
+	else
+		av_index = ( buffer->batt_temp * 18 ) / ( 2600 - buffer->batt_temp );
 
 	// everything below 8 is HOT
 	if ( av_index < 8 )
@@ -819,9 +822,11 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	buffer->batt_vol = maf_get_avarage();
 
 	/* platform spec battery correction */
-	if ( machine_is_htcraphael() || machine_is_htcraphael_cdma() || machine_is_htcdiamond() || machine_is_htcdiamond_cdma() ) {
+	if ( machine_is_htcraphael() || machine_is_htcraphael_cdma() || 
+	    machine_is_htcdiamond() || machine_is_htcdiamond_cdma() ||
+	    machine_is_htctopaz() ) {
 		htc_raph_batt_corr( buffer );
-	} else if ( machine_is_htcrhodium() || machine_is_htctopaz() ) {
+	} else if ( machine_is_htcrhodium() ) {
 		htc_rhod_batt_corr( buffer );
 	} else {
 		/* fallback for not supported devices */
