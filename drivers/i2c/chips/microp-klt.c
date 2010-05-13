@@ -165,9 +165,9 @@ int micropklt_set_misc_states( unsigned mask, unsigned bit_flag )
 		printk( "microp, MISC_CAP_SEN_RES_CTRL1, MISC_CAP_SEN_RES_CTRL2 are both enabled\n" );
 
 		// log the cmd that set this for debug purposes.
-		printk( "microp, pre bit_flag: 0x%X\n", bit_flag );
+		D( "microp, pre bit_flag: 0x%X\n", bit_flag );
 		bit_flag = bit_flag & ~( MISC_CAP_SEN_RES_CTRL1 | MISC_CAP_SEN_RES_CTRL2 );
-		printk( "microp, post bit_flag: 0x%X\n", bit_flag );
+		D( "microp, post bit_flag: 0x%X\n", bit_flag );
 	}
 
 	data->misc_states = data->misc_states & ~bit_flag;					// remove the bit
@@ -178,7 +178,7 @@ int micropklt_set_misc_states( unsigned mask, unsigned bit_flag )
 		state = data->misc_states;
 		buffer[1] = data->misc_states & 0xFF;
 		result = micropklt_write(client, buffer, 2);
-		//printk("microp, 0x%X -> 0x%X\n", state, data->misc_states);
+		D("microp, 0x%X -> 0x%X\n", state, data->misc_states);
 		
 	} else {
 		result = 0;
@@ -480,7 +480,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	}
 
 	// microp misc state init value.
-	data->misc_states = 0x0c;
+	data->misc_states = 0x0C;
 
 	/* if for some reason the hardware should support it, but it simply shows the wrong I2C id, its possible the device has been
 	 * set into bootloader mode. See HTC Hero's microp driver for a way to fix this.
