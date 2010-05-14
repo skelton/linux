@@ -258,7 +258,7 @@ static int __init msm_pmem_init() {
 			pmem_setting.pmem_gpu1_size=8*1024*1024;
 			
 			pmem_setting.ram_console_start=0x8e0000;
-			pmem_setting.ram_console_size=0x0000;
+			pmem_setting.ram_console_size=0x2000;
 			break;
 		default:
 			//SMI 32 + EBI 128
