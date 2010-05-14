@@ -32,8 +32,8 @@
 static int gsensor_read_reg(uint8_t reg, uint8_t *data);
 static int gsensor_write_reg(uint8_t reg, uint8_t data);
 static int microp_spi_enable(uint8_t on);
-static int bma150_i2c_read(struct i2c_client *client, unsigned addr, char *data, int len);
-static int bma150_i2c_write(struct i2c_client *client, unsigned addr, char *data, int len);
+static int bma150_i2c_read(struct i2c_client *client, uint8_t addr, uint8_t *data, int len);
+static int bma150_i2c_write(struct i2c_client *client, uint8_t addr, uint8_t *data, int len);
 
 enum {	/* operation     	   param */
 	BMA150_CTL_RESET,	// ignored	
@@ -349,32 +349,33 @@ int bma150_control(int oper,int param)
 	return 0;
 }
 
-static int bma150_i2c_read(struct i2c_client *client, unsigned addr,
-						char *data, int len)
+static int bma150_i2c_read(struct i2c_client *client, uint8_t addr,
+						uint8_t *data, int len)
 {
 	int retry;
 	int ret;
 	struct i2c_msg msgs[] = {
-	{
-		.addr = client->addr,
-		.flags = 0,
-		.len = 1,
-		.buf = &addr,
-	},
-	{
-		.addr = client->addr,
-		.flags = I2C_M_RD,
-		.len = len,
-		.buf = data,
-	}
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &addr,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = data,
+		}
 	};
 
-	mdelay(1);
 	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
 		ret = i2c_transfer(client->adapter, msgs, 2);
 		if (ret == 2) {
+#if BMA150_DEBUG
 			dev_dbg(&client->dev, "R [%02X] = %s\n", addr,
 					hex2string(data, len));
+#endif
 			return 0;
 		}
 		msleep(10);
@@ -387,8 +388,8 @@ static int bma150_i2c_read(struct i2c_client *client, unsigned addr,
 }
 
 #define MICROP_I2C_WRITE_BLOCK_SIZE 21
-static int bma150_i2c_write(struct i2c_client *client, unsigned addr,
-						char *data, int len)
+static int bma150_i2c_write(struct i2c_client *client, uint8_t addr,
+						uint8_t *data, int len)
 {
 	int retry;
 	uint8_t buf[MICROP_I2C_WRITE_BLOCK_SIZE];
@@ -560,7 +561,8 @@ static void bma150_work(struct work_struct *work)
 		restart_time.tv.nsec = 4 * NSEC_PER_MSEC;
 		hrtimer_start(&bma150_w->timer, restart_time, HRTIMER_MODE_REL);
 	} else {
-		err = gsensor_read_acceleration(&vals[0]);
+		vals[0] = vals[1] = vals[2] = 0;
+		err = gsensor_read_acceleration(vals);
 		x = vals[0];
 		y = vals[1];
 		z = vals[2];
@@ -714,8 +716,7 @@ int bma150_probe(struct microp_klt* data)
 		pr_err("Microp KLT driver has to be initialized first!\n");
 		return -1;
 	}
-	  
-	
+
 	printk(KERN_ERR MODULE_NAME ": Initializing BMA150 over microp driver "
 					"at addr: 0x%02x\n", _bma->micropklt_t->client->addr);
 
@@ -723,7 +724,7 @@ int bma150_probe(struct microp_klt* data)
 	if (idev) {
 		idev->name = MODULE_NAME;
 		idev->phys=kzalloc(12, GFP_KERNEL);
-		snprintf(idev->phys, 11, "i2c/0-%04x", _bma->micropklt_t->client->addr);
+		snprintf((char*)idev->phys, 11, "i2c/0-%04x", _bma->micropklt_t->client->addr);
 		set_bit(EV_ABS, idev->evbit);
 		input_set_abs_params(idev, ABS_X, -2048, 2047, 0, 0);
 		input_set_abs_params(idev, ABS_Y, -2048, 2047, 0, 0);
@@ -776,7 +777,7 @@ int bma150_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id) 
 	if (idev) {
 		idev->name = MODULE_NAME;
 		idev->phys=kzalloc(12, GFP_KERNEL);
-		snprintf(idev->phys, 11, "i2c/0-%04x", _bma->client->addr);
+		snprintf((char*)idev->phys, 11, "i2c/0-%04x", _bma->client->addr);
 		set_bit(EV_ABS, idev->evbit);
 		input_set_abs_params(idev, ABS_X, -2048, 2047, 0, 0);
 		input_set_abs_params(idev, ABS_Y, -2048, 2047, 0, 0);
@@ -872,8 +873,9 @@ static struct i2c_driver bma150_driver = {
 
 int __init bma150_init(void)
 {
+	int ret;
 	printk(KERN_INFO MODULE_NAME ": Registering Bosch BMA150 driver\n");
-	int ret = i2c_add_driver(&bma150_driver);
+	ret = i2c_add_driver(&bma150_driver);
 	return ret;
 }
 
