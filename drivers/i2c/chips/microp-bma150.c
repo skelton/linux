@@ -353,7 +353,7 @@ static int bma150_i2c_read(struct i2c_client *client, uint8_t addr,
 						uint8_t *data, int len)
 {
 	int retry;
-	int ret;
+	int rc;
 	struct i2c_msg msgs[] = {
 		{
 			.addr = client->addr,
@@ -370,8 +370,8 @@ static int bma150_i2c_read(struct i2c_client *client, uint8_t addr,
 	};
 
 	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
-		ret = i2c_transfer(client->adapter, msgs, 2);
-		if (ret == 2) {
+		rc = i2c_transfer(client->adapter, msgs, 2);
+		if (rc == 2) {
 #if BMA150_DEBUG
 			dev_dbg(&client->dev, "R [%02X] = %s\n", addr,
 					hex2string(data, len));
@@ -379,7 +379,7 @@ static int bma150_i2c_read(struct i2c_client *client, uint8_t addr,
 			return 0;
 		}
 		msleep(10);
-		printk("read retry\n");
+		printk(KERN_WARNING "bma150, i2c read retry\n");
 	}
 
 	dev_err(&client->dev, "i2c_read_block retry over %d\n",
@@ -392,8 +392,8 @@ static int bma150_i2c_write(struct i2c_client *client, uint8_t addr,
 						uint8_t *data, int len)
 {
 	int retry;
+	int rc;
 	uint8_t buf[MICROP_I2C_WRITE_BLOCK_SIZE];
-	int ret;
 
 	struct i2c_msg msg[] = {
 		{
@@ -415,12 +415,12 @@ static int bma150_i2c_write(struct i2c_client *client, uint8_t addr,
 	buf[0] = addr;
 	memcpy((void *)&buf[1], (void *)data, len);
 
-	mdelay(1);
 	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
-		ret = i2c_transfer(client->adapter, msg, 1);
-		if (ret == 1)
+		rc = i2c_transfer(client->adapter, msg, 1);
+		if (rc == 1)
 			return 0;
 		msleep(10);
+		printk(KERN_WARNING "bma150, i2c write retry\n");
 	}
 	dev_err(&client->dev, "i2c_write_block retry over %d\n",
 			I2C_WRITE_RETRY_TIMES);
