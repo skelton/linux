@@ -592,16 +592,17 @@ static int micropklt_write(struct i2c_client *client, uint8_t *sendbuf, int len)
 		if (rc == 1)
 			return 0;
 		msleep(10);
+		printk(KERN_WARNING "micropklt, i2c write retry\n");
 	}
 	printk(KERN_ERR "micropklt_write, i2c_write_block retry over %d\n",
 			I2C_WRITE_RETRY_TIMES);
 	return rc;
 }
 
-static int micropklt_read( struct i2c_client *client, uint8_t id, uint8_t *buf, int len )
+static int micropklt_read(struct i2c_client *client, uint8_t id, uint8_t *buf, int len)
 {
 	int retry;
-	int ret;
+	int rc;
 	struct i2c_msg msgs[] = {
 		{
 			.addr = client->addr,
@@ -616,16 +617,16 @@ static int micropklt_read( struct i2c_client *client, uint8_t id, uint8_t *buf, 
 			.buf = buf,
 		}
 	};
-	for ( retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++ ) {
-		ret = i2c_transfer( client->adapter, msgs, 2 );
-		if ( ret == 2 ) {
+	for (retry= 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msgs, 2);
+		if (rc == 2) {
 			return 0;
 		}
-		msleep( 10 );
-		printk( KERN_INFO MODULE_NAME " : read retry\n");
+		msleep(10);
+		printk(KERN_WARNING "micropklt, i2c read retry\n");
 	}
-	dev_err( &client->dev, "i2c_read_block retry over %d\n",
-			I2C_READ_RETRY_TIMES );
+	dev_err(&client->dev, "i2c_read_block retry over %d\n",
+			I2C_READ_RETRY_TIMES);
 	return -EIO;
 }
 
