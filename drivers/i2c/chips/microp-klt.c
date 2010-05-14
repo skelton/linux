@@ -37,6 +37,7 @@ int micropklt_set_lcd_state(int on);
 #define MODULE_NAME "microp-klt"
 
 #define I2C_READ_RETRY_TIMES 10
+#define I2C_WRITE_RETRY_TIMES 10
 
 #if 0
  #define D(fmt, arg...) printk(KERN_DEBUG "[KLT] %s: " fmt "\n", __FUNCTION__, ## arg);
@@ -577,16 +578,27 @@ fail:
 
 static int micropklt_write(struct i2c_client *client, const char *sendbuf, int len)
 {
-	int r;
-	r = i2c_master_send(client, sendbuf, len);
-	if (r < 0) {
-		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
-	} else {
-		D("  >>> 0x%08x, 0x%08x -> 0x%08x 0x%08x 0x%08x\n", client->addr,
-		         sendbuf[0], (len > 1 ? sendbuf[1] : 0),
-		         (len > 2 ? sendbuf[2] : 0), (len > 3 ? sendbuf[3] : 0));
+	int rc;
+	int retry;
+
+	struct i2c_msg msg[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = len,
+			.buf = sendbuf,
+		},
+	};
+
+	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msg, 1);
+		if (rc == 1)
+			return 0;
+		msleep(10);
 	}
-	return r;
+	printk(KERN_ERR "micropklt_write, i2c_write_block retry over %d\n",
+			I2C_WRITE_RETRY_TIMES);
+	return rc;
 }
 
 static int micropklt_read( struct i2c_client *client, unsigned id, char *buf, int len )
@@ -715,7 +727,9 @@ static int micropklt_dbg_leds_set(void *dat, u64 val)
 		buffer[0] = MICROP_KLT_ID_LED_STATE;
 		buffer[1] = 0xff & val;
 		buffer[2] = 0xff & (val >> 8);
+
 	r = micropklt_write(client, buffer, 3);
+	
 	mutex_unlock(&data->lock);
 	return r;
 }

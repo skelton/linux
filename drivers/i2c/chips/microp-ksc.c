@@ -28,6 +28,7 @@ static int __devexit micropksc_remove(struct i2c_client *);
 #define MODULE_NAME "microp-ksc"
 
 #define I2C_READ_RETRY_TIMES 10
+#define I2C_WRITE_RETRY_TIMES 10
 
 #if 0
  #define D(fmt, arg...) printk(KERN_DEBUG "[KSC] %s: " fmt "\n", __FUNCTION__, ## arg);
@@ -232,16 +233,27 @@ fail:
 
 static int micropksc_write(struct i2c_client *client, const char *sendbuf, int len)
 {
-	int r;
+	int rc;
+	int retry;
 
-	r = i2c_master_send(client, sendbuf, len);
-	if (r < 0) {
-		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
-	} else {
-		D("  >>> 0x%02x, 0x%02x -> %02x %02x", client->addr, sendbuf[0],
-		         (len > 1 ? sendbuf[1] : 0), (len > 2 ? sendbuf[2] : 0));
+	struct i2c_msg msg[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = len,
+			.buf = sendbuf,
+		},
+	};
+
+	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msg, 1);
+		if (rc == 1)
+			return 0;
+		msleep(10);
 	}
-	return r;
+	printk(KERN_ERR "micropksc_write, i2c_write_block retry over %d\n",
+			I2C_WRITE_RETRY_TIMES);
+	return rc;
 }
 
 static int micropksc_read(struct i2c_client *client, unsigned id, char *buf, int len)
