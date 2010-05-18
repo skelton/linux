@@ -75,6 +75,11 @@ static struct microp_klt {
 #define MICROP_KLT_ID_LIGHT_SENSOR	0x33 // Get light sensor's result
 #define MICROP_KLT_ID_SPICTRL		0x21 // SPI Controll Topaz
 #define MICROP_KLT_ID_SPILCMDDATA	0x70 // SPI Data Topaz
+// Kovsky needs special addresses. 
+#define MICROP_KLT_ID_VERSION_KOVS           0x07 // Chip revision
+#define MICROP_KLT_ID_LED_STATE_KOVS         0x20 // Set LED behavior using above bitmasks
+#define MICROP_KLT_ID_LCD_BRIGHTNESS_KOVS    0x12 // Set brightness of LCD backlight
+
 
 
 //Mahimahi's constants names

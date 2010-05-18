@@ -107,6 +107,19 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 				led_cdev->name, buffer[1]);
 			micropklt_write(client, buffer, 2);
 			//msleep(1);
+		} else if (machine_is_htckovsky()) {
+			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS_KOVS;
+			if (brightness == 0) {
+				buffer[1] = LED_OFF;
+				printk(KERN_INFO MODULE_NAME ": brightness==0, turn %s OFF\n", led_cdev->name);
+			} else {
+				buffer[1] = LED_FULL; // at least 0x80 is needed
+				printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n",
+				led_cdev->name, brightness);
+			}
+			buffer[2] = brightness;
+			micropklt_write(client, buffer, 3);
+
 		} else {
 			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
 			buffer[1] = brightness/2 & 0xf0;
@@ -420,7 +433,13 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	micropklt_t = data;
 
 	// Read version
-	if( micropklt_read(client, MICROP_KLT_ID_VERSION, buf, 2) < 0 ) {
+	int id_version;
+	if (machine_is_htckovsky()) {
+		id_version = MICROP_KLT_ID_VERSION_KOVS;
+	} else {
+		id_version = MICROP_KLT_ID_VERSION;
+	}
+	if( micropklt_read(client, id_version, buf, 2) < 0 ) {
 		printk( KERN_ERR MODULE_NAME" : unable to read microp firmware version\n" );
 		r = -EIO;
 		goto fail;
@@ -432,6 +451,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	 *   8182, 8185
 	 *   0c82, 0c85
 	 *   060d
+	 *   kovsky:
+	 *   0787
 	 */
 	supported = 0;
 	data->version = (buf[0] << 8) | buf[1];
@@ -473,6 +494,13 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 	case 0x06:
 		switch (buf[1])	{
 		case 0x0d:
+			supported = 1;
+			break;
+		}
+		break;
+	case 0x07:
+		switch (buf[1])	{
+		case 0x87:
 			supported = 1;
 			break;
 		}
@@ -538,6 +566,8 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 		color_led_address = 0x51;
 	else if (machine_is_htcrhodium())
 		color_led_address = 0x50;
+	else if (machine_is_htckovsky())
+		color_led_address = 0x20;
 	else
 		color_led_address = 0x0;
 
