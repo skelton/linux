@@ -455,6 +455,14 @@ static int raphnavi_i2c_read(struct i2c_client *client, unsigned id, char *buf, 
 	return -EIO;
 }
 
+extern int micropklt_set_misc_states( unsigned mask, unsigned bit_flag );
+
+/* reset the navi PSOC trough microp */
+static int reset_navi()
+{
+	return micropklt_set_misc_states(0xFF, MISC_CAP_SEN_RES_CTRL2);
+}
+
 static irqreturn_t raphnavi_irq_handler(int irq, void *dev_id)
 {
 	int i;
@@ -501,8 +509,13 @@ static void raphnavi_work(struct work_struct *work)
 	}
 #endif
 	err = raphnavi_i2c_read(navi->client, 1, buffer, RAPHNAVI_I2C_MSGLEN);
-	if (!err)
+	if (!err) {
 		raphnavi_pad(navi,buffer);
+	} else {
+		// experimental reset when navi seems to be blocked by something.
+		reset_navi();
+		msleep(60);
+	}
 
 	mutex_unlock(&navi->lock);
 #ifdef RAPHNAVI_LID_SWITCH
@@ -568,14 +581,6 @@ static enum hrtimer_restart raphnavi_kp_timer(struct hrtimer *timer)
 #endif
 	}
 	return HRTIMER_NORESTART;
-}
-
-extern int micropklt_set_misc_states( unsigned mask, unsigned bit_flag );
-
-/* reset the navi PSOC trough microp */
-static int reset_navi()
-{
-	return micropklt_set_misc_states(0xFF, MISC_CAP_SEN_RES_CTRL2);
 }
 
 /* send a command to the navi

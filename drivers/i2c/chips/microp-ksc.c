@@ -20,14 +20,15 @@
 #include <linux/workqueue.h> /* for keyboard LED worker */
 #include <linux/microp-ksc.h>
 
-static int micropksc_read(struct i2c_client *, unsigned, char *, int);
-static int micropksc_write(struct i2c_client *, const char *, int);
+static int micropksc_read(struct i2c_client *, uint8_t, uint8_t *, int);
+static int micropksc_write(struct i2c_client *, uint8_t *, int);
 static int micropksc_probe(struct i2c_client *, const struct i2c_device_id *id);
 static int __devexit micropksc_remove(struct i2c_client *);
 
 #define MODULE_NAME "microp-ksc"
 
 #define I2C_READ_RETRY_TIMES 10
+#define I2C_WRITE_RETRY_TIMES 10
 
 #if 0
  #define D(fmt, arg...) printk(KERN_DEBUG "[KSC] %s: " fmt "\n", __FUNCTION__, ## arg);
@@ -48,7 +49,7 @@ int micropksc_read_scancode(unsigned char *outkey, unsigned char *outdown)
 	struct microp_ksc *data;
 	struct i2c_client *client;
 	unsigned char key, isdown;
-	char buffer[3] = "\0\0\0";
+	uint8_t buffer[3] = "\0\0\0";
 
 	if (!micropksc_t) {
 		if (outkey)
@@ -82,7 +83,7 @@ int micropksc_read_scancode_kovsky(unsigned char *outkey, unsigned char *outdown
 	struct microp_ksc *data;
 	struct i2c_client *client;
 	unsigned char key, isdown, clamshell;
-	char buffer[3] = "\0\0\0";
+	uint8_t buffer[3] = "\0\0\0";
 
 	if (!micropksc_t) {
 		if (outkey)
@@ -118,7 +119,7 @@ int micropksc_set_led(unsigned int led, int on)
 {
 	struct microp_ksc *data;
 	struct i2c_client *client;
-	char buffer[3] = { MICROP_KSC_ID_LED, 0, 0 };
+	uint8_t buffer[3] = { MICROP_KSC_ID_LED, 0, 0 };
 
 	if (!micropksc_t)
 		return -EAGAIN;
@@ -195,7 +196,7 @@ static int micropksc_remove(struct i2c_client *client)
 static int micropksc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct microp_ksc *data;
-	char buf[3] = { 0, 0, 0 };
+	uint8_t buf[3] = { 0, 0, 0 };
 
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-KEY chip driver at addr: 0x%02x\n", client->addr);
 
@@ -230,21 +231,34 @@ fail:
 #endif
 }
 
-static int micropksc_write(struct i2c_client *client, const char *sendbuf, int len)
+static int micropksc_write(struct i2c_client *client, uint8_t *sendbuf, int len)
 {
-	int r;
+	int rc;
+	int retry;
 
-	r = i2c_master_send(client, sendbuf, len);
-	if (r < 0) {
-		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
-	} else {
-		D("  >>> 0x%02x, 0x%02x -> %02x %02x", client->addr, sendbuf[0],
-		         (len > 1 ? sendbuf[1] : 0), (len > 2 ? sendbuf[2] : 0));
+	struct i2c_msg msg[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = len,
+			.buf = sendbuf,
+		},
+	};
+
+	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msg, 1);
+		if (rc == 1)
+			return 0;
+		msleep(10);
+		printk(KERN_WARNING "micropksc, i2c write retry\n");
 	}
-	return r;
+	printk(KERN_ERR "micropksc_write, i2c_write_block retry over %d\n",
+			I2C_WRITE_RETRY_TIMES);
+	return rc;
 }
 
-static int micropksc_read(struct i2c_client *client, unsigned id, char *buf, int len)
+static int micropksc_read(struct i2c_client *client, uint8_t id,
+						uint8_t *recvbuf, int len)
 {
 	int retry;
 	int ret;
@@ -259,16 +273,15 @@ static int micropksc_read(struct i2c_client *client, unsigned id, char *buf, int
 			.addr = client->addr,
 			.flags = I2C_M_RD,
 			.len = len,
-			.buf = buf,
+			.buf = recvbuf,
 		}
 	};
 	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
 		ret = i2c_transfer(client->adapter, msgs, 2);
-		if (ret == 2) {
+		if (ret == 2)
 			return 0;
-		}
 		msleep(10);
-		printk("read retry\n");
+		printk(KERN_WARNING "micropksc, i2c read retry\n");
 	}
 	dev_err(&client->dev, "i2c_read_block retry over %d\n",
 			I2C_READ_RETRY_TIMES);

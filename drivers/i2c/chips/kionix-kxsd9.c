@@ -36,12 +36,19 @@
 #define MODULE_NAME "kionix-kxsd9"
 
 #define I2C_READ_RETRY_TIMES 10
+#define I2C_WRITE_RETRY_TIMES 10
 
 #define KXSD9_DEBUG  0
 #define KXSD9_DUMP   0
 
 #define KXSD9_FREE_FALL 0x800
 #define KXSD9_WROP_BUF	30
+
+#if KXSD9_DEBUG
+ #define DLOG(fmt, arg...) printk(KERN_DEBUG MODULE_NAME ", %s: " fmt "\n", __FUNCTION__, ## arg);
+#else
+ #define DLOG(fmt, arg...) do {} while(0)
+#endif
 
 struct kxsd9 {
 	struct i2c_client *client;
@@ -112,9 +119,7 @@ int kxsd9_control(struct kxsd9 *kxsd9,int oper,int param)
 {
 	int restart;
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME ": %s(%d, %d)\n", __func__, oper, param);
-#endif
+	DLOG(": %s(%d, %d)\n", __func__, oper, param);
 	mutex_lock(&kxsd9->lock);
 	restart = (kxsd9->head == kxsd9->tail);
 	switch (oper)
@@ -154,8 +159,34 @@ int kxsd9_control(struct kxsd9 *kxsd9,int oper,int param)
 	return 0;
 }
 
-static int kxsd9_i2c_read(struct i2c_client *client, unsigned id,
-						char *buf, int len)
+static int kxsd9_i2c_write(struct i2c_client *client, const uint8_t *sendbuf, int len)
+{
+	int rc;
+	int retry;
+
+	struct i2c_msg msg[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = len,
+			.buf = sendbuf,
+		},
+	};
+
+	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msg, 1);
+		if (rc == 1)
+			return 0;
+		msleep(10);
+		printk(KERN_WARNING "kxsd9, i2c write retry\n");
+	}
+	dev_err(&client->dev, "i2c_write_block retry over %d\n",
+			I2C_WRITE_RETRY_TIMES);
+	return rc;
+}
+
+static int kxsd9_i2c_read(struct i2c_client *client, uint8_t id,
+						uint8_t *recvbuf, int len)
 {
 	int retry;
 	int ret;
@@ -170,16 +201,15 @@ static int kxsd9_i2c_read(struct i2c_client *client, unsigned id,
 			.addr = client->addr,
 			.flags = I2C_M_RD,
 			.len = len,
-			.buf = buf,
+			.buf = recvbuf,
 		}
 	};
 	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
 		ret = i2c_transfer(client->adapter, msgs, 2);
-		if (ret == 2) {
+		if (ret == 2)
 			return 0;
-		}
 		msleep(10);
-		printk("read retry\n");
+		printk(KERN_WARNING "kxsd9, i2c read retry\n");
 	}
 	dev_err(&client->dev, "i2c_read_block retry over %d\n",
 			I2C_READ_RETRY_TIMES);
@@ -202,7 +232,7 @@ static void kxsd9_work(struct work_struct *work)
 {
 	struct kxsd9 *kxsd9;
 	int err;
-	char buf[6];
+	uint8_t buf[6];
 	int x,y,z;
 	unsigned long long gabs;
 	ktime_t restart_time = {0};
@@ -210,19 +240,15 @@ static void kxsd9_work(struct work_struct *work)
 	kxsd9 = container_of(work, struct kxsd9, work.work);
 	mutex_lock(&kxsd9->lock);
 	if (kxsd9_wrop_deq(kxsd9,buf) == 0) {
-#if KXSD9_DEBUG
-		printk(KERN_INFO MODULE_NAME ": write %02x to %02x\n",
-				buf[1], buf[0]);
-#endif
-		err = i2c_master_send(kxsd9->client, buf, 2);
-		if (err < 0) {
-			printk(KERN_WARNING MODULE_NAME
-					": %s: error %d\n", __func__, err);
-		}
+		DLOG(": write %02x to %02x\n", buf[1], buf[0]);
+
+		kxsd9_i2c_write(kxsd9->client, buf, 2);
+
 		restart_time.tv.nsec = 4 * NSEC_PER_MSEC;
 		hrtimer_start(&kxsd9->timer, restart_time, HRTIMER_MODE_REL);
 	} else {
-		err = kxsd9_i2c_read(kxsd9->client, 0, buf, 6);
+		kxsd9_i2c_read(kxsd9->client, 0, buf, 6);
+		
 		x = 0x800 - (buf[2] << 4) - (buf[3] >> 4);
 		y = 0x800 - (buf[0] << 4) - (buf[1] >> 4);
 		z = (buf[4] << 4) + (buf[5] >> 4) - 0x800 - 64; // calib?
@@ -282,9 +308,7 @@ static ssize_t kxsd9_ctl_rate_show(struct device *dev, struct device_attribute *
 {
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(to_i2c_client(dev));
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME " %s\n", __func__);
-#endif
+	DLOG(" %s\n", __func__);
 	return sprintf(buf, "%u\n", kxsd9 ? kxsd9->rate : 0);
 }
 
@@ -294,9 +318,7 @@ static ssize_t kxsd9_ctl_rate_store(struct device *dev, struct device_attribute 
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(to_i2c_client(dev));
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME " %s\n", __func__);
-#endif
+	DLOG(" %s\n", __func__);
 	kxsd9_control(kxsd9,KXSD9_CTL_RATE,val);
         return count;
 }
@@ -306,9 +328,7 @@ static ssize_t kxsd9_ctl_scale_show(struct device *dev, struct device_attribute 
 {
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(to_i2c_client(dev));
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME " %s\n", __func__);
-#endif
+	DLOG(" %s\n", __func__);
 	return sprintf(buf, "%u\n", kxsd9 ? kxsd9->scale : 0);
 }
 
@@ -318,9 +338,7 @@ static ssize_t kxsd9_ctl_scale_store(struct device *dev, struct device_attribute
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(to_i2c_client(dev));
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME " %s\n", __func__);
-#endif
+	DLOG(" %s\n", __func__);
 	kxsd9_control(kxsd9,KXSD9_CTL_SCALE,val);
         return count;
 }
@@ -330,9 +348,7 @@ static ssize_t kxsd9_ctl_enable_show(struct device *dev, struct device_attribute
 {
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(to_i2c_client(dev));
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME " %s\n", __func__);
-#endif
+	DLOG(" %s\n", __func__);
 	return sprintf(buf, "%u\n", kxsd9 && kxsd9->on ? 1 : 0);
 }
 
@@ -342,9 +358,7 @@ static ssize_t kxsd9_ctl_enable_store(struct device *dev, struct device_attribut
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(to_i2c_client(dev));
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME " %s\n", __func__);
-#endif
+	DLOG(" %s\n", __func__);
 	kxsd9_control(kxsd9,KXSD9_CTL_ENABLE,!!val);
         return count;
 }
@@ -456,9 +470,7 @@ static int kxsd9_suspend(struct i2c_client * client, pm_message_t mesg)
 {
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(client);
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME ": suspending device...\n");
-#endif
+	DLOG(": suspending device...\n");
 	kxsd9->susp = 1;
 	if (kxsd9->on) {
 		kxsd9_control(kxsd9,KXSD9_CTL_ENABLE,0);
@@ -471,9 +483,7 @@ static int kxsd9_resume(struct i2c_client * client)
 {
 	struct kxsd9 *kxsd9 = i2c_get_clientdata(client);
 
-#if KXSD9_DEBUG
-	printk(KERN_INFO MODULE_NAME ": resuming device...\n");
-#endif
+	DLOG(": resuming device...\n");
 	kxsd9->susp = 0;
 	if (kxsd9->on)
 		kxsd9_control(kxsd9,KXSD9_CTL_ENABLE,1);
@@ -521,4 +531,3 @@ MODULE_LICENSE("GPL");
 
 module_init(kxsd9_init);
 module_exit(kxsd9_exit);
-

@@ -31,12 +31,12 @@
 #include <asm/mach-types.h>
 #include "../../../arch/arm/mach-msm/proc_comm_wince.h"
 
-void micropklt_lcd_ctrl(int v);
 int micropklt_set_lcd_state(int on);
 
 #define MODULE_NAME "microp-klt"
 
 #define I2C_READ_RETRY_TIMES 10
+#define I2C_WRITE_RETRY_TIMES 10
 
 #if 0
  #define D(fmt, arg...) printk(KERN_DEBUG "[KLT] %s: " fmt "\n", __FUNCTION__, ## arg);
@@ -45,8 +45,8 @@ int micropklt_set_lcd_state(int on);
 #endif
 #define GP_NS_REG (0x005c)
 
-static int micropklt_read(struct i2c_client *, unsigned, char *, int);
-static int micropklt_write(struct i2c_client *, const char *, int);
+static int micropklt_read(struct i2c_client *, uint8_t, uint8_t *, int);
+static int micropklt_write(struct i2c_client *, uint8_t *, int);
 static unsigned int color_led_address;
 static unsigned int auto_bl;
 
@@ -57,7 +57,7 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	char buffer[4] = { 0, 0, 0, 0 };
+	uint8_t buffer[4] = { 0, 0, 0, 0 };
 	int idx, b, state;
 
 	if ( !strcmp(led_cdev->name, "klt::home") )
@@ -119,7 +119,6 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 			}
 			buffer[2] = brightness;
 			micropklt_write(client, buffer, 3);
-
 		} else {
 			buffer[0] = MICROP_KLT_ID_LCD_BRIGHTNESS;
 			buffer[1] = brightness/2 & 0xf0;
@@ -127,7 +126,6 @@ static void micropklt_led_brightness_set(struct led_classdev *led_cdev,
 			printk(KERN_INFO MODULE_NAME ": Setting %s brightness to: 0x%02x\n",
 				led_cdev->name, buffer[1]);
 			micropklt_write(client, buffer, 2);
-			//msleep(1);
 		}
 	}
 
@@ -159,7 +157,7 @@ int micropklt_set_misc_states( unsigned mask, unsigned bit_flag )
 	struct i2c_client *client;
 	unsigned state;
 	int result;
-	char buffer[2] = { MICROP_I2C_WCMD_MISC, 0x00 };
+	uint8_t buffer[2] = { MICROP_I2C_WCMD_MISC, 0x00 };
 
 	data = micropklt_t;
 	if ( !data ) return -EAGAIN;
@@ -210,7 +208,7 @@ int micropklt_set_led_states(unsigned leds_mask, unsigned leds_values)
 	struct microp_klt *data;
 	struct i2c_client *client;
 	unsigned state;
-	char buffer[4] = { 0, 0, 0, 0 };
+	uint8_t buffer[4] = { 0, 0, 0, 0 };
 	int r;
 
 	data = micropklt_t;
@@ -239,7 +237,7 @@ int micropklt_set_color_led_state(int state)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	char buffer[5] = { 0, 0, 0, 0, 0 };
+	uint8_t buffer[5] = { 0, 0, 0, 0, 0 };
 	int r;
 
 	data = micropklt_t;
@@ -277,14 +275,14 @@ void micropklt_lcd_ctrl(int v)
 	struct i2c_client *client;
 
 	// for power up
-	char c1[]={MICROP_I2C_WCMD_MISC,0x48};
-	char c2[]={MICROP_I2C_WCMD_MISC,0x0c};
-	char c3[]={MICROP_I2C_WCMD_AUTO_BL_CTL,0,0};
+	uint8_t c1[]={MICROP_I2C_WCMD_MISC,0x48};
+	uint8_t c2[]={MICROP_I2C_WCMD_MISC,0x0c};
+	uint8_t c3[]={MICROP_I2C_WCMD_AUTO_BL_CTL,0,0};
 
 	// for power down
-	char c7[]={MICROP_I2C_WCMD_MISC,0x4c};
-	char c8[]={MICROP_KLT_ID_LED_STATE,0x10,0x00};
-	char c9[]={MICROP_I2C_WCMD_MISC,0x08};
+	uint8_t c7[]={MICROP_I2C_WCMD_MISC,0x4c};
+	uint8_t c8[]={MICROP_KLT_ID_LED_STATE,0x10,0x00};
+	uint8_t c9[]={MICROP_I2C_WCMD_MISC,0x08};
 	printk("Something used micropklt_lcd_ctrl. This function should no longer be used.\n");
 
 	// this function is obsolete
@@ -328,7 +326,7 @@ void micropklt_lcd_precess_spi_table(uint16_t spicmd, struct microp_spi_table *s
 	int i;
 	struct microp_klt *data;
 	uint16_t delay;
-	char c0[4];
+	uint8_t c0[4];
 
 	data = micropklt_t;
 	if (!data) return;
@@ -405,7 +403,7 @@ static int micropklt_probe(struct i2c_client *client, const struct i2c_device_id
 {
 	struct microp_klt *data;
 	int supported, r, i;
-	char buf[3] = { 0, 0, 0 };
+	uint8_t buf[3] = { 0, 0, 0 };
 	auto_bl = 0;
 
 	printk(KERN_INFO MODULE_NAME ": Initializing MicroP-LED chip driver at "
@@ -605,24 +603,36 @@ fail:
 	return r;
 }
 
-static int micropklt_write(struct i2c_client *client, const char *sendbuf, int len)
+static int micropklt_write(struct i2c_client *client, uint8_t *sendbuf, int len)
 {
-	int r;
-	r = i2c_master_send(client, sendbuf, len);
-	if (r < 0) {
-		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
-	} else {
-		D("  >>> 0x%08x, 0x%08x -> 0x%08x 0x%08x 0x%08x\n", client->addr,
-		         sendbuf[0], (len > 1 ? sendbuf[1] : 0),
-		         (len > 2 ? sendbuf[2] : 0), (len > 3 ? sendbuf[3] : 0));
+	int rc;
+	int retry;
+
+	struct i2c_msg msg[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = len,
+			.buf = sendbuf,
+		},
+	};
+
+	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msg, 1);
+		if (rc == 1)
+			return 0;
+		msleep(10);
+		printk(KERN_WARNING "micropklt, i2c write retry\n");
 	}
-	return r;
+	printk(KERN_ERR "micropklt_write, i2c_write_block retry over %d\n",
+			I2C_WRITE_RETRY_TIMES);
+	return rc;
 }
 
-static int micropklt_read( struct i2c_client *client, unsigned id, char *buf, int len )
+static int micropklt_read(struct i2c_client *client, uint8_t id, uint8_t *buf, int len)
 {
 	int retry;
-	int ret;
+	int rc;
 	struct i2c_msg msgs[] = {
 		{
 			.addr = client->addr,
@@ -637,16 +647,16 @@ static int micropklt_read( struct i2c_client *client, unsigned id, char *buf, in
 			.buf = buf,
 		}
 	};
-	for ( retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++ ) {
-		ret = i2c_transfer( client->adapter, msgs, 2 );
-		if ( ret == 2 ) {
+	for (retry= 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msgs, 2);
+		if (rc == 2) {
 			return 0;
 		}
-		msleep( 10 );
-		printk( KERN_INFO MODULE_NAME " : read retry\n");
+		msleep(10);
+		printk(KERN_WARNING "micropklt, i2c read retry\n");
 	}
-	dev_err( &client->dev, "i2c_read_block retry over %d\n",
-			I2C_READ_RETRY_TIMES );
+	dev_err(&client->dev, "i2c_read_block retry over %d\n",
+			I2C_READ_RETRY_TIMES);
 	return -EIO;
 }
 
@@ -734,7 +744,7 @@ static int micropklt_dbg_leds_set(void *dat, u64 val)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	char buffer[4] = { 0, 0, 0, 0 };
+	uint8_t buffer[4] = { 0, 0, 0, 0 };
 	int r;
 
 	data = micropklt_t;
@@ -745,7 +755,9 @@ static int micropklt_dbg_leds_set(void *dat, u64 val)
 		buffer[0] = MICROP_KLT_ID_LED_STATE;
 		buffer[1] = 0xff & val;
 		buffer[2] = 0xff & (val >> 8);
+
 	r = micropklt_write(client, buffer, 3);
+	
 	mutex_unlock(&data->lock);
 	return r;
 }
@@ -769,7 +781,7 @@ static int micropklt_dbg_light_get(void *dat, u64 *val) {
 	int r;
 	u64 lcd_brgh;
 	unsigned long long d, d2;
-	char buffer[4] = { 0, 0, 0, 0 };
+	uint8_t buffer[4] = { 0, 0, 0, 0 };
 	data = micropklt_t;
 	if (!data) return -EAGAIN;
 
@@ -782,7 +794,8 @@ static int micropklt_dbg_light_get(void *dat, u64 *val) {
 		r = micropklt_write(client, buffer, 3);
 		msleep(2);
 	}
-	r = micropklt_read(client, MICROP_KLT_ID_LIGHT_SENSOR, &d, 4);
+	// the typecast is a bit evil... could be done better.
+	r = micropklt_read(client, MICROP_KLT_ID_LIGHT_SENSOR, (uint8_t*)&d, 4);
 	*val=(d&0xff00);
 	if(machine_is_htctopaz()) {
 		if(!auto_bl) {
@@ -792,7 +805,7 @@ static int micropklt_dbg_light_get(void *dat, u64 *val) {
 			r = micropklt_write(client, buffer, 3);
 			msleep(2);
 		}
-		r = micropklt_read(client, MICROP_KLT_ID_GET_LCD_BRHTNS, &d2, 4);
+		r = micropklt_read(client, MICROP_KLT_ID_GET_LCD_BRHTNS, (uint8_t*)&d2, 4);
 		lcd_brgh = (d2&0xff00);
 	}
 	mutex_unlock(&data->lock);
@@ -811,7 +824,7 @@ static int micropklt_dbg_auto_bl_get(void *dat, u64 *val) {
 static int micropklt_dbg_auto_bl_set(void *dat, u64 val)
 {
 	struct microp_klt *data;
-	char buffer[4] = { 0, 0, 0, 0 };
+	uint8_t buffer[4] = { 0, 0, 0, 0 };
 	struct i2c_client *client;
 	int r;
 	auto_bl = val;
@@ -1007,24 +1020,25 @@ static int micropklt_dbg_gpi_get(void *dat, u64 *val) {
 
 	struct microp_klt *data;
 	struct i2c_client *client;
+	uint8_t *buff;
 	int r;
 
 	data = micropklt_t;
 	if (!data) return -EAGAIN;
 	client = data->client;
+	buff = (uint8_t*)val;
 
 	mutex_lock(&data->lock);
-	r = micropklt_read(client, MICROP_I2C_RCMD_GPI_STATUS, val, 2);
+	r = micropklt_read(client, MICROP_I2C_RCMD_GPI_STATUS, buff, 2);
 	mutex_unlock(&data->lock);
 
-	return 0;
+	return r;
 }
 
 static int micropklt_dbg_gpi_set(void *dat, u64 val)
 {
 	return -EPERM;
 }
-
 
 DEFINE_SIMPLE_ATTRIBUTE(micropklt_dbg_gpi_fops,
 		micropklt_dbg_gpi_get,
@@ -1039,7 +1053,7 @@ static int micropklt_dbg_color_led_set(void *dat, u64 val)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	char buffer[5] = { 0, 0, 0, 0, 0 };
+	uint8_t buffer[5] = { 0, 0, 0, 0, 0 };
 	int r;
 
 	if(color_led_address==0) return -ENODEV;
@@ -1071,7 +1085,7 @@ static int micropklt_dbg_brightness_set(void *dat, u64 val)
 {
 	struct microp_klt *data;
 	struct i2c_client *client;
-	char buffer[2] = { 0, 0, };
+	uint8_t buffer[2] = { 0, 0, };
 	int r;
 
 	data = micropklt_t;
