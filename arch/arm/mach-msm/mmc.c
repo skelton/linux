@@ -528,7 +528,7 @@ int __init init_mmc(void)
 			 */
 			sdslot_data.ocr_mask = MMC_VDD_29_30;
 			break;
-		case MACH_TYPE_HTCKOVSKY:
+		case MACH_TYPE_HTCVENUS:
 			cdma_mmc_pdata.sdcard_status_gpio = 94;
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
 			mmc_pdata = cdma_mmc_pdata;
