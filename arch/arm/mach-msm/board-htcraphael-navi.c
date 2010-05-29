@@ -27,6 +27,7 @@
 #define MODULE_NAME "raph_navi_pad"
 
 #define I2C_READ_RETRY_TIMES 10
+#define I2C_WRITE_RETRY_TIMES 10
 
 /*
  * Jobo: Driver for the navipad on the HTC Touch Pro (Raphael) and Diamond
@@ -174,6 +175,8 @@ static int raphnavi_keymap[] =
 #define RAPHNAVI_PAD_TOUCH  4
 #define RAPHNAVI_PAD_RX     5
 #define RAPHNAVI_PAD_RY     6
+#define RAPHNAVI_PAD_PROX	7
+#define RAPHNAVI_PAD_CHECKSUM	0x11
 
 #define RAPHNAVI_KLT_LED_MASK (   (1 << MICROP_KLT_LED_HOME) \
 				| (1 << MICROP_KLT_LED_BACK) \
@@ -410,18 +413,30 @@ static void raphnavi_pad(struct raphnavi *navi, char *data)
 	micropklt_set_led_states(RAPHNAVI_KLT_LED_MASK, leds);
 }
 
-static int raphnavi_i2c_write(struct i2c_client *client, const char *sendbuf, int len)
+static int raphnavi_i2c_write(struct i2c_client *client, uint8_t *sendbuf, int len)
 {
-	int r;
-	r = i2c_master_send(client, sendbuf, len);
-	if (r < 0) {
-		printk(KERN_ERR "Couldn't send ch id %02x\n", sendbuf[0]);
-	} else {
-		D("  >>> 0x%08x, 0x%08x -> 0x%08x 0x%08x 0x%08x\n", client->addr,
-		         sendbuf[0], (len > 1 ? sendbuf[1] : 0),
-		         (len > 2 ? sendbuf[2] : 0), (len > 3 ? sendbuf[3] : 0));
+	int rc;
+	int retry;
+
+	struct i2c_msg msg[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = len,
+			.buf = sendbuf,
+		},
+	};
+
+	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+		rc = i2c_transfer(client->adapter, msg, 1);
+		if (rc == 1)
+			return 0;
+		msleep(10);
+		printk(KERN_WARNING "navi, i2c write retry\n");
 	}
-	return r;
+	printk(KERN_ERR "navi, i2c_write_block retry over %d\n",
+			I2C_WRITE_RETRY_TIMES);
+	return rc;
 }
 
 static int raphnavi_i2c_read(struct i2c_client *client, unsigned id, char *buf, int len)
@@ -513,8 +528,8 @@ static void raphnavi_work(struct work_struct *work)
 		raphnavi_pad(navi,buffer);
 	} else {
 		// experimental reset when navi seems to be blocked by something.
-		reset_navi();
-		msleep(60);
+		//reset_navi();
+		//msleep(60);
 	}
 
 	mutex_unlock(&navi->lock);
