@@ -42,7 +42,9 @@
 #define PERF_SWITCH_STEP_DEBUG 0
 
 static int oc_freq_khz = 0;
+static int force_turbo = 0;
 module_param_named(oc_freq_khz, oc_freq_khz, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(force_turbo, force_turbo, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 struct clock_state
 {
@@ -849,6 +851,13 @@ void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 	drv_state.power_collapse_khz = clkdata->power_collapse_khz;
 	drv_state.wait_for_irq_khz = clkdata->wait_for_irq_khz;
 	drv_state.max_axi_khz = clkdata->max_axi_khz;
+
+	if (force_turbo) {
+		printk("FORCING TURBO MODE\n");
+		writel(PLL_960_MHZ, MSM_CLK_CTL_BASE+0x320);
+		udelay(50);
+	}
+
 	acpu_freq_tbl_fixup();
 	precompute_stepping();
 	acpuclk_init();
