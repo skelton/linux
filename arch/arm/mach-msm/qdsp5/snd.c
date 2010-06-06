@@ -281,6 +281,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			case MACH_TYPE_HTCDIAMOND:
 			case MACH_TYPE_HTCBLACKSTONE:
 			case MACH_TYPE_HTCRAPHAEL_CDMA:
+			case MACH_TYPE_HTCRAPHAEL_CDMA500:
 				pr_err("buggy program %s is calling snd_set_volume with dev=%d != 0xd\n", current->comm, vol.device);
 				vol.device = 0xd;
 				break;

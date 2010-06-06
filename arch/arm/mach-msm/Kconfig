@@ -100,7 +100,14 @@ config MACH_HTCRAPHAEL_CDMA
         default y
         bool "HTC Raphael CDMA phone (aka HTC Touch Pro)"
         help
-          Support for the HTC Raphael CDMA phone.
+          Support for the HTC Raphael800 CDMA phone.
+
+config MACH_HTCRAPHAEL_CDMA500
+        depends on ARCH_MSM
+        default y
+        bool "HTC Raphael CDMA phone (aka HTC Touch Pro) raph500"
+        help
+          Support for the HTC Raphael500 CDMA phone.
 
 config MACH_HTCDIAMOND
         depends on ARCH_MSM

@@ -381,6 +381,24 @@ static void __init htcraphael_fixup(struct machine_desc *desc, struct tag *tags,
 	printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
+static void __init htcraphael_cdma500_fixup(struct machine_desc *desc, struct tag *tags,
+                                    char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks = 1;
+	mi->bank[0].start = PAGE_ALIGN(PHYS_OFFSET);
+	mi->bank[0].node = PHYS_TO_NID(mi->bank[0].start);
+	mi->bank[0].size = (107 * 1024 * 1024); // Why 107? See board-htcdiamond.h
+	//mi->nr_banks++;
+	mi->bank[1].start = PAGE_ALIGN(0x02000000+(12+2)*1024*1024);
+	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
+	mi->bank[1].size = (32-1/*ramconsole*/-2/*fb*/-12/*pmem*/)*1024*1024;
+	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
+	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
+	if(mi->nr_banks==2)
+		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
+}
+
+
 static void htcraphael_device_specific_fixes(void)
 {
 	if (machine_is_htcraphael() ) {
@@ -439,7 +457,7 @@ MACHINE_START(HTCRAPHAEL_CDMA, "HTC Raphael CDMA phone (aka HTC Touch Pro)")
 MACHINE_END
 
 MACHINE_START(HTCRAPHAEL_CDMA500, "HTC Raphael CDMA phone (Touch Pro) raph500")
-	.fixup		= htcraphael_fixup,
+	.fixup		= htcraphael_cdma500_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,

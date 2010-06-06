@@ -199,7 +199,7 @@ static void smd_channel_probe_worker_v1(struct work_struct *work)
 		smd_ch_allocated[n] = 1;
 	}
 
-	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) {
+	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma500()) {
 		/* Pass whatever info we'll need in order to initialize the 7500
 		 * ports and keep them usable within smd.o
 		 */
@@ -229,7 +229,7 @@ static void smd_channel_probe_worker_v2(struct work_struct *work)
 		smd_ch_allocated[n] = 1;
 	}
 
-	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) {
+	if (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma500()) {
 		/* Pass whatever info we'll need in order to initialize the 7500
 		 * ports and keep them usable within smd.o
 		 */
@@ -1284,7 +1284,7 @@ int smd_core_init(void)
 	pr_info("smd_core_init()\n");
 
 	// IRQs 1-4 are only needed for msm7500
-	max_irq = (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma()) ? 4 : 0;
+	max_irq = (machine_is_htcraphael_cdma() || machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma500()) ? 4 : 0;
 
 	for(i=0; i<=max_irq; i++) {
 		r = request_irq(INT_A9_M2A_0 + i, smd_irq_handler,

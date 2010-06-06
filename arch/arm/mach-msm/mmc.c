@@ -531,6 +531,7 @@ int __init init_mmc(void)
 		case MACH_TYPE_HTCVENUS:
 			cdma_mmc_pdata.sdcard_status_gpio = 94;
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
 			mmc_pdata = cdma_mmc_pdata;
 			break;
 		default:

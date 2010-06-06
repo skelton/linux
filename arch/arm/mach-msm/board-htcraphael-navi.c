@@ -689,7 +689,7 @@ static int raphnavi_probe(struct i2c_client *client, const struct i2c_device_id 
 		set_irq_wake(navi->tp_irq, 1);
 
 #ifdef RAPHNAVI_LID_SWITCH
-	if (machine_is_htcraphael() || machine_is_htcraphael_cdma()) {
+	if (machine_is_htcraphael() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500()) {
 		if (gpio_request(navi->info->gpio_lid, "raphnavi_lid") != 0)
 			goto fail_sw_gpio;
 		gpio_direction_input(navi->info->gpio_lid);

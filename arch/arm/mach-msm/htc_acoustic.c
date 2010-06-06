@@ -235,6 +235,7 @@ static int __init acoustic_init(void)
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
 			mic_offset = 0xfed00;
 			htc_acoustic_vir_addr=(void *)(MSM_SHARED_RAM_BASE+0xfc300);
 			break;

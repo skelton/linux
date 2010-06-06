@@ -221,6 +221,7 @@ struct resource resources_msm_fb[]={
 static int __init msm_pmem_init() {
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCDIAMOND:
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
 			//SMI 64 + EBI 128
 			pmem_setting.pmem_start=MSM_SMI2_BASE;
 			pmem_setting.pmem_size=12*1024*1024;
@@ -238,7 +239,6 @@ static int __init msm_pmem_init() {
 			pmem_setting.ram_console_size=0x00100000;
 			break;
 		case MACH_TYPE_HTCRAPHAEL:
-		case MACH_TYPE_HTCRAPHAEL_CDMA500:
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 		case MACH_TYPE_HTCBLACKSTONE:

@@ -157,6 +157,7 @@ void msm_audio_path(int i) {
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
 		case MACH_TYPE_HTCVENUS:
 			sparameter = sparameterraph;
 			break;

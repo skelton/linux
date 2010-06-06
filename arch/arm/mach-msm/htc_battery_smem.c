@@ -822,7 +822,7 @@ static int htc_get_batt_info(struct battery_info_reply *buffer)
 	buffer->batt_vol = maf_get_avarage();
 
 	/* platform spec battery correction */
-	if ( machine_is_htcraphael() || machine_is_htcraphael_cdma() || 
+	if ( machine_is_htcraphael() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() ||
 	    machine_is_htcdiamond() || machine_is_htcdiamond_cdma() ||
 	    machine_is_htctopaz() ) {
 		htc_raph_batt_corr( buffer );
