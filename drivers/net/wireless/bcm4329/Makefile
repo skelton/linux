@@ -3,7 +3,7 @@ DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2         \
 	-DUNRELEASEDCHIP -Dlinux -DDHD_SDALIGN=64 -DMAX_HDR_READ=64           \
 	-DDHD_FIRSTREAD=64 -DDHD_GPL -DDHD_SCHED -DBDC -DTOE -DDHD_BCMEVENTS  \
 	-DSHOW_EVENTS -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS      \
-	-Wall -Wstrict-prototypes -Werror -DCUSTOMER_HW      \
+	-Wall -Wstrict-prototypes -Werror -DCUSTOMER_HW  -DDHD_DEBUG    \
 	-DMMC_SDIO_ABORT -DSOFTAP                                 \
 	-Idrivers/net/wireless/bcm4329 -Idrivers/net/wireless/bcm4329/include
 

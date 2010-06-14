@@ -388,11 +388,7 @@ module_param(dhd_pktgen_len, uint, 0);
 #define DHD_COMPILED
 #endif
 
-static char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR
-#ifdef DHD_DEBUG
-"\nCompiled in " SRCBASE " on " __DATE__ " at " __TIME__
-#endif
-;
+static char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
 
 
 #ifdef CONFIG_WIRELESS_EXT

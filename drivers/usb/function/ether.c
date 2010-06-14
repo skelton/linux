@@ -225,7 +225,7 @@ static struct usb_function usb_func_ether = {
 	.ifc_ept_count = 3,
 	.ifc_ept_type = { EPT_INT_IN, EPT_BULK_OUT, EPT_BULK_IN },
 	.position_bit = USB_FUNCTION_INTERNET_SHARING_NUM,
-	.disabled = 0,
+	.disabled = 1,
 	.ifc_index = STRING_ES,
 };
 
