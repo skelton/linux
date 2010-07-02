@@ -22,6 +22,7 @@
 #include "htc_hw.h"
 #include "AudioPara.c"
 #include <linux/msm_audio.h>
+#include <asm/gpio.h>
 
 #if 1
  #define DHTC(fmt, arg...) printk(KERN_DEBUG "[HTC] %s: " fmt "\n", __FUNCTION__, ## arg)
@@ -41,6 +42,14 @@ static ssize_t test_store(struct class *class, const char *buf, size_t count)
 	sscanf(buf, "%d", &v);
 	micropklt_lcd_ctrl(v);
 }
+
+static ssize_t flash_store(struct class *class, const char *buf, size_t count)
+{
+	int v;
+	sscanf(buf, "%d", &v);
+	gpio_set_value(0x3a, !!v);
+}
+
 static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
 {
 	uint32_t vibrate;
@@ -109,6 +118,7 @@ static struct class_attribute htc_hw_class_attrs[] = {
 	__ATTR_RO(machtype),
 	__ATTR_RO(amss),
 	__ATTR(vibrate, 0222, NULL, vibrate_store),
+	__ATTR(flash, 0222, NULL, flash_store),
 	__ATTR(test,0222, NULL, test_store),
 	__ATTR_NULL,
 };
