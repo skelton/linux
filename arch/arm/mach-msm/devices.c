@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
+#include <asm/mach-types.h>
 
 #include <asm/mach/flash.h>
 #include <linux/mtd/nand.h>
@@ -25,6 +26,7 @@
 #include <linux/usb/mass_storage_function.h>
 #include <asm/mach/mmc.h>
 #include <mach/msm_hsusb.h>
+#include <asm/setup.h>
 
 #include "devices.h"
 #include "clock.h"
@@ -729,3 +731,51 @@ struct platform_device msm_device_htc_battery = {
         .id = -1,
 };
 
+// Our tree is a mixture of many it seems. Source-wise this should
+// go into devices_htc.c but then it would have to be built, too.
+// On the opposite, the desirec source only has devices.c.
+#define ATAG_MONODIE 0x4d534D76
+static int mono_die;
+int __init parse_tag_monodie(const struct tag *tags)
+{
+	struct tag *t = (struct tag *)tags;
+#if 0
+	int find = 0;
+	for (; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag == ATAG_MONODIE) {
+			printk(KERN_DEBUG "find the flash id tag\n");
+			find = 1;
+			break;
+		}
+	}
+
+	if (find)
+		mono_die = t->u.revision.rev;
+	printk(KERN_DEBUG "parse_tag_monodie: mono-die = 0x%x\n", mono_die);
+	return mono_die;
+#endif
+	// restrict to htctopaz for now
+	if (!machine_is_htctopaz())
+		return mono_die;
+
+	// We don't get ATAG_MONODIE passed from HaRET, but ATAG_MEM.
+	// On "old" dualdie htctopaz, HaRET reports 0x05100000 (81MB).
+	// On "newer" monodie htctopaz HaRET gathers 0x10000000 (256MB)
+	// from WinCE. This isn't the most failure-proof method, but
+	// helps dynamically performing the memory setup for now.
+	for (; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag == ATAG_MEM && t->u.mem.size == 0x10000000) {
+			mono_die = 1;
+			break;
+		}
+	}
+
+	printk(KERN_DEBUG "parse_tag_monodie: mono-die = 0x%x\n", mono_die);
+	return mono_die;
+}
+__tagtable(ATAG_MONODIE, parse_tag_monodie);
+
+int __init board_mcp_monodie(void)
+{
+	return mono_die;
+}

@@ -218,7 +218,8 @@ struct resource resources_msm_fb[]={
 	pmem_setting.name## _size = size;
 
 
-static int __init msm_pmem_init() {
+static int __init msm_pmem_init(void) {
+	long pmem_shift = 0;
 	switch(__machine_arch_type) {
 		case MACH_TYPE_HTCDIAMOND:
 		case MACH_TYPE_HTCRAPHAEL_CDMA500:
@@ -245,8 +246,15 @@ static int __init msm_pmem_init() {
 		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
 		case MACH_TYPE_HTCVENUS:
-			//SMI 32 + EBI 2*128
-			pmem_setting.pmem_start=MSM_EBIN_BASE+128*1024*1024-34*1024*1024;
+			//SMI 32 + EBI 2*128 or 1*256 (newer htctopaz)
+			
+			// only htctopaz for now
+			if (board_mcp_monodie()) {
+				// we can start right after the first 128MB
+				pmem_shift = 0x8000000;
+			}
+			
+			pmem_setting.pmem_start=MSM_EBIN_BASE+128*1024*1024-34*1024*1024-pmem_shift;
 			pmem_setting.pmem_size=32*1024*1024;//32MB
 			CALC_PMEM(pmem_adsp, pmem, 0);//16MB
 			CALC_PMEM(fb, pmem_adsp, 2*1024*1024);//2MB
@@ -256,7 +264,7 @@ static int __init msm_pmem_init() {
 			//GPU1 must be in EBI bank 1, Isn't working on Topaz and Rhod
 			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 			pmem_setting.pmem_gpu1_size=8*1024*1024;
-			
+
 			pmem_setting.ram_console_start=0x8e0000;
 			pmem_setting.ram_console_size=0x20000;
 			break;
