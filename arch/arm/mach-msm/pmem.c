@@ -251,14 +251,14 @@ static int __init msm_pmem_init() {
 			CALC_PMEM(pmem_adsp, pmem, 0);//16MB
 			CALC_PMEM(fb, pmem_adsp, 2*1024*1024);//2MB
 			CALC_PMEM(pmem_camera, fb, 0);//1MB
-			//Total 51MB
+			//Total 34MB
 
 			//GPU1 must be in EBI bank 1, Isn't working on Topaz and Rhod
 			pmem_setting.pmem_gpu1_start=MSM_EBI_BASE+107*1024*1024;
 			pmem_setting.pmem_gpu1_size=8*1024*1024;
 			
 			pmem_setting.ram_console_start=0x8e0000;
-			pmem_setting.ram_console_size=0x2000;
+			pmem_setting.ram_console_size=0x20000;
 			break;
 		default:
 			//SMI 32 + EBI 128
@@ -269,8 +269,6 @@ static int __init msm_pmem_init() {
 			CALC_PMEM(pmem_adsp, pmem, 0x800000);//8MB
 			CALC_PMEM(fb, pmem_adsp, 0x200000);//2MB
 			CALC_PMEM(pmem_camera, fb, 0x100000);//1MB
-	
-
 	}
 	//GPU0 must be in SMI1
 	pmem_setting.pmem_gpu0_start=MSM_SMI_BASE+1024*1024;
