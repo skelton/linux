@@ -245,7 +245,7 @@ static int __init msm_pmem_init(void) {
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCTOPAZ:
 		case MACH_TYPE_HTCRHODIUM:
-		case MACH_TYPE_HTCVENUS:
+		case MACH_TYPE_HTCKOVSKY:
 			//SMI 32 + EBI 2*128 or 1*256 (newer htctopaz)
 			
 			// only htctopaz for now
