@@ -340,7 +340,7 @@ static void __init htckovsky_fixup(struct machine_desc *desc, struct tag *tags,
 		printk(KERN_INFO "fixup: bank1 start=%08lx, node=%08x, size=%08lx\n", mi->bank[1].start, mi->bank[1].node, mi->bank[1].size);
 }
 
-MACHINE_START(HTCVENUS, "HTC Kovsky GSM phone (aka Xperia X1)")
+MACHINE_START(HTCKOVSKY, "HTC Kovsky GSM phone (aka Xperia X1)")
 	.fixup 		= htckovsky_fixup,
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,

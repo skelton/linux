@@ -130,7 +130,7 @@ config MACH_HTCBLACKSTONE
         help
           Support for the HTC Blackstone cellphone
 
-config MACH_HTCVENUS
+config MACH_HTCKOVSKY
         depends on ARCH_MSM
         default n
         bool "HTC Kovsky cellphone (aka Xperia X1)"
