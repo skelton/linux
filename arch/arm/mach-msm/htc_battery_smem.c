@@ -39,6 +39,7 @@
 static struct wake_lock vbus_wake_lock;
 static struct work_struct bat_work;
 static int bat_suspended = 0;
+static int prev_result = 100;
 
 #define TRACE_BATT 1
 
@@ -663,6 +664,118 @@ static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor 
 	/* would be stupid if we report more than 100% */
 	if ( result > 100 )
 		result = 100;
+		
+	// Test Stabilization
+	
+	if ( result > ( prev_result + 1 ) ) {
+		if ( result < ( prev_result + 10 ) ) {
+			result = prev_result;
+		}
+	}
+
+	if ( result < ( prev_result - 1 ) ) {
+		if ( result > ( prev_result - 10 ) ) {
+			result = prev_result;
+		}
+	}
+
+	return result;
+ }
+ 
+  static int GetBatteryDischargeLevelCharging( int volt, int charge, int temp, int vendor )
+{
+	int volt_discharge_resistor;
+	int voltage_0;
+	int voltage_1;
+	int voltage_2;
+	int voltage_max = 3808;		// top most value of the graph
+	int temp_correction;
+	int temp_correction_const;
+	int result;
+	int temp_correct_volt;
+	int corrected_volt;
+	int corr_return;
+
+   if ( vendor != 1 ) {
+	   voltage_0 = 0xdb0 | 0x0E;		// 3518 mV
+	   voltage_1 = 0xe50 | 0x04;		// 3668 mV
+	   voltage_2 = 0xe90 | 0x0F;		// 3743 mV
+	   voltage_max |= 0x0A;				// 3818 mV
+	   temp_correction_const = 23;	// 23
+	   temp_correction = 150;			// 150
+	} else {
+	   voltage_0 = 0xd80 | 0x07;		// 3463 mV
+	   voltage_1 = 0xe40 | 0x0F;		// 3663 mV
+	   voltage_2 = 0xea0 | 0x03;		// 3747 mV
+	   voltage_max |= 0x05;				// 3813 mV
+	   temp_correction_const = 11;	// 11
+	   temp_correction = 200;			// 200
+	}
+
+	/* if we are charging we don't have to calculate the voltage over the discharge current resistor */
+	if ( charge > 0 ) {
+		volt_discharge_resistor = 0;
+	} else {
+		if ( vendor == 1 ) {
+			volt_discharge_resistor = ( abs( charge ) * 22 ) / 100;
+		} else {
+			volt_discharge_resistor = ( abs( charge ) * 27 ) / 100;
+		}
+
+		/* wierd code I know... :S something related to overflow shit :S */
+		if ( volt_discharge_resistor < 0 )															//volt_discharge_resistor += volt_discharge_resistor >> 31;
+			volt_discharge_resistor = volt_discharge_resistor + 1;
+	}
+
+	if ( temp > 250 )
+		temp_correct_volt = 0;
+	else
+		temp_correct_volt = ( temp_correction_const * ( ( 250 - temp ) * abs( charge ) ) ) / 10000;
+
+	corrected_volt = volt + volt_discharge_resistor;
+
+	/* calculate the voltage offset because of the temperature and current use */
+	corr_return = batt_current_temp_correction( temp, charge, temp_correction );
+
+	if ( voltage_max - temp_correct_volt > corrected_volt ) {
+		if ( voltage_2 - temp_correct_volt > corrected_volt ) {
+			if ( voltage_1 - temp_correct_volt > corrected_volt ) {
+				if ( ( corr_return - temp_correct_volt ) + voltage_0 > corrected_volt ) {
+					result = 0;
+				} else {
+					result = ( ( ( ( corrected_volt - corr_return ) - voltage_0 ) + temp_correct_volt ) * 3 ) / ( ( voltage_1 - corr_return ) - voltage_1 );
+				}
+			} else {
+				result = ( ( ( ( corrected_volt - voltage_1 ) + temp_correct_volt ) * 9 ) / ( voltage_2 - voltage_1 ) ) + 3;
+			}
+		} else {
+			result = ( ( ( ( corrected_volt - voltage_2 ) + temp_correct_volt ) * 17 ) / ( voltage_max - voltage_2 ) ) + 19;
+		}
+	} else {
+		result = ( ( ( ( corrected_volt - voltage_max ) + temp_correct_volt ) * 30 ) / ( ( ( temp_correct_volt - voltage_max ) + 0x1000 ) + 29 ) ) + 50;
+	}
+
+	/* would be stupid if we report more than 100% */
+	if ( result > 100 )
+		result = 100;
+		
+	// Test Stabilization
+	
+	if ( result < prev_result ) {
+		result = prev_result;
+	}
+	
+	if ( result > ( prev_result + 1 ) ) {
+		if ( result < ( prev_result + 10 ) ) {
+			result = prev_result;
+		}
+	}
+
+	/*if ( result < ( prev_result - 1 ) ) {
+		if ( result > ( prev_result - 10 ) ) {
+			result = prev_result;
+		}
+	}*/
 
 	return result;
  }
@@ -722,24 +835,31 @@ static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor 
 			buffer->batt_current= 0 - buffer->batt_current;
 	}
 
-	buffer->level = GetBatteryDischargeLevel( buffer->batt_vol, buffer->batt_current, buffer->batt_temp, batt_vendor );
+	if ( buffer->charging_enabled == 0 ) { 
+		buffer->level = GetBatteryDischargeLevel( buffer->batt_vol, buffer->batt_current, buffer->batt_temp, batt_vendor );
+	} else {
+		buffer->level = GetBatteryDischargeLevelCharging( buffer->batt_vol, buffer->batt_current, buffer->batt_temp, batt_vendor );
+	}
 	return 0;
- }
+}
 
 /* todo modify for rhodium */
  static int htc_rhod_batt_corr( struct battery_info_reply *buffer )
  {
-	int v;
-	int i;
+	// int v;
+	// int i;
 	int av_index;
-	int capacity;
-
+	// int capacity;
+	
+	buffer->batt_vol = ( buffer->batt_vol * 0x11BC ) / 0x1000;
+	
+	buffer->batt_current = ( buffer->batt_current * 2600 ) / 0x1000;
+	
 	// temperature adc correction
 	buffer->batt_temp = ( buffer->batt_temp * 2600 ) / htc_adc_range;
 	//buffer->batt_temp = ( ( htc_adc_a * buffer->batt_temp ) + htc_adc_b ) / 1000;
 
-	buffer->batt_temp = 250;
-	av_index = ( buffer->batt_temp * 18 ) / ( 2600 - buffer->batt_temp );
+	av_index = ( buffer->batt_temp * 100 ) / ( 2600 - buffer->batt_temp );
 
 	// everything below 8 is HOT
 	if ( av_index < 8 )
@@ -752,7 +872,7 @@ static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor 
 
 	buffer->batt_temp = temp_table[ av_index - 8 ];
 
-
+/*
 	v = buffer->batt_vol;
 	v = (v < 0) ? 0 : (v > 0xfff) ? 0xfff : v;
 	capacity = 100;
@@ -767,9 +887,21 @@ static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor 
 		capacity = 5;
 
 	buffer->level = capacity;
+*/
 
+	/* this should make sure that if we are discharging the current is negative */
+	if ( buffer->charging_enabled == 0 ) {
+		if ( buffer->batt_current > 0 )
+			buffer->batt_current= 0 - buffer->batt_current;
+	}
+
+	if ( buffer->charging_enabled == 0 ) {
+		buffer->level = GetBatteryDischargeLevel( buffer->batt_vol, buffer->batt_current, buffer->batt_temp, batt_vendor );
+	} else {
+		buffer->level = GetBatteryDischargeLevelCharging( buffer->batt_vol, buffer->batt_current, buffer->batt_temp, batt_vendor );
+	}
 	return 0;
- }
+}
 
 static int htc_get_batt_info(struct battery_info_reply *buffer)
 {
