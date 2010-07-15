@@ -99,16 +99,16 @@ static void usb_phy_reset(void)
 
 static struct i2c_board_info i2c_devices[] = {
 	{
+		// Battery driver
+		I2C_BOARD_INFO("ds2746-battery", 0x36),
+	},
+	{
 		// LED & Backlight controller
 		I2C_BOARD_INFO("microp-klt", 0x66),
 	},
 	{
 		// Keyboard controller
 		I2C_BOARD_INFO("microp-ksc", 0x67),
-	},
-	{		
-		I2C_BOARD_INFO("mt9t013", 0x6c>>1),
-		/* .irq = TROUT_GPIO_TO_INT(TROUT_GPIO_CAM_BTN_STEP1_N), */
 	},
 };
 
