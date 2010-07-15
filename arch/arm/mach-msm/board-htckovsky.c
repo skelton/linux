@@ -47,6 +47,10 @@
 #include <mach/gpio.h>
 #include <mach/io.h>
 #include <linux/delay.h>
+#ifdef CONFIG_HTC_HEADSET
+#include <mach/htc_headset.h>                                            
+#endif
+
 
 #include <linux/microp-keypad.h>
 
@@ -186,6 +190,53 @@ static struct platform_device raphael_gps = {
     .name       = "raphael_gps",
 };
 
+#ifdef CONFIG_HTC_HEADSET
+
+static void h2w_config_cpld(int route);
+static void h2w_init_cpld(void);
+static struct h2w_platform_data kovsky_h2w_data = {
+	.cable_in1              = KOVS_GPIO_CABLE_IN1,
+	.cable_in2              = KOVS_GPIO_CABLE_IN2,
+	.h2w_clk                = KOVS_GPIO_H2W_CLK,
+	.h2w_data               = KOVS_GPIO_H2W_DATA,
+	.debug_uart             = H2W_UART3,
+	.config_cpld            = h2w_config_cpld,
+	.init_cpld              = h2w_init_cpld,
+	.headset_mic_35mm       = RAPH100_EXTMIC_IRQ,
+	.jack_inverted          = 1,
+};
+
+static void h2w_config_cpld(int route) {
+	printk(KERN_INFO "DBG: h2w_config_cpld %d", route);
+	switch (route) {
+		case H2W_UART3:
+			printk(KERN_INFO "DBG: h2w_config_cpld UART3\n");
+			gpio_set_value(0, 1);
+			break;
+		case H2W_GPIO:
+			printk(KERN_INFO "DBG: h2w_config_cpld GPIO\n");
+			gpio_set_value(0, 0);
+			break;
+	}
+}
+
+static void h2w_init_cpld(void) {
+	printk(KERN_INFO "DBG: h2w_init_cpld\n");
+	h2w_config_cpld(H2W_UART3);
+	gpio_set_value(kovsky_h2w_data.h2w_clk, 0);
+	gpio_set_value(kovsky_h2w_data.h2w_data, 0);
+}
+
+static struct platform_device kovsky_h2w = {
+	.name           = "h2w",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &kovsky_h2w_data,
+	},
+};
+#endif
+
+
 static struct platform_device touchscreen = {
 	.name		= "tssc-manager",
 	.id		= -1,
@@ -209,6 +260,9 @@ static struct platform_device *devices[] __initdata = {
 	&raphael_snd,
 	&raphael_gps,
 	&touchscreen,
+#ifdef CONFIG_HTC_HEADSET
+	&kovsky_h2w,
+#endif
 };
 
 extern struct sys_timer msm_timer;
