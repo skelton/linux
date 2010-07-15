@@ -85,8 +85,8 @@ int turn_mic_bias_on(int on)
 	dex.data=0x10;
 	msm_proc_comm_wince(&dex,0);
 
-	/* CDMA needs pm_mic_en */
-	if (machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500())
+	/* some devices needs pm_mic_en */
+	if (machine_is_htcdiamond_cdma() || machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || machine_is_htckovsky())
 	{
 		int ret;
 		struct {
@@ -236,6 +236,7 @@ static int __init acoustic_init(void)
 		case MACH_TYPE_HTCBLACKSTONE:
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
 		case MACH_TYPE_HTCRAPHAEL_CDMA500:
+		case MACH_TYPE_HTCKOVSKY:
 			mic_offset = 0xfed00;
 			htc_acoustic_vir_addr=(void *)(MSM_SHARED_RAM_BASE+0xfc300);
 			break;
