@@ -40,23 +40,41 @@ static int force_rhod_speaker=0;
 module_param_named(rhod_speaker, force_rhod_speaker, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 void enable_speaker(void) {
-	if(machine_is_htcblackstone()) {
-		gpio_set_value(57,1);
-	} else if(machine_is_htcrhodium()) {
-		//Needs userland fix
-		if(force_rhod_speaker)
-			enable_speaker_rhod();
-		else
-			disable_speaker_rhod();
-	}
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCBLACKSTONE:
+			gpio_set_value(57,1);
+			break;
+		case MACH_TYPE_HTCRHODIUM:
+			//Needs userland fix
+			if(force_rhod_speaker)
+				enable_speaker_rhod();
+			else
+				disable_speaker_rhod();
+			break;
+		case MACH_TYPE_HTCKOVSKY:
+			gpio_configure(0x41, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+			gpio_set_value(0x41, 1);
+			break;
+		default:
+			break;
+	};
 }
 
 void disable_speaker(void) {
-	if(machine_is_htcblackstone()) {
-		gpio_set_value(57, 0);
-	} else if(machine_is_htcrhodium()) {
-		disable_speaker_rhod();
-	}
+	switch(__machine_arch_type) {
+		case MACH_TYPE_HTCBLACKSTONE:
+			gpio_set_value(57, 0);
+			break;
+		case MACH_TYPE_HTCRHODIUM:
+			disable_speaker_rhod();
+			break;
+		case MACH_TYPE_HTCKOVSKY:
+			gpio_configure(0x41, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(0x41, 0);
+			break;
+		default:
+			break;
+	};
 }
 
 void speaker_vol(int arg) {
@@ -72,6 +90,9 @@ void headphone_amp_power(int status)
 		case MACH_TYPE_HTCRAPHAEL_CDMA:
 		case MACH_TYPE_HTCDIAMOND_CDMA:
 			gpio = 0x54;
+			break;
+		case MACH_TYPE_HTCKOVSKY:
+			gpio = 0x42;
 			break;
 		default:
 			/* We should test this on more machines */
