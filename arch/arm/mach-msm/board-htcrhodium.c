@@ -186,10 +186,6 @@ static struct platform_device blac_snd = {
 	},
 };
 
-static struct platform_device rhodium_gps = {
-    .name       = "gps_rfkill",
-};
-
 static struct platform_device rhod_prox = {
     .name       = "rhodium_proximity",
 };
@@ -256,7 +252,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm2,
 #endif
-	//&rhodium_gps,
 	&rhod_prox,
 #ifdef CONFIG_HTC_HEADSET
 	&rhodium_h2w,

@@ -171,10 +171,6 @@ static struct platform_device raphael_snd = {
 	},
 };
 
-static struct platform_device raphael_gps = {
-    .name       = "raphael_gps",
-};
-
 #ifdef CONFIG_HTC_HEADSET
 
 static void h2w_config_cpld(int route);
@@ -239,7 +235,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_htc_battery,
 	&raphael_snd,
-	//&raphael_gps,
 	&touchscreen,
 #ifdef CONFIG_HTC_HEADSET
 	&raphael_h2w,

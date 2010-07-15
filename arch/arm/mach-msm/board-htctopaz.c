@@ -137,10 +137,6 @@ static struct platform_device topaz_snd = {
 	},
 };
 
-static struct platform_device raphael_gps = {
-    .name       = "raphael_gps",
-};
-
 #ifdef CONFIG_HTC_HEADSET
 
 static void h2w_config_cpld(int route);
@@ -203,7 +199,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_htc_hw,
 	&msm_device_htc_battery,
 	&topaz_snd,		
-	//&raphael_gps,		/*TODO crashing software/device*/
 #ifdef CONFIG_HTC_HEADSET
 	//&topaz_h2w,		/*TODO we need working sound as first*/
 #endif

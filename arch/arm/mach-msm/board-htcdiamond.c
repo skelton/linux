@@ -183,10 +183,6 @@ static struct platform_device raphael_snd = {
 	},
 };
 
-static struct platform_device raphael_gps = {
-    .name       = "gps_rfkill",
-};
-
 static struct pwr_sink diamond_pwrsink_table[] = {
         {
                 .id     = PWRSINK_AUDIO,
@@ -317,7 +313,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_htc_battery,
 	&raphael_snd,
-	&raphael_gps,// disable until it works
 	&touchscreen,
 #ifdef CONFIG_HTC_HEADSET
 	&diamond_h2w,
