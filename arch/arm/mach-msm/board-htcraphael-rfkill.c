@@ -26,7 +26,12 @@
 #include <asm/mach-types.h>
 
 #include "board-htcraphael.h"
+#include "board-htckovsky.h"
 #include "proc_comm_wince.h" /* ?? GPIO ?? */
+
+/* Kovsky */
+#define KOVS_GPIO_BT_POWER	32
+#define KOVS_GPIO_BT_ROUTER	63
 
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state);
 
@@ -60,12 +65,12 @@ static struct msm_gpio_config bt_off_gpio_table_raph100[] = {
 static int bluetooth_set_power(void *data, enum rfkill_state state)
 {
 	int rc;
-	switch (state) {
-	case RFKILL_STATE_ON:
+	if (state ==  RFKILL_STATE_ON) {
 		printk("   bluetooth rfkill state ON\n");
-
 		config_gpio_table(bt_on_gpio_table_raph100,ARRAY_SIZE(bt_on_gpio_table_raph100));
-		if(machine_is_htcrhodium()) {
+
+		switch(__machine_arch_type){
+		case MACH_TYPE_HTCRHODIUM:
 			gpio_configure(91, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
 			gpio_set_value(91, 1);
 			mdelay(50);
@@ -76,8 +81,8 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 			gpio_set_value(31, 0);
 			mdelay(100);
 			gpio_set_value(31, 1);
-				
-		} else if(machine_is_htctopaz()) {
+		break;
+		case MACH_TYPE_HTCTOPAZ:
 			rc = vreg_enable(vreg_bt);	// Don't use on Rhod, disables the display!
 			if(rc) {
 				printk(KERN_ERR "BT VREG Activate Error %d\n", rc);
@@ -88,10 +93,16 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 			gpio_set_value(RAPH100_BT_RST, 0);
 			mdelay(50);
 			gpio_set_value(RAPH100_BT_RST, 1);
-		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || machine_is_htcdiamond_cdma()) {
+		break;
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
 			gpio_configure(0x52, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			gpio_set_value(0x52, 1);
-		} else {
+		break;
+		case MACH_TYPE_HTCDIAMOND:
+		case MACH_TYPE_HTCRAPHAEL:
+		case MACH_TYPE_HTCBLACKSTONE:
 			gpio_configure(RAPH100_WIFI_BT_PWR2, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
 			gpio_set_value(RAPH100_WIFI_BT_PWR2, 1);
 			mdelay(50);
@@ -99,29 +110,52 @@ static int bluetooth_set_power(void *data, enum rfkill_state state)
 			gpio_set_value(RAPH100_BT_RST, 0);
 			mdelay(50);
 			gpio_set_value(RAPH100_BT_RST, 1);
-		}
 		break;
-	case RFKILL_STATE_OFF:
+		case MACH_TYPE_HTCKOVSKY:
+			gpio_configure(KOVS_GPIO_BT_ROUTER, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(KOVS_GPIO_BT_ROUTER, 1);
+			mdelay(50);
+			gpio_configure(KOVS_GPIO_BT_POWER, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(KOVS_GPIO_BT_POWER, 0);
+			mdelay(50);
+			gpio_set_value(KOVS_GPIO_BT_POWER, 1);
+		break;
+		default:
+			printk("RFKILL: unknown device!\n");
+		}
+	}
+	else if (state == RFKILL_STATE_OFF) {
 		printk("   bluetooth rfkill state   OFF\n");
-#if 1
 		config_gpio_table(bt_off_gpio_table_raph100,ARRAY_SIZE(bt_off_gpio_table_raph100));
-#endif
-		if(machine_is_htcrhodium()) {
+		switch(__machine_arch_type) {
+		case MACH_TYPE_HTCRHODIUM:
 			gpio_configure(91, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			gpio_set_value(91, 0);
-	      
-		} else if(machine_is_htctopaz()) {
+		break;
+		case MACH_TYPE_HTCTOPAZ:	      	
 			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			vreg_set_level(vreg_bt, 0);
 			vreg_disable(vreg_bt);
-		} else if(machine_is_htcraphael_cdma() || machine_is_htcraphael_cdma500() || machine_is_htcdiamond_cdma()) {
+		break;
+		case MACH_TYPE_HTCRAPHAEL_CDMA500:
+		case MACH_TYPE_HTCRAPHAEL_CDMA:
+		case MACH_TYPE_HTCDIAMOND_CDMA:
 			gpio_set_value(0x52, 0);
-		} else {
+		break;
+		case MACH_TYPE_HTCDIAMOND:
+		case MACH_TYPE_HTCRAPHAEL:
+		case MACH_TYPE_HTCBLACKSTONE:
 			gpio_configure(RAPH100_BT_RST, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
 			gpio_set_value(RAPH100_WIFI_BT_PWR2, 0);
-		}
+		case MACH_TYPE_HTCKOVSKY:
+			gpio_configure(KOVS_GPIO_BT_POWER, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+			gpio_set_value(KOVS_GPIO_BT_POWER, 0);
 		break;
-	default:
+		default:
+			printk("RFKILL: unknown device!\n");
+		}
+	}
+	else {
 		printk(KERN_ERR "bad bluetooth rfkill state %d\n", state);
 	}
 	return 0;
