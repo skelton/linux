@@ -355,7 +355,7 @@ static int __init msm_ts_init(void)
 {
 	int err;
 #if defined CONFIG_TOUCHSCREEN_TSSC_MANAGER 
-	if(!machine_is_htcblackstone()) {
+	if(!machine_is_htcblackstone() && !machine_is_htckovsky()) {
 		printk("\"Old\" touchscreen driver called for a non-blackstone device\n");
 		printk("If you really want that, edit the msm_ts.c file and delete this check\n");
 		return 0;
