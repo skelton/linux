@@ -763,14 +763,25 @@ int __init parse_tag_monodie(const struct tag *tags)
 	// On "newer" monodie htctopaz HaRET gathers 0x10000000 (256MB)
 	// from WinCE. This isn't the most failure-proof method, but
 	// helps dynamically performing the memory setup for now.
+#if 0
+	// breaks on some newer topa100/210 with dual die
+	// looking for a better solution; perhaps providing better physmem
+	// info via HaRET gathered from OEMAddressTable (if accessible)
 	for (; t->hdr.size; t = tag_next(t)) {
 		if (t->hdr.tag == ATAG_MEM && t->u.mem.size == 0x10000000) {
 			mono_die = 1;
 			break;
 		}
 	}
+#endif
+	for (; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag == ATAG_MEM) {
+			printk(KERN_DEBUG "%s: ATAG_MEM start=0x%x size=0x%x\n",
+				__func__, t->u.mem.start, t->u.mem.size);
+		}
+	}
 
-	printk(KERN_DEBUG "parse_tag_monodie: mono-die = 0x%x\n", mono_die);
+	printk(KERN_DEBUG "%s: mono-die = 0x%x\n", __func__, mono_die);
 	return mono_die;
 }
 __tagtable(ATAG_MONODIE, parse_tag_monodie);
