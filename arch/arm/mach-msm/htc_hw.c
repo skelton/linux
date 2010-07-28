@@ -34,6 +34,12 @@ static htc_hw_pdata_t *htc_hw_pdata;
 static int force_cdma=0;
 module_param(force_cdma, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
+static int call_vol=5;
+module_param(call_vol, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
+static int handsfree=1;
+module_param(handsfree, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 extern void micropklt_lcd_ctrl(int);
 
 static ssize_t test_store(struct class *class, const char *buf, size_t count)
@@ -41,6 +47,7 @@ static ssize_t test_store(struct class *class, const char *buf, size_t count)
 	int v;
 	sscanf(buf, "%d", &v);
 	micropklt_lcd_ctrl(v);
+	return 1;
 }
 
 static ssize_t flash_store(struct class *class, const char *buf, size_t count)
@@ -48,6 +55,7 @@ static ssize_t flash_store(struct class *class, const char *buf, size_t count)
 	int v;
 	sscanf(buf, "%d", &v);
 	gpio_set_value(0x3a, !!v);
+	return 1;
 }
 
 static ssize_t vibrate_store(struct class *class, const char *buf, size_t count)
@@ -154,27 +162,11 @@ int snd_ini() {}
 int turn_mic_bias_on(int on);
 
 void msm_audio_path(int i) {
-	char* sparameterraph = "PHONE_EARCUPLE_VOL2";
-	char* sparametertopa = "PHONE_EARCUPLE_VOL0";
-	char* sparameter = NULL;
-	switch(__machine_arch_type) {
-		case MACH_TYPE_HTCTOPAZ:
-		case MACH_TYPE_HTCRHODIUM:
-			sparameter = sparametertopa;
-			break;
-		case MACH_TYPE_HTCRAPHAEL:
-		case MACH_TYPE_HTCDIAMOND_CDMA:
-		case MACH_TYPE_HTCDIAMOND:
-		case MACH_TYPE_HTCBLACKSTONE:
-		case MACH_TYPE_HTCRAPHAEL_CDMA:
-		case MACH_TYPE_HTCRAPHAEL_CDMA500:
-		case MACH_TYPE_HTCKOVSKY:
-			sparameter = sparameterraph;
-			break;
-		default:
-			printk(KERN_ERR "Unsupported device for htc_hw driver\n");
-			break;
-	}
+	char* sparameter= "PHONE_HANDSFREE_VOL5";
+	if(!handsfree)
+		strcpy(sparameter, "PHONE_EARCUPLE_VOL5");
+	if(call_vol>=0 && call_vol<=5)
+		sparameter[strlen(sparameter)-1]=call_vol+'0';
 	
 	struct msm_dex_command dex;
 	dex.cmd=PCOM_UPDATE_AUDIO;
