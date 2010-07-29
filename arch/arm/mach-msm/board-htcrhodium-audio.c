@@ -26,7 +26,7 @@ struct data_t {
 };
 static struct data_t _dat;
 
-static int i2c_read(struct i2c_client *client, unsigned addr,
+static int i2c_read(struct i2c_client *client, unsigned char addr,
 		char *data, int len) {
 	int retry;
 	int ret;
@@ -61,7 +61,7 @@ static int i2c_read(struct i2c_client *client, unsigned addr,
 }
 
 #define MAX_I2C_WRITE 20
-static int i2c_write(struct i2c_client *client, unsigned addr,
+static int i2c_write(struct i2c_client *client, unsigned char addr,
 		char *data, int len) {
 	int retry;
 	uint8_t buf[MAX_I2C_WRITE];
