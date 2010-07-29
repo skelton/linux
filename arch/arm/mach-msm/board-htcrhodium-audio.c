@@ -258,7 +258,7 @@ static const struct i2c_device_id tpa_ids[] = {
 
 static struct i2c_driver tpa_driver = {
 	.driver = {
-		.name	= MODULE_NAME,
+		.name	= "tpa2016",
 		.owner	= THIS_MODULE,
 	},
 	.id_table = tpa_ids,
@@ -279,7 +279,7 @@ static const struct i2c_device_id aud_ids[] = {
 
 static struct i2c_driver aud_driver = {
 	.driver = {
-		.name	= MODULE_NAME,
+		.name	= "a1010",
 		.owner	= THIS_MODULE,
 	},
 	.id_table = aud_ids,
@@ -300,7 +300,7 @@ static const struct i2c_device_id adc_ids[] = {
 
 static struct i2c_driver adc_driver = {
 	.driver = {
-		.name	= MODULE_NAME,
+		.name	= "adc3001",
 		.owner	= THIS_MODULE,
 	},
 	.id_table = adc_ids,
