@@ -828,6 +828,9 @@ static int GetBatteryDischargeLevel( int volt, int charge, int temp, int vendor 
 		av_index = 1347;
 
 	buffer->batt_temp = temp_table[ av_index - 8 ];
+	if(buffer->batt_temp > 330)
+		//>60°C ? You're already burnt, you don't care about actual temperature.
+		buffer->batt_temp=280;//7°C
 
 	/* this should make sure that if we are discharging the current is negative */
 	if ( buffer->charging_enabled == 0 ) {
