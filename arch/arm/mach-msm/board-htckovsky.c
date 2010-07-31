@@ -380,7 +380,7 @@ static void __init htckovsky_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->nr_banks++;
 	mi->bank[1].start = PAGE_ALIGN(PHYS_OFFSET + 0x10000000);
 	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
-	mi->bank[1].size = (128-51)*1024*1024;
+	mi->bank[1].size = (128-34)*1024*1024;
 	printk(KERN_INFO "fixup: nr_banks = %d\n", mi->nr_banks);
 	printk(KERN_INFO "fixup: bank0 start=%08lx, node=%08x, size=%08lx\n", mi->bank[0].start, mi->bank[0].node, mi->bank[0].size);
 	if (mi->nr_banks > 1)
