@@ -152,6 +152,9 @@ struct smd_alloc_elm_v1 {
 	char name[20];
 	uint32_t cid;
 	uint32_t ctype;
+#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
+	uint32_t unknown;
+#endif
 	uint32_t ref_count;
 };
 

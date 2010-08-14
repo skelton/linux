@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2007 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>,
- * Octavian Voicu, Martijn Stolk
+ * Octavian Voicu, Martijn Stolk, Arnold Schwarzenegger
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and

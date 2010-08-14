@@ -151,6 +151,9 @@ struct rpc_adsp_rtos_modem_to_app_args_t {
 	uint32_t proc_id; /* e.g., RPC_ADSP_RTOS_PROC_APPS */
 	uint32_t module; /* e.g., QDSP_MODULE_AUDPPTASK */
 	uint32_t image; /* RPC_QDSP_IMAGE_GAUDIO */
+#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
+	uint32_t unknown; /* unknown*/
+#endif
 };
 
 struct rpc_adsp_rtos_modem_to_app_args_t_6125 {

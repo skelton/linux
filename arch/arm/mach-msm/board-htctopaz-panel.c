@@ -331,7 +331,7 @@ struct msm_mddi_bridge_platform_data novatec_client_data = {
 struct msm_mddi_platform_data mddi_pdata = {
 	.power_client = htctopaz_mddi_power_client,
 	.fb_resource = resources_msm_fb,
-	.num_clients = 2,
+	.num_clients = 4,
 	.client_platform_data = {
 		{
 			// rhod
@@ -347,6 +347,20 @@ struct msm_mddi_platform_data mddi_pdata = {
 			.name = "mddi_c_b9f6_5582",
 			.id = 0,
 			.client_data = &novatec_client_data,
+			.clk_rate = 0,
+		},
+		{
+			.product_id = (0xb9f6 << 16 | 0x5580),
+			.name = "S1D13774", /* TODO */
+			.id = 0,
+			.client_data = &epson_client_data,
+			.clk_rate = 0,
+		},
+		{
+			.product_id = (0xb9f6 << 16 | 0x5582),
+			.name = "S1D13774", /* TODO */
+			.id = 0,
+			.client_data = &epson_client_data,
 			.clk_rate = 0,
 		},
 	},

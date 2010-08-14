@@ -349,7 +349,7 @@ static void __init halibut_init(void)
 	
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
-	msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
+	//msm_add_usb_devices(usb_phy_reset, NULL, usb_phy_init_seq_raph100);
 	init_mmc();
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm2.dev.platform_data = &msm_uart_dm2_pdata;
@@ -360,7 +360,7 @@ static void __init halibut_init(void)
 	 * For now we just declare that VBUS is present at boot and USB
 	 * copes, but this is not ideal.
 	 */
-	msm_hsusb_set_vbus_state(1);
+	//msm_hsusb_set_vbus_state(1);
 
 	/* A little vibrating welcome */
 	for (i=0; i<2; i++) {
