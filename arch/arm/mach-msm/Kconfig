@@ -414,12 +414,7 @@ config MSM_HW3D_DONUT
 	  library for Cupcake and Donut.
 config MSM_HW3D
 	depends on ANDROID_PMEM
-<<<<<<< HEAD
 	bool "Android 2.0+ (Eclair)"
-=======
-	tristate "MSM Hardware 3D Register Driver"
-	default y
->>>>>>> 1eeec2632ddd0593780326ef4ce5675b54d1f4d8
 	help
 	  Provides access to registers needed by the userspace OpenGL|ES
 	  library for Eclair.
