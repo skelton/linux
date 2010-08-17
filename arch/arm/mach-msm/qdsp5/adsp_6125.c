@@ -22,7 +22,6 @@ typedef enum {
 	QDSP_MODULE_AUDPLAY0TASK=0x2,	// 0x2+
 	QDSP_MODULE_AUDPPTASK=0x3,		// 0x3+
 	QDSP_MODULE_VIDEOTASK=0x4,
-<<<<<<< HEAD:arch/arm/mach-msm/qdsp5/adsp_6125.c
 	QDSP_MODULE_AUDRECTASK=0x1e, // ??
 	QDSP_MODULE_AUDPREPROCTASK=0x1f,
 	QDSP_MODULE_VOCENCTASK=0x9,
@@ -34,17 +33,6 @@ typedef enum {
 	QDSP_MODULE_VFETASK=0x27, // ??
 	QDSP_MODULE_JPEGTASK=0x2b,
 
-=======
-	QDSP_MODULE_AUDRECTASK=0x12, // ??
-	QDSP_MODULE_AUDPREPROCTASK=0xd,
-	QDSP_MODULE_VOCENCTASK=0x9,
-	QDSP_MODULE_VOCDECTASK=0xa,
-	QDSP_MODULE_VOICEPROCTASK=0xb,
-	QDSP_MODULE_LPMTASK=0x1e, // ??
-	QDSP_MODULE_QCAMTASK=0x1f, // ??
-	QDSP_MODULE_VIDEOENCTASK=0x26, // ??
-	QDSP_MODULE_VFETASK=0x27, // ??
->>>>>>> 1eeec2632ddd0593780326ef4ce5675b54d1f4d8:arch/arm/mach-msm/qdsp5/adsp_6120.c
 //	=0x2b,
 //	=0x2c,
 	QDSP_MODULE_MAX=0x33,		// 0x2e
@@ -144,20 +132,13 @@ static qdsp_module_type qdsp_combo_task_to_module_table[] = {
 	QDSP_MODULE_MAX,		// 0x2a 33
 	QDSP_MODULE_MAX,		// 0x2a 33
 	QDSP_MODULE_MAX,		// 0x2a 33
-<<<<<<< HEAD:arch/arm/mach-msm/qdsp5/adsp_6125.c
-=======
-	QDSP_MODULE_MAX,		// 0x2a 33
->>>>>>> 1eeec2632ddd0593780326ef4ce5675b54d1f4d8:arch/arm/mach-msm/qdsp5/adsp_6120.c
 	QDSP_MODULE_MAX,		// 0x2a 33
 	QDSP_MODULE_MAX,		// 0x2a 33
 	QDSP_MODULE_MAX,		// 0x2a 33
 	QDSP_MODULE_MAX,		// 0x2a 33
 	QDSP_MODULE_MAX,		// 0x2a 33
 	QDSP_MODULE_MAX,		// 0x2a 33
-<<<<<<< HEAD:arch/arm/mach-msm/qdsp5/adsp_6125.c
 	QDSP_MODULE_MAX,		// 0x2a 33
-=======
->>>>>>> 1eeec2632ddd0593780326ef4ce5675b54d1f4d8:arch/arm/mach-msm/qdsp5/adsp_6120.c
 	0x12,
 	QDSP_MODULE_MAX			// 0x2a 33
 };
@@ -507,13 +488,7 @@ static struct adsp_module_info module_info[] = {
 	QDSP_MODULE(VFETASK),
 	QDSP_MODULE(QCAMTASK),
 	QDSP_MODULE(LPMTASK),
-<<<<<<< HEAD:arch/arm/mach-msm/qdsp5/adsp_6125.c
 	QDSP_MODULE(JPEGTASK), 
-=======
-/*	QDSP_MODULE(JPEGTASK), */
->>>>>>> 1eeec2632ddd0593780326ef4ce5675b54d1f4d8:arch/arm/mach-msm/qdsp5/adsp_6120.c
-	QDSP_MODULE(VIDEOTASK),
-/*	QDSP_MODULE(VDEC_LP_MODE),	*/
 };
 
 int adsp_init_info_6125(struct adsp_info *info)
