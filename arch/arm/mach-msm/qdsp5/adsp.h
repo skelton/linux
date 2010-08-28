@@ -67,6 +67,8 @@ struct adsp_module_info {
 };
 
 #define ADSP_EVENT_MAX_SIZE 496
+#define EVENT_LEN       12
+#define EVENT_MSG_ID    ((uint16_t)~0)
 
 struct adsp_event {
 	struct list_head list;
@@ -151,9 +153,6 @@ struct rpc_adsp_rtos_modem_to_app_args_t {
 	uint32_t proc_id; /* e.g., RPC_ADSP_RTOS_PROC_APPS */
 	uint32_t module; /* e.g., QDSP_MODULE_AUDPPTASK */
 	uint32_t image; /* RPC_QDSP_IMAGE_GAUDIO */
-#if (CONFIG_MSM_AMSS_VERSION == 6120) || (CONFIG_MSM_AMSS_VERSION == 6125)
-	uint32_t unknown; /* unknown*/
-#endif
 };
 
 struct rpc_adsp_rtos_modem_to_app_args_t_6125 {
