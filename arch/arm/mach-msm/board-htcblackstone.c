@@ -41,6 +41,8 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/vreg.h>
 #include <mach/htc_battery.h>
+#include <mach/htc_headset_mgr.h>
+#include <mach/htc_headset_gpio.h>
 
 #include <mach/gpio.h>
 #include <mach/io.h>
@@ -172,6 +174,35 @@ static struct platform_device touchscreen = {
 	.id		= -1,
 };
 
+
+static struct htc_headset_mgr_platform_data htc_headset_mgr_data = {
+};
+
+static struct platform_device htc_headset_mgr = {
+	.name   = "HTC_HEADSET_MGR",
+    .id     = -1,
+    .dev    = {
+		.platform_data  = &htc_headset_mgr_data,
+    },
+};
+
+static struct htc_headset_gpio_platform_data htc_headset_gpio_data = {
+    .hpin_gpio              = BLAC100_GPIO_HDS_DET,
+    .mic_detect_gpio        = RAPH100_EXTMIC_IRQ,
+    .microp_channel         = 1,
+	.key_enable_gpio        = NULL,
+    .mic_select_gpio        = NULL,
+};
+
+static struct platform_device htc_headset_gpio = {
+    .name   = "HTC_HEADSET_GPIO",
+    .id     = -1,
+    .dev    = {
+		.platform_data  = &htc_headset_gpio_data,
+	},
+};
+
+
 static struct platform_device *devices[] __initdata = {
 	&raphael_rfkill,
 	&msm_device_smd,
@@ -185,6 +216,8 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_htc_battery,
 	&blac_snd,
+	&htc_headset_mgr,
+    &htc_headset_gpio,
 };
 
 extern struct sys_timer msm_timer;

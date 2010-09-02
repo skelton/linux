@@ -92,7 +92,7 @@
 
 #define RAPH100_CAM1_RST	92
 #define RAPH100_CAM2_RST	93
-#define RAPH100_NAVI_IRQ	94
+#define BLAC100_GPIO_HDS_DET	94
 
 #define RAPH100_LCD_VSYNC	97 /* FIXME! hardcoded */
 #define RAPH100_LCD_PWR1	98
