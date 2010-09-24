@@ -484,6 +484,7 @@ static void msm_pm_power_off(void)
 	struct msm_dex_command dex = { .cmd = PCOM_POWER_OFF };
 	msm_proc_comm_wince(&dex, 0);
 	printk(KERN_INFO "%s: halting done...\n", __func__);
+	mdelay(5000);
 #else
 	struct vreg *vreg_msmp;
 	vreg_msmp=vreg_get(0, "msmp");
