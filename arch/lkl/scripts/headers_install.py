@@ -114,6 +114,13 @@ args = parser.parse_args()
 
 find_headers("arch/lkl/include/uapi/asm/syscalls.h")
 headers.add("arch/lkl/include/uapi/asm/host_ops.h")
+headers.add("include/uapi/linux/if_tun.h")
+headers.add("include/uapi/linux/netlink.h")
+headers.add("include/uapi/linux/rtnetlink.h")
+headers.add("include/uapi/linux/netfilter.h")
+headers.add("include/uapi/linux/netfilter_ipv4/ip_tables.h")
+headers.add("include/uapi/linux/netfilter/x_tables.h")
+headers.add("include/uapi/linux/netfilter/xt_TPROXY.h")
 
 new_headers = set()
 
