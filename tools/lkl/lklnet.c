@@ -107,30 +107,29 @@ static int lkl_tun() {
 }
 
 static void setup_tproxy() {
-	//TODO:
-	//Get TPROXY supported revision:
-	//socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-	//getsockopt(fd, SOL_IP, IPT_SO_GET_REVISION_MATCH, struct xt_get_revision);
-
 	int fd = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_RAW, LKL_IPPROTO_RAW);
+	int s, ret;
 
 	struct lkl_ipt_getinfo info;
-	strcpy(info.name, "mangle");
-	int s = sizeof(info);
-	int ret = lkl_sys_getsockopt(fd, SOL_IP, LKL_IPT_SO_GET_INFO, (char*)&info, &s);
-	if(ret<0)
-		exit(__LINE__);
+	{
+		strcpy(info.name, "mangle");
+		s = sizeof(info);
+		ret = lkl_sys_getsockopt(fd, SOL_IP, LKL_IPT_SO_GET_INFO, (char*)&info, &s);
+		if(ret<0)
+			exit(__LINE__);
+	}
 
-	fprintf(stderr, "Got %d entries\n", info.num_entries);
 	s = info.size + sizeof(struct lkl_ipt_get_entries);
 	struct lkl_ipt_get_entries *e = aligned_alloc(16, s);
-	bzero(e, s);
-	strcpy(e->name, "mangle");
-	e->size = info.size;
-	ret = lkl_sys_getsockopt(fd, SOL_IP, LKL_IPT_SO_GET_ENTRIES, (char*)e, &s);
-	if(ret<0) {
-		fprintf(stderr, "can't: %s\n", lkl_strerror(ret));
-		exit(__LINE__);
+	{
+		bzero(e, s);
+		strcpy(e->name, "mangle");
+		e->size = info.size;
+		ret = lkl_sys_getsockopt(fd, SOL_IP, LKL_IPT_SO_GET_ENTRIES, (char*)e, &s);
+		if(ret<0) {
+			fprintf(stderr, "can't: %s\n", lkl_strerror(ret));
+			exit(__LINE__);
+		}
 	}
 
 	//Construct the new rule
@@ -140,56 +139,59 @@ static void setup_tproxy() {
 	newEntryLen += 7;
 	newEntryLen &= 0xfff8;
 	struct lkl_ipt_entry *newEntry = calloc(newEntryLen, 1);
-	strcpy(newEntry->ip.iniface,             "tun_phh");
-	strcpy((char*)newEntry->ip.iniface_mask, "xxxxxxx"); // strlen(tun_phh)
-	newEntry->ip.proto = LKL_IPPROTO_TCP;
-	newEntry->target_offset = sizeof(struct lkl_ipt_entry);
-	newEntry->next_offset = newEntryLen;
-	struct lkl_xt_entry_target *newEntryTarget = (struct lkl_xt_entry_target*) &newEntry->elems[0];
-	strcpy(newEntryTarget->u.user.name, "TPROXY");
-	newEntryTarget->u.user.revision = 1;
-	newEntryTarget->u.user.target_size = sizeof(struct lkl_xt_tproxy_target_info_v1) + sizeof(struct lkl_xt_entry_target);
-	newEntryTarget->u.user.target_size += 7;
-	newEntryTarget->u.user.target_size &= 0xfff8;
-	struct lkl_xt_tproxy_target_info_v1 *tproxy = (struct lkl_xt_tproxy_target_info_v1*)&newEntryTarget->data[0];
-	tproxy->lport = htons(2000);
+	{
+		strcpy(newEntry->ip.iniface,             "tun_phh");
+		strcpy((char*)newEntry->ip.iniface_mask, "xxxxxxx"); // strlen(tun_phh)
+		newEntry->ip.proto = LKL_IPPROTO_TCP;
+		newEntry->target_offset = sizeof(struct lkl_ipt_entry);
+		newEntry->next_offset = newEntryLen;
+		struct lkl_xt_entry_target *newEntryTarget = (struct lkl_xt_entry_target*) &newEntry->elems[0];
+		strcpy(newEntryTarget->u.user.name, "TPROXY");
+		newEntryTarget->u.user.revision = 1;
+		newEntryTarget->u.user.target_size = sizeof(struct lkl_xt_tproxy_target_info_v1) + sizeof(struct lkl_xt_entry_target);
+		newEntryTarget->u.user.target_size += 7;
+		newEntryTarget->u.user.target_size &= 0xfff8;
+		struct lkl_xt_tproxy_target_info_v1 *tproxy = (struct lkl_xt_tproxy_target_info_v1*)&newEntryTarget->data[0];
+		tproxy->lport = htons(2000);
+	}
 
 	//Now replace the iptable
 	s = info.size + sizeof(struct lkl_ipt_replace) + newEntryLen;
 	struct lkl_ipt_replace *r = aligned_alloc(16, s);
-	bzero(r, s);
-	strcpy(r->name, "mangle");
-	r->valid_hooks = info.valid_hooks;
-	r->num_entries = info.num_entries+1;
-	r->size = info.size + newEntryLen;
-	//Do I really have to do that?
-	r->num_counters = info.num_entries;
-	r->counters = aligned_alloc(16, sizeof(r->counters[0])*info.num_entries);
+	{
+		bzero(r, s);
+		strcpy(r->name, "mangle");
+		r->valid_hooks = info.valid_hooks;
+		r->num_entries = info.num_entries+1;
+		r->size = info.size + newEntryLen;
+		//Do I really have to do that?
+		r->num_counters = info.num_entries;
+		r->counters = aligned_alloc(16, sizeof(r->counters[0])*info.num_entries);
 
-	long offset = 0;
-	long origOff = 0;
+		long offset = 0;
+		long origOff = 0;
 
-	struct lkl_ipt_entry *origEntry = &e->entrytable[0];
-	int hookId = 0;
-	for(unsigned i=0; i<info.num_entries; ++i) {
-		origEntry = ((void*)&e->entrytable[0] + origOff);
-		if(hookId < (NF_INET_NUMHOOKS-1) && origOff >= info.hook_entry[hookId+1])
-			hookId++;
+		struct lkl_ipt_entry *origEntry = &e->entrytable[0];
+		int hookId = 0;
+		for(unsigned i=0; i<info.num_entries; ++i) {
+			origEntry = ((void*)&e->entrytable[0] + origOff);
+			if(hookId < (NF_INET_NUMHOOKS-1) && origOff >= info.hook_entry[hookId+1])
+				hookId++;
 
-		if(origOff == info.hook_entry[NF_INET_PRE_ROUTING]) {
-			fprintf(stderr, "Got at %p, here I come!\n", (void*)origOff);
-			// Here we want to add a new rule
-			r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
-			memcpy( (void*)&r->entries[0] + origOff + offset, newEntry, newEntryLen);
-			offset = newEntryLen;
-			r->underflow[hookId] = info.underflow[hookId] + offset;
-		} else {
-			//Simply copy this section
-			r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
-			r->underflow[hookId] = info.underflow[hookId] + offset;
+			if(origOff == info.hook_entry[NF_INET_PRE_ROUTING]) {
+				// Here we want to add a new rule
+				r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
+				memcpy( (void*)&r->entries[0] + origOff + offset, newEntry, newEntryLen);
+				offset = newEntryLen;
+				r->underflow[hookId] = info.underflow[hookId] + offset;
+			} else {
+				//Simply copy this section
+				r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
+				r->underflow[hookId] = info.underflow[hookId] + offset;
+			}
+			memcpy( (void*)&r->entries[0] + origOff + offset, origEntry, origEntry->next_offset);
+			origOff += origEntry->next_offset;
 		}
-		memcpy( (void*)&r->entries[0] + origOff + offset, origEntry, origEntry->next_offset);
-		origOff += origEntry->next_offset;
 	}
 
 	ret = lkl_sys_setsockopt(fd, SOL_IP, LKL_IPT_SO_SET_REPLACE, (char*)r, s);
@@ -286,6 +288,32 @@ static void stuff() {
 	write_bool("/proc/sys/net/ipv4/conf/tun_phh/rp_filter", 0);
 }
 
+static int setup_listener() {
+	int tcpFd = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_STREAM, 0);
+	struct lkl_sockaddr_in sin;
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(2000);
+	long ret = lkl_sys_bind(tcpFd, (struct lkl_sockaddr*)&sin, sizeof(sin));
+	if (lklTun < 0) {
+		fprintf(stderr, "can't bind: %s\n", lkl_strerror(ret));
+		exit(1);
+	}
+
+	int value = 1;
+	lkl_sys_setsockopt(tcpFd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
+
+	lkl_sys_listen(tcpFd, 10);
+	int flags = lkl_sys_fcntl(tcpFd, LKL_F_GETFL, 0);
+	ret = lkl_sys_fcntl(tcpFd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
+	if(ret < 0) {
+		fprintf(stderr, "Can't nonblock tcpfd: %s\n", lkl_strerror(ret));
+		exit(1);
+	}
+
+	return tcpFd;
+}
+
 int main(int argc, char **argv)
 {
 	int hostFd;
@@ -310,30 +338,10 @@ int main(int argc, char **argv)
 
 	stuff();
 	setup_route();
-
-	int tcpFd = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_STREAM, 0);
-	struct lkl_sockaddr_in sin;
-	bzero(&sin, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(2000);
-	long ret = lkl_sys_bind(tcpFd, (struct lkl_sockaddr*)&sin, sizeof(sin));
-	if (lklTun < 0) {
-		fprintf(stderr, "can't bind: %s\n", lkl_strerror(ret));
-		exit(1);
-	}
-
-	int value = 1;
-	lkl_sys_setsockopt(tcpFd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
-
-	lkl_sys_listen(tcpFd, 10);
-	int flags = lkl_sys_fcntl(tcpFd, LKL_F_GETFL, 0);
-	ret = lkl_sys_fcntl(tcpFd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
-	if(ret < 0) {
-		fprintf(stderr, "Can't nonblock tcpfd: %s\n", lkl_strerror(ret));
-		exit(1);
-	}
-
 	setup_tproxy();
+
+	int tcpFd = setup_listener();
+	fprintf(stderr, "Listening...\n");
 
 	while(1) {
 		char buffer[1600];
