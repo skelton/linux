@@ -320,14 +320,7 @@ int main(int argc, char **argv)
 	lkl_if_set_mtu(netid, 1500);
 	lkl_if_set_ipv4(netid, inet_addr("192.168.42.1"), 29);
 
-	netid = lkl_ifindex("dummy0");
-	lkl_if_up(netid);
-	lkl_if_set_mtu(netid, 1500);
-	lkl_if_set_ipv4(netid, inet_addr("192.168.0.2"), 24);
-
-	netid = lkl_ifindex("lo");
-	fprintf(stderr, "Lookbackup ifindex = %d\n", netid);
-	lkl_if_up(netid);
+	lkl_if_up(lkl_ifindex("lo"));
 
 	stuff();
 
