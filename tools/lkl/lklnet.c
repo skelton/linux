@@ -81,6 +81,31 @@ static int host_init() {
 	return hostFd;
 }
 
+static int lkl_tun() {
+	long ret = lkl_sys_mknod("/tun", LKL_S_IFCHR | 0600, LKL_MKDEV(10, 200));
+	if (ret) {
+		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
+		exit(1);
+	}
+	long lklTun = lkl_sys_open("/tun", O_RDWR|O_NONBLOCK, 0666);
+	if (lklTun < 0) {
+		fprintf(stderr, "can't open tun: %s\n", lkl_strerror(ret));
+		exit(1);
+	}
+
+	struct lkl_ifreq ifr;
+	bzero(&ifr, sizeof ifr);
+	ifr.ifr_ifru.ifru_flags = LKL_IFF_TUN;
+	strncpy(ifr.ifr_ifrn.ifrn_name, "tun_phh", LKL_IFNAMSIZ);
+
+	if( (ret = lkl_sys_ioctl(lklTun, LKL_TUNSETIFF, (long) &ifr)) < 0 ){
+		fprintf(stderr, "can't open tun: %s\n", lkl_strerror(ret));
+		exit(1);
+	}
+
+	return lklTun;
+}
+
 static void setup_tproxy() {
 	//TODO:
 	//Get TPROXY supported revision:
@@ -167,29 +192,6 @@ static void setup_tproxy() {
 		origOff += origEntry->next_offset;
 	}
 
-#if 0
-	entry = &r->entries[0];
-	for(unsigned i=0; i<r->num_entries; ++i) {
-		printf("New entry @ %p\n", (long)entry - (long)&r->entries[0]);
-		printf("\tCounters: %dB, %dP\n", entry->counters.bcnt, entry->counters.pcnt);
-		if(entry->target_offset != sizeof(struct lkl_ipt_entry)) {
-			struct lkl_xt_entry_match *m = entry + sizeof(struct lkl_ipt_entry);
-			printf("\tMatch name is %s\n", m->u.user.name);
-		}
-
-		struct lkl_xt_entry_target *t = ipt_get_target(entry);
-		printf("\tTarget name is %s, size %d\n", t->u.user.name, t->u.user.target_size);
-		if(strcmp(t->u.user.name, LKL_XT_STANDARD_TARGET) == 0) {
-			struct lkl_xt_standard_target *t2 = t;
-			printf("\t\tStandard target verdict = %x\n", t2->verdict);
-		} else if(strcmp(t->u.user.name, LKL_XT_ERROR_TARGET) == 0) {
-			struct lkl_xt_error_target *t2 = t;
-			printf("\t\tError target name = %s\n", t2->errorname);
-		}
-		entry = ((void*)entry + entry->next_offset);
-	}
-#endif
-
 	ret = lkl_sys_setsockopt(fd, SOL_IP, LKL_IPT_SO_SET_REPLACE, (char*)r, s);
 	if(ret<0) {
 		fprintf(stderr, "can't: %s\n", lkl_strerror(ret));
@@ -220,25 +222,7 @@ static void write_bool(const char *path, int v) {
 	lkl_sys_close(fd);
 }
 
-static void stuff() {
-#if 0
-	dump_file("/proc/devices");
-	dump_file("/proc/misc");
-	dump_file("/proc/filesystems");
-	dump_file("/proc/net/ip_tables_targets");
-	dump_file("/proc/net/ip_tables_names");
-	dump_file("/proc/net/ip_tables_matches");
-	dump_file("/proc/mounts");
-	dump_file("/proc/meminfo");
-#endif
-
-	write_bool("/proc/sys/net/ipv4/ip_forward", 1);
-	write_bool("/proc/sys/net/ipv4/conf/default/rp_filter", 0);
-	write_bool("/proc/sys/net/ipv4/conf/all/rp_filter", 0);
-	write_bool("/proc/sys/net/ipv4/conf/tun_phh/rp_filter", 0);
-
-	dump_file("/proc/sys/net/ipv4/ip_forward");
-
+static void setup_route() {
 	// ip -f inet route add local default dev lo
 	int fd = lkl_sys_socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	int ret;
@@ -284,6 +268,24 @@ static void stuff() {
 	lkl_sys_close(fd);
 }
 
+static void stuff() {
+#if 0
+	dump_file("/proc/devices");
+	dump_file("/proc/misc");
+	dump_file("/proc/filesystems");
+	dump_file("/proc/net/ip_tables_targets");
+	dump_file("/proc/net/ip_tables_names");
+	dump_file("/proc/net/ip_tables_matches");
+	dump_file("/proc/mounts");
+	dump_file("/proc/meminfo");
+#endif
+
+	write_bool("/proc/sys/net/ipv4/ip_forward", 1);
+	write_bool("/proc/sys/net/ipv4/conf/default/rp_filter", 0);
+	write_bool("/proc/sys/net/ipv4/conf/all/rp_filter", 0);
+	write_bool("/proc/sys/net/ipv4/conf/tun_phh/rp_filter", 0);
+}
+
 int main(int argc, char **argv)
 {
 	int hostFd;
@@ -292,30 +294,14 @@ int main(int argc, char **argv)
 	else
 		hostFd = host_init();
 
+	//Make printk silent
+	lkl_host_ops.print = NULL;
+
 	start_lkl();
-	long ret = lkl_sys_mknod("/tun", LKL_S_IFCHR | 0600, LKL_MKDEV(10, 200));
-	if (ret) {
-		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
-		exit(1);
-	}
-	long lklTun = lkl_sys_open("/tun", O_RDWR|O_NONBLOCK, 0666);
-	if (lklTun < 0) {
-		fprintf(stderr, "can't open tun: %s\n", lkl_strerror(ret));
-		exit(1);
-	}
 
-	struct lkl_ifreq ifr;
-	bzero(&ifr, sizeof ifr);
-	ifr.ifr_ifru.ifru_flags = LKL_IFF_TUN; 
-	strncpy(ifr.ifr_ifrn.ifrn_name, "tun_phh", LKL_IFNAMSIZ);
-
-	if( (ret = lkl_sys_ioctl(lklTun, LKL_TUNSETIFF, (long) &ifr)) < 0 ){
-		fprintf(stderr, "can't open tun: %s\n", lkl_strerror(ret));
-		exit(1);
-	}
+	long lklTun = lkl_tun();
 
 	int netid = lkl_ifindex("tun_phh");
-	fprintf(stderr, "Interface has id = %d\n", netid);
 	lkl_if_up(netid);
 	lkl_if_set_mtu(netid, 1500);
 	lkl_if_set_ipv4(netid, inet_addr("192.168.42.1"), 29);
@@ -323,13 +309,14 @@ int main(int argc, char **argv)
 	lkl_if_up(lkl_ifindex("lo"));
 
 	stuff();
+	setup_route();
 
 	int tcpFd = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_STREAM, 0);
 	struct lkl_sockaddr_in sin;
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(2000);
-	ret = lkl_sys_bind(tcpFd, (struct lkl_sockaddr*)&sin, sizeof(sin));
+	long ret = lkl_sys_bind(tcpFd, (struct lkl_sockaddr*)&sin, sizeof(sin));
 	if (lklTun < 0) {
 		fprintf(stderr, "can't bind: %s\n", lkl_strerror(ret));
 		exit(1);
