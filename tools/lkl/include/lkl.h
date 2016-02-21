@@ -103,6 +103,26 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 		   void *data, char *mnt_str, unsigned int mnt_str_len);
 
 /**
+ * lkl_mount_sysfs - mount /sys
+ *
+ * This function creates a /sys folder, and mounts sysfs over /sys.
+ * The function accepts multiple requests in a lifetime.
+ *
+ * @returns - 0 on success, a negative value on error
+ */
+long lkl_mount_sysfs(void);
+
+/**
+ * lkl_mount_proc - mount /proc
+ *
+ * This function creates a /proc folder, and mounts proc over /proc.
+ * The function accepts multiple requests in a lifetime.
+ *
+ * @returns - 0 on success, a negative value on error
+ */
+long lkl_mount_sysfs(void);
+
+/**
  * lkl_umount_dev - umount a disk
  *
  * This functions umounts the given disks and removes the device file and the
