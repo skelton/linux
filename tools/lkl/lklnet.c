@@ -37,6 +37,8 @@ static void start_lkl(void)
 		exit(1);
 	}
 
+	lkl_mount_sysfs();
+	lkl_mount_proc();
 }
 
 static void stop_lkl(void)
@@ -64,19 +66,19 @@ static int lkl_ifindex(const char* ifname) {
         return ret < 0 ? ret : ifr.lkl_ifr_ifindex;
 }
 
-int hostFd = -1;
-
-static void host_init() {
+static int host_init() {
 	struct ifreq ifr;
+	int hostFd;
         if( (hostFd = open("/dev/net/tun", O_RDWR|O_NONBLOCK)) < 0 )
-                exit(1);
+                exit(__LINE__);
 
         bzero(&ifr, sizeof ifr);
         ifr.ifr_flags = IFF_TUN; 
         strncpy(ifr.ifr_name, "tun_phh", IFNAMSIZ);
 
         if( ioctl(hostFd, TUNSETIFF, (void *) &ifr) < 0 )
-		exit(1);
+		exit(__LINE__);
+	return hostFd;
 }
 
 static void setup_tproxy() {
@@ -96,9 +98,8 @@ static void setup_tproxy() {
 
 	fprintf(stderr, "Got %d entries\n", info.num_entries);
 	s = info.size + sizeof(struct lkl_ipt_get_entries);
-	struct lkl_ipt_get_entries *e = calloc(s + 4, 1);
-	e = (long)e + 7;
-	e = (long)e & 0xfffffffffffffff8L;
+	struct lkl_ipt_get_entries *e = aligned_alloc(16, s);
+	bzero(e, s);
 	strcpy(e->name, "mangle");
 	e->size = info.size;
 	ret = lkl_sys_getsockopt(fd, SOL_IP, LKL_IPT_SO_GET_ENTRIES, (char*)e, &s);
@@ -114,34 +115,31 @@ static void setup_tproxy() {
 	newEntryLen += 7;
 	newEntryLen &= 0xfff8;
 	struct lkl_ipt_entry *newEntry = calloc(newEntryLen, 1);
-	strcpy(newEntry->ip.iniface, "tun_phh");
-	strcpy(newEntry->ip.iniface_mask, "xxxxxxx"); // strlen(tun_phh)+'\0'
+	strcpy(newEntry->ip.iniface,             "tun_phh");
+	strcpy((char*)newEntry->ip.iniface_mask, "xxxxxxx"); // strlen(tun_phh)
 	newEntry->ip.proto = LKL_IPPROTO_TCP;
 	newEntry->target_offset = sizeof(struct lkl_ipt_entry);
 	newEntry->next_offset = newEntryLen;
-	struct lkl_xt_entry_target *newEntryTarget = &newEntry->elems[0];
+	struct lkl_xt_entry_target *newEntryTarget = (struct lkl_xt_entry_target*) &newEntry->elems[0];
 	strcpy(newEntryTarget->u.user.name, "TPROXY");
 	newEntryTarget->u.user.revision = 1;
 	newEntryTarget->u.user.target_size = sizeof(struct lkl_xt_tproxy_target_info_v1) + sizeof(struct lkl_xt_entry_target);
 	newEntryTarget->u.user.target_size += 7;
 	newEntryTarget->u.user.target_size &= 0xfff8;
-	struct lkl_xt_tproxy_target_info_v1 *tproxy = &newEntryTarget->data[0];
+	struct lkl_xt_tproxy_target_info_v1 *tproxy = (struct lkl_xt_tproxy_target_info_v1*)&newEntryTarget->data[0];
 	tproxy->lport = htons(2000);
 
 	//Now replace the iptable
 	s = info.size + sizeof(struct lkl_ipt_replace) + newEntryLen;
-	struct lkl_ipt_replace *r = calloc(s+4, 1);
-	r = (long)r + 7;
-	r = (long)r & 0xfffffffffffffff8L;
+	struct lkl_ipt_replace *r = aligned_alloc(16, s);
+	bzero(r, s);
 	strcpy(r->name, "mangle");
 	r->valid_hooks = info.valid_hooks;
 	r->num_entries = info.num_entries+1;
 	r->size = info.size + newEntryLen;
 	//Do I really have to do that?
 	r->num_counters = info.num_entries;
-	r->counters = calloc(sizeof(r->counters[0]), info.num_entries+1);
-	r->counters = (long)r->counters +7;
-	r->counters = (long)r->counters & 0xfffffffffffffff8L;
+	r->counters = aligned_alloc(16, sizeof(r->counters[0])*info.num_entries);
 
 	long offset = 0;
 	long origOff = 0;
@@ -154,7 +152,7 @@ static void setup_tproxy() {
 			hookId++;
 
 		if(origOff == info.hook_entry[NF_INET_PRE_ROUTING]) {
-			fprintf(stderr, "Got at %p, here I come!\n", origOff);
+			fprintf(stderr, "Got at %p, here I come!\n", (void*)origOff);
 			// Here we want to add a new rule
 			r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
 			memcpy( (void*)&r->entries[0] + origOff + offset, newEntry, newEntryLen);
@@ -192,7 +190,7 @@ static void setup_tproxy() {
 	}
 #endif
 
-	ret = lkl_sys_setsockopt(fd, SOL_IP, LKL_IPT_SO_SET_REPLACE, (char*)r, &s);
+	ret = lkl_sys_setsockopt(fd, SOL_IP, LKL_IPT_SO_SET_REPLACE, (char*)r, s);
 	if(ret<0) {
 		fprintf(stderr, "can't: %s\n", lkl_strerror(ret));
 		exit(__LINE__);
@@ -248,7 +246,7 @@ static void stuff() {
 	struct sockaddr_nl snl;
 	bzero(&snl, sizeof(snl));
 	snl.nl_family = AF_NETLINK;
-	ret = lkl_sys_bind(fd, &snl, sizeof(snl));
+	ret = lkl_sys_bind(fd, (struct lkl_sockaddr*)&snl, sizeof(snl));
 	if(ret<0) exit(__LINE__);
 
 	struct {
@@ -256,7 +254,7 @@ static void stuff() {
 		struct lkl_rtmsg msg;
 
 		struct lkl_rtattr gwAttr;
-		uint32_t gw;
+		uint32_t iface;
 	} rtMsg = {
                 .hdr = {
                         .nlmsg_len = sizeof(rtMsg),
@@ -280,19 +278,21 @@ static void stuff() {
                         .rta_len = sizeof(struct lkl_rtattr)+sizeof(uint32_t),
                         .rta_type = LKL_RTA_OIF,
                 },
-                .gw = 1,//inet_addr("127.0.0.1"),
+                .iface = lkl_ifindex("lo"),
 	};
-	lkl_sys_write(fd, &rtMsg, sizeof(rtMsg));
+	lkl_sys_write(fd, (char*)&rtMsg, sizeof(rtMsg));
 	lkl_sys_close(fd);
 }
 
 int main(int argc, char **argv)
 {
-	host_init();
+	int hostFd;
+	if(argc>1)
+		hostFd = atoi(argv[1]);
+	else
+		hostFd = host_init();
 
 	start_lkl();
-	lkl_mount_sysfs();
-	lkl_mount_proc();
 	long ret = lkl_sys_mknod("/tun", LKL_S_IFCHR | 0600, LKL_MKDEV(10, 200));
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
@@ -343,7 +343,7 @@ int main(int argc, char **argv)
 	}
 
 	int value = 1;
-	lkl_sys_setsockopt(tcpFd, SOL_IP, LKL_IP_TRANSPARENT, &value, sizeof(value));
+	lkl_sys_setsockopt(tcpFd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
 
 	lkl_sys_listen(tcpFd, 10);
 	int flags = lkl_sys_fcntl(tcpFd, LKL_F_GETFL, 0);
@@ -371,7 +371,7 @@ int main(int argc, char **argv)
 		if(cfd>=0) {
 			struct sockaddr_in sin;
 			int s = sizeof(sin);
-			int ret = lkl_sys_getsockname(cfd, &sin, &s);
+			int ret = lkl_sys_getsockname(cfd, (struct lkl_sockaddr*)&sin, &s);
 			fprintf(stderr, "Got new connection %d %d.%d.%d.%d %d!\n",
 					ret,
 					sin.sin_addr.s_addr & 0xff,
