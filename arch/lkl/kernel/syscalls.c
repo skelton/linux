@@ -130,7 +130,6 @@ static int syscall_thread_data_init(struct syscall_thread_data *data,
 				    void *completion)
 {
 	data->s = NULL;
-
 	data->mutex = lkl_ops->sem_alloc(1);
 	if (!data->mutex)
 		return -ENOMEM;
