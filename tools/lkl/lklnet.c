@@ -1,4 +1,6 @@
+#include <assert.h>
 #include <stdbool.h>
+#include <malloc.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,7 +13,9 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/ioctl.h>
+#include <poll.h>
 #include <lkl.h>
+#include <sys/epoll.h>
 #include <lkl_host.h>
 #include <lkl/linux/if_tun.h>
 #include <lkl/linux/if.h>
@@ -76,8 +80,8 @@ static int host_init() {
         ifr.ifr_flags = IFF_TUN; 
         strncpy(ifr.ifr_name, "tun_phh", IFNAMSIZ);
 
-        if( ioctl(hostFd, TUNSETIFF, (void *) &ifr) < 0 )
-		exit(__LINE__);
+		if( ioctl(hostFd, TUNSETIFF, (void *) &ifr) < 0 )
+			exit(__LINE__);
 	return hostFd;
 }
 
@@ -89,8 +93,8 @@ static int lkl_tun() {
 	}
 	long lklTun = lkl_sys_open("/tun", O_RDWR|O_NONBLOCK, 0666);
 	if (lklTun < 0) {
-		fprintf(stderr, "can't open tun: %s\n", lkl_strerror(ret));
-		exit(1);
+		fprintf(stderr, "can't open tun: %s\n", lkl_strerror(lklTun));
+		exit(__LINE__);
 	}
 
 	struct lkl_ifreq ifr;
@@ -100,7 +104,7 @@ static int lkl_tun() {
 
 	if( (ret = lkl_sys_ioctl(lklTun, LKL_TUNSETIFF, (long) &ifr)) < 0 ){
 		fprintf(stderr, "can't open tun: %s\n", lkl_strerror(ret));
-		exit(1);
+		exit(__LINE__);
 	}
 
 	return lklTun;
@@ -120,7 +124,7 @@ static void setup_tproxy() {
 	}
 
 	s = info.size + sizeof(struct lkl_ipt_get_entries);
-	struct lkl_ipt_get_entries *e = aligned_alloc(16, s);
+	struct lkl_ipt_get_entries *e = memalign(16, s);
 	{
 		bzero(e, s);
 		strcpy(e->name, "mangle");
@@ -157,7 +161,7 @@ static void setup_tproxy() {
 
 	//Now replace the iptable
 	s = info.size + sizeof(struct lkl_ipt_replace) + newEntryLen;
-	struct lkl_ipt_replace *r = aligned_alloc(16, s);
+	struct lkl_ipt_replace *r = memalign(16, s);
 	{
 		bzero(r, s);
 		strcpy(r->name, "mangle");
@@ -166,7 +170,7 @@ static void setup_tproxy() {
 		r->size = info.size + newEntryLen;
 		//Do I really have to do that?
 		r->num_counters = info.num_entries;
-		r->counters = aligned_alloc(16, sizeof(r->counters[0])*info.num_entries);
+		r->counters = memalign(16, sizeof(r->counters[0])*info.num_entries);
 
 		long offset = 0;
 		long origOff = 0;
@@ -271,7 +275,7 @@ static void setup_route() {
 }
 
 static void stuff() {
-#if 0
+#if 1
 	dump_file("/proc/devices");
 	dump_file("/proc/misc");
 	dump_file("/proc/filesystems");
@@ -280,6 +284,7 @@ static void stuff() {
 	dump_file("/proc/net/ip_tables_matches");
 	dump_file("/proc/mounts");
 	dump_file("/proc/meminfo");
+	dump_file("/proc/interrupts");
 #endif
 
 	write_bool("/proc/sys/net/ipv4/ip_forward", 1);
@@ -295,7 +300,7 @@ static int setup_listener() {
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(2000);
 	long ret = lkl_sys_bind(tcpFd, (struct lkl_sockaddr*)&sin, sizeof(sin));
-	if (lklTun < 0) {
+	if (ret < 0) {
 		fprintf(stderr, "can't bind: %s\n", lkl_strerror(ret));
 		exit(1);
 	}
@@ -304,14 +309,257 @@ static int setup_listener() {
 	lkl_sys_setsockopt(tcpFd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
 
 	lkl_sys_listen(tcpFd, 10);
+#ifdef lkl_sys_fcntl64
+	int flags = lkl_sys_fcntl64(tcpFd, LKL_F_GETFL, 0);
+	ret = lkl_sys_fcntl64(tcpFd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
+#else
 	int flags = lkl_sys_fcntl(tcpFd, LKL_F_GETFL, 0);
 	ret = lkl_sys_fcntl(tcpFd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
+#endif
 	if(ret < 0) {
 		fprintf(stderr, "Can't nonblock tcpfd: %s\n", lkl_strerror(ret));
 		exit(1);
 	}
 
 	return tcpFd;
+}
+
+#define N_CONNECTS 3
+#define MAX_CLIENTS 1024
+struct client {
+	int client;
+	int remote[N_CONNECTS];
+	int remoteConnected;
+	int valid;
+} clients[MAX_CLIENTS];
+int tcpFd;
+int hostEPoll;
+int lklEPoll;
+
+void phh_host_init(int hostTun) {
+	hostEPoll = epoll_create(42);
+
+	struct epoll_event e;
+	e.events = EPOLLIN;
+	e.data.ptr = NULL;
+	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, hostTun, &e);
+}
+
+struct hostWorker {
+	int hostFd;
+	int lklTun;
+};
+
+void phh_host_work(struct hostWorker* hw) {
+	struct epoll_event events[10];
+
+	int n = epoll_wait(hostEPoll, events, sizeof(events)/sizeof(events[0]), -1);
+	for(int i=0; i<n; ++i) {
+		if(events[i].data.ptr == NULL) {
+			//It is the tun fd
+			char buffer[1600];
+			int len = read(hw->hostFd, buffer, sizeof(buffer));
+			if(len >= 0)
+				lkl_sys_write(hw->lklTun, buffer, len);
+			continue;
+		}
+
+		//We are either in a connecting fd, or in a connected fd
+		long v = (long)events[i].data.ptr;
+		v -= (v- (long) clients)%sizeof(struct client);
+
+		int *fd = (int*) events[i].data.ptr;
+		struct client *c = (struct client*) v;
+		assert(c->valid);
+
+		if(c->remoteConnected != -1) {
+			fprintf(stderr, "Got an info from a connected fd %x!\n", events[i].events);
+
+			//This most probably means we got two ACK at the same time for the same connection
+			if(events[i].events & EPOLLOUT &&
+					*fd == -1)
+				continue;
+
+			//We are in a connected fd
+			assert(c->remoteConnected == *fd);
+			if(events[i].events & EPOLLRDHUP) {
+				while(1) {
+					char buffer[64*1024];
+					int l = read(*fd, buffer, sizeof(buffer));
+					lkl_sys_write(c->client, buffer, l);
+					if(!l)
+						break;
+				}
+				close(c->remoteConnected);
+				lkl_sys_close(c->client);
+				c->valid = 0;
+				continue;
+			}
+			assert(events[i].events & EPOLLIN);
+			//TODO: check c->client has enough buffer place
+			char buffer[64*1024];
+			int l = read(*fd, buffer, sizeof(buffer));
+			lkl_sys_write(c->client, buffer, l);
+			fprintf(stderr, "Read %d bytes\n", l);
+			continue;
+		}
+
+		int err;
+		socklen_t s = sizeof(err);
+		getsockopt(*fd, SOL_SOCKET, SO_ERROR, &err, &s);
+		fprintf(stderr, "Got an info from a connecting fd (status %d)!\n", err);
+
+		if(err == 0) {
+			//We are in a connecting=>ed fd
+			for(int j=0; j<N_CONNECTS; ++j) {
+				if(c->remote[j] != -1 && c->remote[j] != *fd) {
+					close(c->remote[j]);
+					c->remote[j] = -1;
+				}
+			}
+			c->remoteConnected = *fd;
+
+			struct epoll_event e;
+			bzero(&e, sizeof(struct epoll_event));
+			e.events = EPOLLIN | EPOLLRDHUP;
+			e.data.ptr = events[i].data.ptr;
+			epoll_ctl(hostEPoll, EPOLL_CTL_MOD, *fd, &e);
+
+			e.events = EPOLLIN | EPOLLRDHUP;
+			e.data.ptr = c;
+			lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, c->client, (struct lkl_epoll_event*)&e);
+		} else {
+			//We are in a connecting=>dead fd
+			fprintf(stderr, "Got a dying socket!\n");
+			close(*fd);
+			*fd = -1;
+			int completlyDead = 1;
+			for(int j=0; j<N_CONNECTS; ++j) {
+				if(c->remote[j] != -1)
+					completlyDead = 0;
+			}
+			if(completlyDead) {
+				lkl_sys_close(c->client);
+				c->valid = 0;
+				c->client = -1;
+			}
+		}
+	}
+}
+
+void *phh_host_thread(struct hostWorker* hw) {
+	long ret = lkl_create_syscall_thread();
+	if (ret < 0)
+		fprintf(stderr, "%s: %s\n", __func__, lkl_strerror(ret));
+	while(1) {
+		phh_host_work(hw);
+	}
+	return NULL;
+}
+
+int client_connect(int lklFd, int connId) {
+	int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	int flags = fcntl(fd, F_GETFL, 0);
+	fcntl(fd, F_SETFL, flags | LKL_O_NONBLOCK);
+	struct sockaddr_in sin;
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(80);
+	sin.sin_addr.s_addr = inet_addr("77.154.221.251");
+
+	int ret = connect(fd, (struct sockaddr*)&sin, sizeof(sin));
+	fprintf(stderr, "Connect returned %d\n", ret);
+
+	return fd;
+}
+
+void handle_new_connection(int lklFd) {
+	int myClient = -1;
+	for(int i=0; i<MAX_CLIENTS; ++i) {
+		if(!clients[i].valid) {
+			myClient = i;
+			break;
+		}
+	}
+	assert(myClient != -1);
+
+	clients[myClient].valid = 1;
+	clients[myClient].client = lklFd;
+	clients[myClient].remote[0] = client_connect(lklFd, 0);
+	clients[myClient].remote[1] = client_connect(lklFd, 1);
+	for(int i=2; i<N_CONNECTS; ++i)
+		clients[myClient].remote[i] = -1;
+	clients[myClient].remoteConnected = -1;
+
+	struct epoll_event e0,e1;
+	bzero(&e0, sizeof(struct epoll_event));
+	bzero(&e1, sizeof(struct epoll_event));
+	e0.events = EPOLLOUT;
+	e1.events = EPOLLOUT;
+
+	e0.data.ptr = &(clients[myClient].remote[0]);
+	e1.data.ptr = &(clients[myClient].remote[1]);
+	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, clients[myClient].remote[0], &e0);
+	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, clients[myClient].remote[1], &e1);
+}
+
+void phh_lkl_init(int lklTun, int tcpFd) {
+	lklEPoll = lkl_sys_epoll_create(42);
+
+	struct epoll_event e;
+	e.events = EPOLLIN;
+	e.data.u64 = 0;
+	lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, lklTun, (struct lkl_epoll_event*)&e);
+
+	e.events = EPOLLIN;
+	e.data.u64 = 1;
+	lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, tcpFd, (struct lkl_epoll_event*)&e);
+}
+
+void phh_lkl_work(int hostFd, int lklTun) {
+	struct epoll_event events[10];
+	int n = lkl_sys_epoll_wait(lklEPoll, (struct lkl_epoll_event*)events, sizeof(events)/sizeof(events[0]), -1);
+	for(int i=0; i<n; ++i) {
+		fprintf(stderr, "Running lkl...\n");
+		if(events[i].data.u64 == 0) {
+			fprintf(stderr, "Got from tun...\n");
+			//lklTun
+			char buffer[1600];
+			long len = lkl_sys_read(lklTun, buffer, sizeof(buffer));
+			if(len >= 0)
+				write(hostFd, buffer, len);
+			continue;
+		}
+		if(events[i].data.u64 == 1) {
+			fprintf(stderr, "Got from tcp...\n");
+			int cfd = lkl_sys_accept(tcpFd, NULL, NULL);
+			assert(cfd >= 0);
+			struct sockaddr_in sin;
+			int s = sizeof(sin);
+			int ret = lkl_sys_getsockname(cfd, (struct lkl_sockaddr*)&sin, &s);
+			fprintf(stderr, "Got new connection %d %d.%d.%d.%d %d!\n",
+					ret,
+					sin.sin_addr.s_addr & 0xff,
+					sin.sin_addr.s_addr >> 8 & 0xff,
+					sin.sin_addr.s_addr >> 16 & 0xff,
+					sin.sin_addr.s_addr >> 24 & 0xff,
+					htons(sin.sin_port));
+
+			handle_new_connection(cfd);
+			continue;
+		}
+
+		struct client *c = (struct client*) events[i].data.ptr;
+		if(events[i].events & EPOLLRDHUP) {
+			lkl_sys_close(c->client);
+			close(c->remoteConnected);
+		} else if(events[i].events & EPOLLIN) {
+			char buffer[64*1024];
+			int l = lkl_sys_read(c->client, buffer, sizeof(buffer));
+			int ret = write(c->remoteConnected, buffer, l);
+			fprintf(stderr, "Read %d, written %d\n", l, ret);
+		}
+	}
 }
 
 int main(int argc, char **argv)
@@ -323,7 +571,7 @@ int main(int argc, char **argv)
 		hostFd = host_init();
 
 	//Make printk silent
-	lkl_host_ops.print = NULL;
+	//lkl_host_ops.print = NULL;
 
 	start_lkl();
 
@@ -340,37 +588,22 @@ int main(int argc, char **argv)
 	setup_route();
 	setup_tproxy();
 
-	int tcpFd = setup_listener();
+	tcpFd = setup_listener();
 	fprintf(stderr, "Listening...\n");
+	phh_host_init(hostFd);
+	phh_lkl_init(lklTun, tcpFd);
 
+	struct hostWorker hw;
+	hw.hostFd = hostFd;
+	hw.lklTun = lklTun;
+
+	pthread_t t;
+	pthread_create(&t, NULL, phh_host_thread, (void*)&hw);
+
+	//HACK: lkl_create_syscall_thread must be called without having a blocking syscall
+	sleep(1);
 	while(1) {
-		char buffer[1600];
-		int len;
-		
-		len = read(hostFd, buffer, sizeof(buffer));
-		if(len >= 0)
-			lkl_sys_write(lklTun, buffer, len);
-
-		len = lkl_sys_read(lklTun, buffer, sizeof(buffer));
-		if(len >= 0)
-			write(hostFd, buffer, len);
-
-		int cfd = lkl_sys_accept(tcpFd, NULL, NULL);
-		if(cfd>=0) {
-			struct sockaddr_in sin;
-			int s = sizeof(sin);
-			int ret = lkl_sys_getsockname(cfd, (struct lkl_sockaddr*)&sin, &s);
-			fprintf(stderr, "Got new connection %d %d.%d.%d.%d %d!\n",
-					ret,
-					sin.sin_addr.s_addr & 0xff,
-					sin.sin_addr.s_addr >> 8 & 0xff,
-					sin.sin_addr.s_addr >> 16 & 0xff,
-					sin.sin_addr.s_addr >> 24 & 0xff,
-					htons(sin.sin_port));
-			lkl_sys_write(cfd, "Hello\n", 6);
-			lkl_sys_close(cfd);
-		}
-		
+		phh_lkl_work(hostFd, lklTun);
 	}
 
 	stop_lkl();
