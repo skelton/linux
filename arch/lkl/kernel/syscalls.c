@@ -14,6 +14,7 @@
 
 struct syscall_thread_data;
 static asmlinkage long sys_create_syscall_thread(struct syscall_thread_data *);
+static int lkl_syscall_wouldblock(void);
 
 typedef long (*syscall_handler_t)(long arg1, ...);
 
@@ -146,6 +147,20 @@ static int syscall_thread_data_init(struct syscall_thread_data *data,
 	return 0;
 }
 
+static int lkl_syscall_wouldblock() {
+	struct syscall_thread_data *data = NULL;
+
+	if (lkl_ops->tls_get)
+		data = lkl_ops->tls_get(syscall_thread_data_key);
+	if (!data)
+		data = &default_syscall_thread_data;
+
+	if(!lkl_ops->sem_get)
+		return 0;
+
+	return !lkl_ops->sem_get(data->mutex);
+}
+
 long lkl_syscall(long no, long *params)
 {
 	struct syscall_thread_data *data = NULL;
@@ -193,6 +208,10 @@ int lkl_create_syscall_thread(void)
 	if (ret < 0) {
 		lkl_ops->mem_free(data);
 		return ret;
+	}
+
+	if(lkl_syscall_wouldblock()) {
+		pr_warn("lkl: Calling lkl_create_syscall_thread will block\n");
 	}
 
 	params[0] = (long)data;
