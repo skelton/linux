@@ -58,7 +58,7 @@ else
   $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
-ALL_PROGRAMS := lklfuse$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF) fs2tar$(EXESUF)
+ALL_PROGRAMS := lklfuse$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF) fs2tar$(EXESUF) lklnet
 ALL_LIBRARIES := liblkl.a liblkl$(SOSUF) liblkl-hijack$(SOSUF)
 
 static: liblkl.a
@@ -74,6 +74,8 @@ liblkl-hijack$(SOSUF): LDLIBS += -ldl
 
 lklfuse$(EXESUF): lklfuse-in.o liblkl.a
 lklfuse$(EXESUF): LDLIBS += -lfuse
+
+lklnet: lklnet-in.o liblkl.a
 
 fs2tar$(EXESUF): fs2tar-in.o liblkl.a
 fs2tar$(EXESUF): LDLIBS += -larchive
@@ -109,7 +111,7 @@ lib/lkl.o:
 liblkl.a: lib/lkl-in.o lib/lkl.o
 	$(QUIET_AR)$(AR) -rc $@ $^
 
-liblkl$(SOSUF) liblkl-hijack$(SOSUF) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) tests/boot:
+liblkl$(SOSUF) liblkl-hijack$(SOSUF) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) lklnet tests/boot:
 	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 cpfromfs$(EXESUF): cptofs$(EXESUF)
@@ -128,7 +130,7 @@ clean:
 	$(call QUIET_CLEAN, headers)$(RM) -r include/lkl/
 	$(call QUIET_CLEAN, "host libraries")$(RM) liblkl.a liblkl$(SOSUF)
 	$(call QUIET_CLEAN, "hijack library")$(RM) liblkl-hijack$(SOSUF)
-	$(call QUIET_CLEAN, programs)$(RM) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF)
+	$(call QUIET_CLEAN, programs)$(RM) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF) lklnet
 	$(call QUIET_CLEAN, tests)$(RM) tests/boot
 
 $(TEST_TARGETS):

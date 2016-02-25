@@ -77,7 +77,7 @@ static int host_init() {
                 exit(__LINE__);
 
         bzero(&ifr, sizeof ifr);
-        ifr.ifr_flags = IFF_TUN; 
+        ifr.ifr_flags = IFF_TUN | IFF_NO_PI; 
         strncpy(ifr.ifr_name, "tun_phh", IFNAMSIZ);
 
 		if( ioctl(hostFd, TUNSETIFF, (void *) &ifr) < 0 )
@@ -99,7 +99,7 @@ static int lkl_tun() {
 
 	struct lkl_ifreq ifr;
 	bzero(&ifr, sizeof ifr);
-	ifr.ifr_ifru.ifru_flags = LKL_IFF_TUN;
+	ifr.ifr_ifru.ifru_flags = LKL_IFF_TUN | LKL_IFF_NO_PI;
 	strncpy(ifr.ifr_ifrn.ifrn_name, "tun_phh", LKL_IFNAMSIZ);
 
 	if( (ret = lkl_sys_ioctl(lklTun, LKL_TUNSETIFF, (long) &ifr)) < 0 ){
@@ -309,7 +309,7 @@ static int setup_listener() {
 	lkl_sys_setsockopt(tcpFd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
 
 	lkl_sys_listen(tcpFd, 10);
-#ifdef lkl_sys_fcntl64
+#if 1
 	int flags = lkl_sys_fcntl64(tcpFd, LKL_F_GETFL, 0);
 	ret = lkl_sys_fcntl64(tcpFd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
 #else
@@ -520,9 +520,7 @@ void phh_lkl_work(int hostFd, int lklTun) {
 	struct epoll_event events[10];
 	int n = lkl_sys_epoll_wait(lklEPoll, (struct lkl_epoll_event*)events, sizeof(events)/sizeof(events[0]), -1);
 	for(int i=0; i<n; ++i) {
-		fprintf(stderr, "Running lkl...\n");
 		if(events[i].data.u64 == 0) {
-			fprintf(stderr, "Got from tun...\n");
 			//lklTun
 			char buffer[1600];
 			long len = lkl_sys_read(lklTun, buffer, sizeof(buffer));
@@ -531,7 +529,6 @@ void phh_lkl_work(int hostFd, int lklTun) {
 			continue;
 		}
 		if(events[i].data.u64 == 1) {
-			fprintf(stderr, "Got from tcp...\n");
 			int cfd = lkl_sys_accept(tcpFd, NULL, NULL);
 			assert(cfd >= 0);
 			struct sockaddr_in sin;
@@ -569,6 +566,10 @@ int main(int argc, char **argv)
 		hostFd = atoi(argv[1]);
 	else
 		hostFd = host_init();
+	fprintf(stderr, "host tun fd = %d, %s\n", hostFd, argv[1]);
+	char buf[512];
+	readlink("/proc/self/fd/27", buf, sizeof(buf));
+	fprintf(stderr, "host tun fd = %s\n", buf);
 
 	//Make printk silent
 	//lkl_host_ops.print = NULL;

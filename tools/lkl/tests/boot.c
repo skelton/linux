@@ -701,7 +701,11 @@ static int test_syscall_thread(char *str, int len)
 		return TEST_FAILURE;
 	}
 
+#if 0
+	ret = lkl_sys_fcntl64(pipe_fds[0], LKL_F_SETPIPE_SZ, 1);
+#else
 	ret = lkl_sys_fcntl(pipe_fds[0], LKL_F_SETPIPE_SZ, 1);
+#endif
 	if (ret < 0) {
 		snprintf(str, len, "fcntl setpipe_sz: %s", lkl_strerror(ret));
 		return TEST_FAILURE;
