@@ -73,15 +73,15 @@ static int lkl_ifindex(const char* ifname) {
 static int host_init() {
 	struct ifreq ifr;
 	int hostFd;
-        if( (hostFd = open("/dev/net/tun", O_RDWR|O_NONBLOCK)) < 0 )
-                exit(__LINE__);
+	if( (hostFd = open("/dev/net/tun", O_RDWR|O_NONBLOCK)) < 0 )
+		exit(__LINE__);
 
-        bzero(&ifr, sizeof ifr);
-        ifr.ifr_flags = IFF_TUN | IFF_NO_PI; 
-        strncpy(ifr.ifr_name, "tun_phh", IFNAMSIZ);
+	bzero(&ifr, sizeof ifr);
+	ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+	strncpy(ifr.ifr_name, "tun_phh", IFNAMSIZ);
 
-		if( ioctl(hostFd, TUNSETIFF, (void *) &ifr) < 0 )
-			exit(__LINE__);
+	if( ioctl(hostFd, TUNSETIFF, (void *) &ifr) < 0 )
+		exit(__LINE__);
 	return hostFd;
 }
 
