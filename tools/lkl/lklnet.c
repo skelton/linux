@@ -110,7 +110,7 @@ static int lkl_tun() {
 	return lklTun;
 }
 
-static void setup_tproxy() {
+static void setup_tproxy(int proto) {
 	int fd = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_RAW, LKL_IPPROTO_RAW);
 	int s, ret;
 
@@ -122,6 +122,7 @@ static void setup_tproxy() {
 		if(ret<0)
 			exit(__LINE__);
 	}
+	fprintf(stderr, "Got %d entries, total size %d\n", info.num_entries, info.size);
 
 	s = info.size + sizeof(struct lkl_ipt_get_entries);
 	struct lkl_ipt_get_entries *e = memalign(16, s);
@@ -146,7 +147,7 @@ static void setup_tproxy() {
 	{
 		strcpy(newEntry->ip.iniface,             "tun_phh");
 		strcpy((char*)newEntry->ip.iniface_mask, "xxxxxxx"); // strlen(tun_phh)
-		newEntry->ip.proto = LKL_IPPROTO_TCP;
+		newEntry->ip.proto = proto;
 		newEntry->target_offset = sizeof(struct lkl_ipt_entry);
 		newEntry->next_offset = newEntryLen;
 		struct lkl_xt_entry_target *newEntryTarget = (struct lkl_xt_entry_target*) &newEntry->elems[0];
@@ -176,21 +177,20 @@ static void setup_tproxy() {
 		long origOff = 0;
 
 		struct lkl_ipt_entry *origEntry = &e->entrytable[0];
-		int hookId = 0;
+		int hookId = -1;
 		for(unsigned i=0; i<info.num_entries; ++i) {
 			origEntry = ((void*)&e->entrytable[0] + origOff);
-			if(hookId < (NF_INET_NUMHOOKS-1) && origOff >= info.hook_entry[hookId+1])
+			if(hookId < (NF_INET_NUMHOOKS-1) && origOff >= info.hook_entry[hookId+1]) {
 				hookId++;
+				r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
+				r->underflow[hookId] = info.underflow[hookId] + offset;
+			}
 
 			if(origOff == info.hook_entry[NF_INET_PRE_ROUTING]) {
 				// Here we want to add a new rule
 				r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
 				memcpy( (void*)&r->entries[0] + origOff + offset, newEntry, newEntryLen);
 				offset = newEntryLen;
-				r->underflow[hookId] = info.underflow[hookId] + offset;
-			} else {
-				//Simply copy this section
-				r->hook_entry[hookId] = info.hook_entry[hookId] + offset;
 				r->underflow[hookId] = info.underflow[hookId] + offset;
 			}
 			memcpy( (void*)&r->entries[0] + origOff + offset, origEntry, origEntry->next_offset);
@@ -293,35 +293,36 @@ static void stuff() {
 	write_bool("/proc/sys/net/ipv4/conf/tun_phh/rp_filter", 0);
 }
 
-static int setup_listener() {
-	int tcpFd = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_STREAM, 0);
+static int setup_listener(int sockType) {
+	int fd = lkl_sys_socket(LKL_AF_INET, sockType, 0);
 	struct lkl_sockaddr_in sin;
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(2000);
-	long ret = lkl_sys_bind(tcpFd, (struct lkl_sockaddr*)&sin, sizeof(sin));
+	long ret = lkl_sys_bind(fd, (struct lkl_sockaddr*)&sin, sizeof(sin));
 	if (ret < 0) {
 		fprintf(stderr, "can't bind: %s\n", lkl_strerror(ret));
 		exit(1);
 	}
 
 	int value = 1;
-	lkl_sys_setsockopt(tcpFd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
+	lkl_sys_setsockopt(fd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
+	lkl_sys_setsockopt(fd, SOL_IP, LKL_IP_RECVORIGDSTADDR, (char*)&value, sizeof(value));
 
-	lkl_sys_listen(tcpFd, 10);
-#if 1
-	int flags = lkl_sys_fcntl64(tcpFd, LKL_F_GETFL, 0);
-	ret = lkl_sys_fcntl64(tcpFd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
+	lkl_sys_listen(fd, 10);
+#ifdef __lkl__NR_fcntl64
+	int flags = lkl_sys_fcntl64(fd, LKL_F_GETFL, 0);
+	ret = lkl_sys_fcntl64(fd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
 #else
-	int flags = lkl_sys_fcntl(tcpFd, LKL_F_GETFL, 0);
-	ret = lkl_sys_fcntl(tcpFd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
+	int flags = lkl_sys_fcntl(fd, LKL_F_GETFL, 0);
+	ret = lkl_sys_fcntl(fd, LKL_F_SETFL, flags | LKL_O_NONBLOCK);
 #endif
 	if(ret < 0) {
 		fprintf(stderr, "Can't nonblock tcpfd: %s\n", lkl_strerror(ret));
 		exit(1);
 	}
 
-	return tcpFd;
+	return fd;
 }
 
 #define N_CONNECTS 3
@@ -332,7 +333,6 @@ struct client {
 	int remoteConnected;
 	int valid;
 } clients[MAX_CLIENTS];
-int tcpFd;
 int hostEPoll;
 int lklEPoll;
 
@@ -457,15 +457,10 @@ void *phh_host_thread(struct hostWorker* hw) {
 	return NULL;
 }
 
-int client_connect(int lklFd, int connId) {
+int client_connect(int lklFd, struct sockaddr_in sin, int connId) {
 	int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	int flags = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, flags | LKL_O_NONBLOCK);
-	struct sockaddr_in sin;
-	bzero(&sin, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(80);
-	sin.sin_addr.s_addr = inet_addr("77.154.221.251");
 
 	int ret = connect(fd, (struct sockaddr*)&sin, sizeof(sin));
 	fprintf(stderr, "Connect returned %d\n", ret);
@@ -483,10 +478,21 @@ void handle_new_connection(int lklFd) {
 	}
 	assert(myClient != -1);
 
+	struct sockaddr_in sin;
+	int s = sizeof(sin);
+	int ret = lkl_sys_getsockname(lklFd, (struct lkl_sockaddr*)&sin, &s);
+	fprintf(stderr, "Got new connection %d %d.%d.%d.%d %d!\n",
+			ret,
+			sin.sin_addr.s_addr & 0xff,
+			sin.sin_addr.s_addr >> 8 & 0xff,
+			sin.sin_addr.s_addr >> 16 & 0xff,
+			sin.sin_addr.s_addr >> 24 & 0xff,
+			htons(sin.sin_port));
+
 	clients[myClient].valid = 1;
 	clients[myClient].client = lklFd;
-	clients[myClient].remote[0] = client_connect(lklFd, 0);
-	clients[myClient].remote[1] = client_connect(lklFd, 1);
+	clients[myClient].remote[0] = client_connect(lklFd, sin, 0);
+	clients[myClient].remote[1] = client_connect(lklFd, sin, 1);
 	for(int i=2; i<N_CONNECTS; ++i)
 		clients[myClient].remote[i] = -1;
 	clients[myClient].remoteConnected = -1;
@@ -503,7 +509,7 @@ void handle_new_connection(int lklFd) {
 	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, clients[myClient].remote[1], &e1);
 }
 
-void phh_lkl_init(int lklTun, int tcpFd) {
+void phh_lkl_init(int lklTun, int tcpFd, int udpFd) {
 	lklEPoll = lkl_sys_epoll_create(42);
 
 	struct epoll_event e;
@@ -514,9 +520,47 @@ void phh_lkl_init(int lklTun, int tcpFd) {
 	e.events = EPOLLIN;
 	e.data.u64 = 1;
 	lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, tcpFd, (struct lkl_epoll_event*)&e);
+
+	e.events = EPOLLIN;
+	e.data.u64 = 2;
+	lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, udpFd, (struct lkl_epoll_event*)&e);
 }
 
-void phh_lkl_work(int hostFd, int lklTun) {
+void handle_udp(int udpFd) {
+	char buf[64*1024], cbuf[2048];
+	struct iovec msg_iov = {
+		.iov_base = buf,
+		.iov_len = sizeof(buf),
+	};
+	struct msghdr msghdr = {
+		.msg_name = buf,
+		.msg_namelen = sizeof(buf),
+		.msg_control = cbuf,
+		.msg_controllen = sizeof(cbuf),
+		.msg_iov = &msg_iov,
+		.msg_iovlen = 1,
+	};
+
+	int l = lkl_sys_recvmsg(udpFd, &msghdr, 0);
+	fprintf(stderr, "Receive gave %d\n", l);
+
+	struct sockaddr_in dstin;
+	for(struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
+		if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR) {
+			memcpy (&dstin, CMSG_DATA(cmsg), sizeof (struct sockaddr_in));
+			dstin.sin_family = AF_INET;
+			fprintf(stderr, "Got new udp packet %d.%d.%d.%d %d!\n",
+					dstin.sin_addr.s_addr & 0xff,
+					dstin.sin_addr.s_addr >> 8 & 0xff,
+					dstin.sin_addr.s_addr >> 16 & 0xff,
+					dstin.sin_addr.s_addr >> 24 & 0xff,
+					htons(dstin.sin_port));
+		}
+	}
+
+}
+
+void phh_lkl_work(int hostFd, int lklTun, int tcpFd, int udpFd) {
 	struct epoll_event events[10];
 	int n = lkl_sys_epoll_wait(lklEPoll, (struct lkl_epoll_event*)events, sizeof(events)/sizeof(events[0]), -1);
 	for(int i=0; i<n; ++i) {
@@ -529,20 +573,18 @@ void phh_lkl_work(int hostFd, int lklTun) {
 			continue;
 		}
 		if(events[i].data.u64 == 1) {
+			//TCP
 			int cfd = lkl_sys_accept(tcpFd, NULL, NULL);
 			assert(cfd >= 0);
-			struct sockaddr_in sin;
-			int s = sizeof(sin);
-			int ret = lkl_sys_getsockname(cfd, (struct lkl_sockaddr*)&sin, &s);
-			fprintf(stderr, "Got new connection %d %d.%d.%d.%d %d!\n",
-					ret,
-					sin.sin_addr.s_addr & 0xff,
-					sin.sin_addr.s_addr >> 8 & 0xff,
-					sin.sin_addr.s_addr >> 16 & 0xff,
-					sin.sin_addr.s_addr >> 24 & 0xff,
-					htons(sin.sin_port));
 
 			handle_new_connection(cfd);
+			continue;
+		}
+
+		if(events[i].data.u64 == 2) {
+			fprintf(stderr, "Got an UDP packet!\n");
+			//UDP
+			handle_udp(udpFd);
 			continue;
 		}
 
@@ -567,9 +609,6 @@ int main(int argc, char **argv)
 	else
 		hostFd = host_init();
 	fprintf(stderr, "host tun fd = %d, %s\n", hostFd, argv[1]);
-	char buf[512];
-	readlink("/proc/self/fd/27", buf, sizeof(buf));
-	fprintf(stderr, "host tun fd = %s\n", buf);
 
 	//Make printk silent
 	//lkl_host_ops.print = NULL;
@@ -587,12 +626,14 @@ int main(int argc, char **argv)
 
 	stuff();
 	setup_route();
-	setup_tproxy();
+	setup_tproxy(LKL_IPPROTO_TCP);
+	setup_tproxy(LKL_IPPROTO_UDP);
 
-	tcpFd = setup_listener();
+	int tcpFd = setup_listener(LKL_SOCK_STREAM);
+	int udpFd = setup_listener(LKL_SOCK_DGRAM);
 	fprintf(stderr, "Listening...\n");
 	phh_host_init(hostFd);
-	phh_lkl_init(lklTun, tcpFd);
+	phh_lkl_init(lklTun, tcpFd, udpFd);
 
 	struct hostWorker hw;
 	hw.hostFd = hostFd;
@@ -604,7 +645,7 @@ int main(int argc, char **argv)
 	//HACK: lkl_create_syscall_thread must be called without having a blocking syscall
 	sleep(1);
 	while(1) {
-		phh_lkl_work(hostFd, lklTun);
+		phh_lkl_work(hostFd, lklTun, tcpFd, udpFd);
 	}
 
 	stop_lkl();
