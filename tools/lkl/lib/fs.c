@@ -22,6 +22,19 @@ long lkl_mount_sysfs(void)
 	return ret;
 }
 
+long lkl_mount_proc(void)
+{
+	long ret;
+
+	ret = lkl_sys_mkdir("/proc", 0700);
+	if (ret)
+		return ret;
+
+	ret = lkl_sys_mount("none", "proc", "proc", 0, NULL);
+
+	return ret;
+}
+
 static long get_virtio_blkdev(int disk_id)
 {
 	char sysfs_path[] = "/sys/block/vda/dev";

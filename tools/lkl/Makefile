@@ -58,7 +58,7 @@ else
   $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
-ALL_PROGRAMS := lklfuse$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF) fs2tar$(EXESUF)
+ALL_PROGRAMS := lklfuse$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF) fs2tar$(EXESUF) lklusb$(EXESUF)
 ALL_LIBRARIES := liblkl.a liblkl$(SOSUF) liblkl-hijack$(SOSUF)
 
 static: liblkl.a
@@ -86,6 +86,7 @@ ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
   cptofs$(EXESUF): LDLIBS += -largp
 endif
 
+lklusb$(EXESUF): lklusb-in.o liblkl.a
 
 TEST_TARGETS        := test valgrind gdb
 
@@ -103,13 +104,13 @@ endif
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(patsubst %/,%,$(dir $*)) obj=$(notdir $*)
 
 lib/lkl.o:
-	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) defconfig
+#	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) defconfig
 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(CURDIR)
 
 liblkl.a: lib/lkl-in.o lib/lkl.o
 	$(QUIET_AR)$(AR) -rc $@ $^
 
-liblkl$(SOSUF) liblkl-hijack$(SOSUF) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) tests/boot:
+liblkl$(SOSUF) liblkl-hijack$(SOSUF) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) lklusb$(EXESUF) tests/boot:
 	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 cpfromfs$(EXESUF): cptofs$(EXESUF)
@@ -128,7 +129,7 @@ clean:
 	$(call QUIET_CLEAN, headers)$(RM) -r include/lkl/
 	$(call QUIET_CLEAN, "host libraries")$(RM) liblkl.a liblkl$(SOSUF)
 	$(call QUIET_CLEAN, "hijack library")$(RM) liblkl-hijack$(SOSUF)
-	$(call QUIET_CLEAN, programs)$(RM) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF)
+	$(call QUIET_CLEAN, programs)$(RM) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF) lklusb$(EXESUF)
 	$(call QUIET_CLEAN, tests)$(RM) tests/boot
 
 $(TEST_TARGETS):
