@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <linux/in.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -48,13 +49,13 @@ void *hostReader(void* arg) {
 	}
 }
 
-int usbip_connect(int lklFd) {
+int usbip_connect(int lklFd, const char* host, const char *device) {
 	int ret, l;
 	int hostFd = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in sin = {
 		.sin_family = AF_INET,
 		.sin_addr = {
-			.s_addr = htonl(INADDR_LOOPBACK),
+			.s_addr = inet_addr(host),
 		},
 		.sin_port = htons(3240),
 	};
@@ -68,9 +69,8 @@ int usbip_connect(int lklFd) {
 	};
 	write(hostFd, &c, sizeof(c));
 
-	struct op_import_request r = {
-		.busid = "3-7",
-	};
+	struct op_import_request r;
+	strcpy(r.busid, device);
 	write(hostFd, &r, sizeof(r));
 
 
@@ -89,6 +89,7 @@ int usbip_connect(int lklFd) {
 }
 
 void *mounter(void *t) {
+	lkl_create_syscall_thread();
 	int dev = makedev(8, 1);
 	lkl_sys_mknod("/sda1", LKL_S_IFBLK|0600, dev);
 	while(1) {
@@ -105,18 +106,33 @@ void *mounter(void *t) {
 	lkl_sys_mkdir("/mnt", 0600);
 	lkl_sys_mount("/sda1", "/mnt", "vfat", 0, NULL);
 
-	int err = 0;
-	void *p = lkl_opendir("/mnt/", &err);
-	if(!p) exit(__LINE__);
+	int fd = lkl_sys_open("/mnt/T302_V15_151008_CN_WGTAGDA33D_HD_ARCHOS/system.img", O_RDONLY, 0600);
+	int ofd = open("test", O_WRONLY|O_CREAT, 0666);
 	while(1) {
-		struct lkl_linux_dirent64 *d = lkl_readdir(p);
-		fprintf(stderr, "File %s\n", d->d_name);
+		char buf[128*1024];
+		int l = lkl_sys_read(fd, buf, sizeof(buf));
+		write(ofd, buf, l);
+
+		if(l < sizeof(buf)) {
+			close(ofd);
+			exit(0);
+		}
 	}
-	lkl_closedir(p);
 }
 
-int main() {
+int main(int argc, char **argv) {
 	int ret;
+
+	if(argc<=1) {
+		fprintf(stderr, "Usage: %s <deviceid> [remote host]\n", argv[0]);
+		exit(1);
+	}
+
+	char* host = "127.0.0.1", *device = NULL;
+	if(argc>=2)
+		device = argv[1];
+	if(argc>=3)
+		host = argv[2];
 
 	ret = lkl_start_kernel(&lkl_host_ops, 16 * 1024 * 1024, "");
 	if (ret) {
@@ -136,14 +152,14 @@ int main() {
 	}
 
 	int lklFd = fds[1];
-	int hostFd = usbip_connect(fds[0]);
+	int hostFd = usbip_connect(fds[0], host, device);
 
 	pthread_t p;
 	hostReaderWork w = { hostFd, lklFd };
 	pthread_create(&p, NULL, hostReader, &w);
 
-	pthread_t p1;
-	pthread_create(&p, NULL, mounter, NULL);
+	//pthread_t p1;
+	//pthread_create(&p1, NULL, mounter, NULL);
 
 	while(1) {
 		char buf[8192];
