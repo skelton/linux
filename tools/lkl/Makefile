@@ -47,6 +47,7 @@ ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd))
   export CONFIG_AUTO_LKL_POSIX_HOST=y
 else ifneq (,$(filter $(OUTPUT_FORMAT),elf32-littlearm))
   CFLAGS   += -fPIC
+  LDLIBS   += -lrt -lpthread -static
   export CONFIG_AUTO_LKL_POSIX_HOST=y
 else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386))
   KOPT      = "KALLSYMS_EXTRA_PASS=1"
