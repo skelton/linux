@@ -332,9 +332,10 @@ struct client {
 	int remote[N_CONNECTS];
 	int remoteConnected;
 	int valid;
-} clients[MAX_CLIENTS];
+} tcpClients[MAX_CLIENTS];
 int hostEPoll;
 int lklEPoll;
+int hostUdpFd[64*1024];
 
 void phh_host_init(int hostTun) {
 	hostEPoll = epoll_create(42);
@@ -350,6 +351,66 @@ struct hostWorker {
 	int lklTun;
 };
 
+void udp_transmit_back(int fd) {
+	char buf[64*1024], cbuf[2048];
+	struct iovec msg_iov = {
+		.iov_base = buf,
+		.iov_len = sizeof(buf),
+	};
+	struct sockaddr_in srcin;
+	struct msghdr msghdr = {
+		.msg_name = &srcin,
+		.msg_namelen = sizeof(srcin),
+		.msg_control = cbuf,
+		.msg_controllen = sizeof(cbuf),
+		.msg_iov = &msg_iov,
+		.msg_iovlen = 1,
+	};
+
+	int len = recvmsg(fd, (void*)&msghdr, 0);
+
+	struct sockaddr_in dstin;
+	bzero(&dstin, sizeof(dstin));
+	for(struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
+		if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR) {
+			memcpy (&dstin, CMSG_DATA(cmsg), sizeof (struct sockaddr_in));
+			dstin.sin_family = AF_INET;
+		}
+	}
+
+	fprintf(stderr, "Got o2i udp packet from %d.%d.%d.%d %d to %d.%d.%d.%d %d!\n",
+			srcin.sin_addr.s_addr & 0xff,
+			srcin.sin_addr.s_addr >> 8 & 0xff,
+			srcin.sin_addr.s_addr >> 16 & 0xff,
+			srcin.sin_addr.s_addr >> 24 & 0xff,
+			htons(srcin.sin_port),
+			dstin.sin_addr.s_addr & 0xff,
+			dstin.sin_addr.s_addr >> 8 & 0xff,
+			dstin.sin_addr.s_addr >> 16 & 0xff,
+			dstin.sin_addr.s_addr >> 24 & 0xff,
+			htons(dstin.sin_port));
+
+	dstin.sin_addr.s_addr = inet_addr("192.168.42.2");
+	dstin.sin_port = htons(htons(dstin.sin_port)+1);
+	msghdr.msg_name = &dstin;
+	msghdr.msg_control = NULL;
+	msghdr.msg_controllen = 0;
+	msghdr.msg_flags = 0;
+	msghdr.msg_iov = &msg_iov;
+	msghdr.msg_iovlen = 1;
+	msg_iov.iov_base = buf;
+	msg_iov.iov_len = len;
+
+	int lklFd = lkl_sys_socket(LKL_AF_INET, SOCK_DGRAM, 0);
+	int value = 1;
+	lkl_sys_setsockopt(lklFd, SOL_IP, LKL_IP_TRANSPARENT, (char*)&value, sizeof(value));
+	int r = lkl_sys_bind(lklFd, (struct lkl_sockaddr*)&srcin, sizeof(srcin));
+	fprintf(stderr, "Transparent bind = %d\n", r);
+	r = lkl_sys_sendmsg(lklFd, (struct lkl_user_msghdr*)&msghdr, 0);
+	fprintf(stderr, "Transparent sendmsg = %d\n", r);
+	lkl_sys_close(lklFd);
+}
+
 void phh_host_work(struct hostWorker* hw) {
 	struct epoll_event events[10];
 
@@ -364,84 +425,91 @@ void phh_host_work(struct hostWorker* hw) {
 			continue;
 		}
 
-		//We are either in a connecting fd, or in a connected fd
-		long v = (long)events[i].data.ptr;
-		v -= (v- (long) clients)%sizeof(struct client);
-
-		int *fd = (int*) events[i].data.ptr;
-		struct client *c = (struct client*) v;
-		assert(c->valid);
-
-		if(c->remoteConnected != -1) {
-			fprintf(stderr, "Got an info from a connected fd %x!\n", events[i].events);
-
-			//This most probably means we got two ACK at the same time for the same connection
-			if(events[i].events & EPOLLOUT &&
-					*fd == -1)
-				continue;
-
-			//We are in a connected fd
-			assert(c->remoteConnected == *fd);
-			if(events[i].events & EPOLLRDHUP) {
-				while(1) {
-					char buffer[64*1024];
-					int l = read(*fd, buffer, sizeof(buffer));
-					lkl_sys_write(c->client, buffer, l);
-					if(!l)
-						break;
-				}
-				close(c->remoteConnected);
-				lkl_sys_close(c->client);
-				c->valid = 0;
-				continue;
-			}
-			assert(events[i].events & EPOLLIN);
-			//TODO: check c->client has enough buffer place
-			char buffer[64*1024];
-			int l = read(*fd, buffer, sizeof(buffer));
-			lkl_sys_write(c->client, buffer, l);
-			fprintf(stderr, "Read %d bytes\n", l);
-			continue;
-		}
-
-		int err;
-		socklen_t s = sizeof(err);
-		getsockopt(*fd, SOL_SOCKET, SO_ERROR, &err, &s);
-		fprintf(stderr, "Got an info from a connecting fd (status %d)!\n", err);
-
-		if(err == 0) {
-			//We are in a connecting=>ed fd
-			for(int j=0; j<N_CONNECTS; ++j) {
-				if(c->remote[j] != -1 && c->remote[j] != *fd) {
-					close(c->remote[j]);
-					c->remote[j] = -1;
-				}
-			}
-			c->remoteConnected = *fd;
-
-			struct epoll_event e;
-			bzero(&e, sizeof(struct epoll_event));
-			e.events = EPOLLIN | EPOLLRDHUP;
-			e.data.ptr = events[i].data.ptr;
-			epoll_ctl(hostEPoll, EPOLL_CTL_MOD, *fd, &e);
-
-			e.events = EPOLLIN | EPOLLRDHUP;
-			e.data.ptr = c;
-			lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, c->client, (struct lkl_epoll_event*)&e);
+		if(events[i].data.u64 & 0x8000000000000000LL) {
+			//UDP
+			int fd = -events[i].data.u64;
+			udp_transmit_back(fd);
 		} else {
-			//We are in a connecting=>dead fd
-			fprintf(stderr, "Got a dying socket!\n");
-			close(*fd);
-			*fd = -1;
-			int completlyDead = 1;
-			for(int j=0; j<N_CONNECTS; ++j) {
-				if(c->remote[j] != -1)
-					completlyDead = 0;
+			//TCP
+			//We are either in a connecting fd, or in a connected fd
+			long v = (long)events[i].data.ptr;
+			v -= (v- (long) tcpClients)%sizeof(struct client);
+
+			int *fd = (int*) events[i].data.ptr;
+			struct client *c = (struct client*) v;
+			assert(c->valid);
+
+			if(c->remoteConnected != -1) {
+				fprintf(stderr, "Got an info from a connected fd %x!\n", events[i].events);
+
+				//This most probably means we got two ACK at the same time for the same connection
+				if(events[i].events & EPOLLOUT &&
+						*fd == -1)
+					continue;
+
+				//We are in a connected fd
+				assert(c->remoteConnected == *fd);
+				if(events[i].events & EPOLLRDHUP) {
+					while(1) {
+						char buffer[64*1024];
+						int l = read(*fd, buffer, sizeof(buffer));
+						lkl_sys_write(c->client, buffer, l);
+						if(!l)
+							break;
+					}
+					close(c->remoteConnected);
+					lkl_sys_close(c->client);
+					c->valid = 0;
+					continue;
+				}
+				assert(events[i].events & EPOLLIN);
+				//TODO: check c->client has enough buffer place
+				char buffer[64*1024];
+				int l = read(*fd, buffer, sizeof(buffer));
+				lkl_sys_write(c->client, buffer, l);
+				fprintf(stderr, "Read %d bytes\n", l);
+				continue;
 			}
-			if(completlyDead) {
-				lkl_sys_close(c->client);
-				c->valid = 0;
-				c->client = -1;
+
+			int err;
+			socklen_t s = sizeof(err);
+			getsockopt(*fd, SOL_SOCKET, SO_ERROR, &err, &s);
+			fprintf(stderr, "Got an info from a connecting fd (status %d)!\n", err);
+
+			if(err == 0) {
+				//We are in a connecting=>ed fd
+				for(int j=0; j<N_CONNECTS; ++j) {
+					if(c->remote[j] != -1 && c->remote[j] != *fd) {
+						close(c->remote[j]);
+						c->remote[j] = -1;
+					}
+				}
+				c->remoteConnected = *fd;
+
+				struct epoll_event e;
+				bzero(&e, sizeof(struct epoll_event));
+				e.events = EPOLLIN | EPOLLRDHUP;
+				e.data.ptr = events[i].data.ptr;
+				epoll_ctl(hostEPoll, EPOLL_CTL_MOD, *fd, &e);
+
+				e.events = EPOLLIN | EPOLLRDHUP;
+				e.data.ptr = c;
+				lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, c->client, (struct lkl_epoll_event*)&e);
+			} else {
+				//We are in a connecting=>dead fd
+				fprintf(stderr, "Got a dying socket!\n");
+				close(*fd);
+				*fd = -1;
+				int completlyDead = 1;
+				for(int j=0; j<N_CONNECTS; ++j) {
+					if(c->remote[j] != -1)
+						completlyDead = 0;
+				}
+				if(completlyDead) {
+					lkl_sys_close(c->client);
+					c->valid = 0;
+					c->client = -1;
+				}
 			}
 		}
 	}
@@ -471,7 +539,7 @@ int client_connect(int lklFd, struct sockaddr_in sin, int connId) {
 void handle_new_connection(int lklFd) {
 	int myClient = -1;
 	for(int i=0; i<MAX_CLIENTS; ++i) {
-		if(!clients[i].valid) {
+		if(!tcpClients[i].valid) {
 			myClient = i;
 			break;
 		}
@@ -489,13 +557,13 @@ void handle_new_connection(int lklFd) {
 			sin.sin_addr.s_addr >> 24 & 0xff,
 			htons(sin.sin_port));
 
-	clients[myClient].valid = 1;
-	clients[myClient].client = lklFd;
-	clients[myClient].remote[0] = client_connect(lklFd, sin, 0);
-	clients[myClient].remote[1] = client_connect(lklFd, sin, 1);
+	tcpClients[myClient].valid = 1;
+	tcpClients[myClient].client = lklFd;
+	tcpClients[myClient].remote[0] = client_connect(lklFd, sin, 0);
+	tcpClients[myClient].remote[1] = client_connect(lklFd, sin, 1);
 	for(int i=2; i<N_CONNECTS; ++i)
-		clients[myClient].remote[i] = -1;
-	clients[myClient].remoteConnected = -1;
+		tcpClients[myClient].remote[i] = -1;
+	tcpClients[myClient].remoteConnected = -1;
 
 	struct epoll_event e0,e1;
 	bzero(&e0, sizeof(struct epoll_event));
@@ -503,10 +571,10 @@ void handle_new_connection(int lklFd) {
 	e0.events = EPOLLOUT;
 	e1.events = EPOLLOUT;
 
-	e0.data.ptr = &(clients[myClient].remote[0]);
-	e1.data.ptr = &(clients[myClient].remote[1]);
-	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, clients[myClient].remote[0], &e0);
-	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, clients[myClient].remote[1], &e1);
+	e0.data.ptr = &(tcpClients[myClient].remote[0]);
+	e1.data.ptr = &(tcpClients[myClient].remote[1]);
+	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, tcpClients[myClient].remote[0], &e0);
+	epoll_ctl(hostEPoll, EPOLL_CTL_ADD, tcpClients[myClient].remote[1], &e1);
 }
 
 void phh_lkl_init(int lklTun, int tcpFd, int udpFd) {
@@ -526,25 +594,53 @@ void phh_lkl_init(int lklTun, int tcpFd, int udpFd) {
 	lkl_sys_epoll_ctl(lklEPoll, EPOLL_CTL_ADD, udpFd, (struct lkl_epoll_event*)&e);
 }
 
+static int udp_socket(int port) {
+	if(hostUdpFd[port])
+		return hostUdpFd[port];
+
+	int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int newPort = htons(htons(port)-1); // Ofset by 1 to not be on the same port
+	struct sockaddr_in bindin = {
+		.sin_family = AF_INET,
+		.sin_port = newPort,
+		.sin_addr = {
+			.s_addr = INADDR_ANY,
+		},
+	};
+	int ret = bind(fd, (struct sockaddr*) &bindin, sizeof(bindin));
+	hostUdpFd[port] = fd;
+	int value = 1;
+	setsockopt(fd, SOL_IP, LKL_IP_RECVORIGDSTADDR, (char*)&value, sizeof(value));
+
+	struct epoll_event e;
+	bzero(&e, sizeof(struct epoll_event));
+	e.events = EPOLLIN;
+	e.data.u64 = -fd;
+	ret = epoll_ctl(hostEPoll, EPOLL_CTL_ADD, fd, &e);
+	fprintf(stderr, "Listening on new socket, epoll said %d\n", ret);
+	return fd;
+}
+
 void handle_udp(int udpFd) {
 	char buf[64*1024], cbuf[2048];
 	struct iovec msg_iov = {
 		.iov_base = buf,
 		.iov_len = sizeof(buf),
 	};
+	struct sockaddr_in srcin;
 	struct msghdr msghdr = {
-		.msg_name = buf,
-		.msg_namelen = sizeof(buf),
+		.msg_name = &srcin,
+		.msg_namelen = sizeof(srcin),
 		.msg_control = cbuf,
 		.msg_controllen = sizeof(cbuf),
 		.msg_iov = &msg_iov,
 		.msg_iovlen = 1,
 	};
 
-	int l = lkl_sys_recvmsg(udpFd, &msghdr, 0);
-	fprintf(stderr, "Receive gave %d\n", l);
+	int len = lkl_sys_recvmsg(udpFd, (void*)&msghdr, 0);
 
 	struct sockaddr_in dstin;
+	bzero(&dstin, sizeof(dstin));
 	for(struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
 		if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR) {
 			memcpy (&dstin, CMSG_DATA(cmsg), sizeof (struct sockaddr_in));
@@ -557,7 +653,20 @@ void handle_udp(int udpFd) {
 					htons(dstin.sin_port));
 		}
 	}
+	assert(dstin.sin_family != 0);
 
+	int fd = udp_socket(srcin.sin_port);
+	//dstin.sin_addr.s_addr = inet_addr("8.8.8.8");
+	msghdr.msg_name = &dstin;
+	msghdr.msg_control = NULL;
+	msghdr.msg_controllen = 0;
+	msghdr.msg_flags = 0;
+	msghdr.msg_iov = &msg_iov;
+	msghdr.msg_iovlen = 1;
+	msg_iov.iov_base = buf;
+	msg_iov.iov_len = len;
+
+	int ret = sendmsg(fd, &msghdr, 0);
 }
 
 void phh_lkl_work(int hostFd, int lklTun, int tcpFd, int udpFd) {
@@ -582,7 +691,6 @@ void phh_lkl_work(int hostFd, int lklTun, int tcpFd, int udpFd) {
 		}
 
 		if(events[i].data.u64 == 2) {
-			fprintf(stderr, "Got an UDP packet!\n");
 			//UDP
 			handle_udp(udpFd);
 			continue;
