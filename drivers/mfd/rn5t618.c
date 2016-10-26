@@ -142,6 +142,10 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
+	regmap_write(priv->regmap, 0x05, 0x07); //OUT32KEN
+	regmap_write(priv->regmap, 0x0D, 0x27); //PWR_FUNC
+	regmap_write(priv->regmap, 0x98, 0x47); //GPIO_LED_FUNC
+
 	return 0;
 }
 
