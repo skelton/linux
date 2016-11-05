@@ -2360,6 +2360,35 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 	.lanes = 4,
 };
 
+static const struct drm_display_mode cpt_claa101fp05_mode = {
+	.clock = 150000,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 50,
+	.hsync_end = 1920 + 50 + 20,
+	.htotal = 1920 + 50 + 20 + 50,
+	.vdisplay = 1200,
+	.vsync_start = 1200 + 5,
+	.vsync_end = 1200 + 5 + 2,
+	.vtotal = 1200 + 5 + 2 + 5,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi cpt_claa101fp05 = {
+	.desc = {
+		.modes = &cpt_claa101fp05_mode,
+		.num_modes = 1,
+		.bpc = 8,
+		.size = {
+			.width = 217,
+			.height = 135,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_VIDEO |
+		MIPI_DSI_MODE_VIDEO_SYNC_PULSE | MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
 static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "auo,b080uan01",
@@ -2376,6 +2405,9 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "panasonic,vvx10f004b00",
 		.data = &panasonic_vvx10f004b00
+	}, {
+		.compatible = "cpt,claa101fp05",
+		.data = &cpt_claa101fp05,
 	}, {
 		/* sentinel */
 	}
