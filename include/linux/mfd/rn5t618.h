@@ -145,6 +145,16 @@
 #define RN5T618_INTPOL			0x9c
 #define RN5T618_INTEN			0x9d
 #define RN5T618_INTMON			0x9e
+#define RN5T618_RTC_SEC			0xa0
+#define RN5T618_RTC_MIN			0xa1
+#define RN5T618_RTC_HOUR		0xa2
+#define RN5T618_RTC_WDAY		0xa3
+#define RN5T618_RTC_MDAY		0xa4
+#define RN5T618_RTC_MON			0xa5
+#define RN5T618_RTC_YEAR		0xa6
+#define RN5T618_RTC_CTRL1		0xae
+#define RN5T618_RTC_CTRL1_24HOURS		0x20
+#define RN5T618_RTC_CTRL2		0xaf
 #define RN5T618_PREVINDAC		0xb0
 #define RN5T618_BATDAC			0xb1
 #define RN5T618_CHGCTL1			0xb3

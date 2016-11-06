@@ -214,6 +214,13 @@ config BATTERY_DA9150
 	  This driver can also be built as a module. If so, the module will be
 	  called da9150-fg.
 
+config CHARGER_RN5T618
+	tristate "Ricoh RN5T618/RC5T619 charger support"
+	depends on MFD_RN5T618
+	help
+	  Say yes here to have support for Ricoh 5T618 and 5T619
+	  integrated charger.
+
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
 	depends on MFD_AXP20X && EXTCON_AXP288
