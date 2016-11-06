@@ -26,8 +26,15 @@ static const struct mfd_cell rn5t618_cells[] = {
 	{ .name = "rn5t618-wdt" },
 };
 
+static const struct mfd_cell rc5t619_cells[] = {
+	{ .name = "rn5t618-rtc" },
+	{ .name = "rn5t618-power" },
+};
+
 static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
 {
+	return true;
+	/*
 	switch (reg) {
 	case RN5T618_WATCHDOGCNT:
 	case RN5T618_DCIRQ:
@@ -40,7 +47,7 @@ static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	}
+	}*/
 }
 
 static const struct regmap_config rn5t618_regmap_config = {
@@ -124,6 +131,15 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c,
 	if (ret) {
 		dev_err(&i2c->dev, "failed to add sub-devices: %d\n", ret);
 		return ret;
+	}
+
+	if(priv->variant == RC5T619) {
+		ret = devm_mfd_add_devices(&i2c->dev, -1, rc5t619_cells,
+					   ARRAY_SIZE(rc5t619_cells), NULL, 0, NULL);
+		if (ret) {
+			dev_err(&i2c->dev, "failed to add variant sub-devices: %d\n", ret);
+			return ret;
+		}
 	}
 
 	rn5t618_pm_power_off = priv;
