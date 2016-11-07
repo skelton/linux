@@ -732,3 +732,8 @@
 	sdcard-supply = <&vccio_sd>;
 	wifi-supply = <&vcc_wl>;
 };
+
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_gpu>;
+};
