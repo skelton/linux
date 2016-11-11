@@ -655,6 +655,7 @@
 		pinctrl-0 = <&pwm0_pin>;
 		clocks = <&cru PCLK_PWM>;
 		clock-names = "pwm";
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -666,6 +667,7 @@
 		pinctrl-0 = <&pwm1_pin>;
 		clocks = <&cru PCLK_PWM>;
 		clock-names = "pwm";
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -677,6 +679,7 @@
 		pinctrl-0 = <&pwm2_pin>;
 		clocks = <&cru PCLK_PWM>;
 		clock-names = "pwm";
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -688,6 +691,7 @@
 		pinctrl-0 = <&pwm3_pin>;
 		clocks = <&cru PCLK_PWM>;
 		clock-names = "pwm";
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
