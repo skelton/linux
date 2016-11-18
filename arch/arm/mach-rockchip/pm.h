@@ -102,4 +102,6 @@ enum rk3288_pwr_mode_con1 {
 	PMU_CLR_VIO,
 };
 
+int rockchip_pmu_idle_request(struct device *dev, bool idle);
+
 #endif /* __MACH_ROCKCHIP_PM_H */
