@@ -793,6 +793,7 @@ static void vpu_service_power_on(struct vpu_subdev_data *data,
 				 struct vpu_service_info *pservice)
 {
 	int ret;
+	u32 raw = 0;
 	ktime_t now = ktime_get();
 
 	if (ktime_to_ns(ktime_sub(now, pservice->last)) > NSEC_PER_SEC ||
@@ -814,10 +815,19 @@ static void vpu_service_power_on(struct vpu_subdev_data *data,
 	dev_dbg(pservice->dev, "power on\n");
 
 #define BIT_VCODEC_CLK_SEL	(1<<10)
-	if (of_machine_is_compatible("rockchip,rk3126"))
-		writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK312X_GRF_SOC_CON1)
-			| BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16),
-			RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
+	if (of_machine_is_compatible("rockchip,rk3126")) {
+		if (pservice->grf) {
+			regmap_read(pservice->grf, RK312X_GRF_SOC_CON1, &raw);
+
+			regmap_write(pservice->grf, RK312X_GRF_SOC_CON1,
+					raw | BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16));
+		} else if (pservice->grf_base) {
+			u32 *grf_base = pservice->grf_base;
+			writel_relaxed(readl_relaxed(grf_base + RK312X_GRF_SOC_CON1)
+				| BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16),
+				grf_base + RK312X_GRF_SOC_CON1);
+		}
+	}
 
 #if VCODEC_CLOCK_ENABLE
 	if (pservice->aclk_vcodec)
