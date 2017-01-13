@@ -2147,6 +2147,7 @@ static irqreturn_t vepu_irq(int irq, void *dev_id);
 static irqreturn_t vepu_isr(int irq, void *dev_id);
 static void get_hw_info(struct vpu_subdev_data *data);
 
+#ifdef CONFIG_RK_IOVMM
 static struct device *rockchip_get_sysmmu_dev(const char *compt)
 {
 	struct device_node *dn = NULL;
@@ -2168,6 +2169,7 @@ static struct device *rockchip_get_sysmmu_dev(const char *compt)
 
 	return ret;
 }
+#endif
 
 #ifdef CONFIG_IOMMU_API
 static inline void platform_set_sysmmu(struct device *iommu,
@@ -2182,6 +2184,7 @@ static inline void platform_set_sysmmu(struct device *iommu,
 }
 #endif
 
+#ifdef CONFIG_RK_IOVMM
 int vcodec_sysmmu_fault_hdl(struct device *dev,
 			    enum rk_iommu_inttype itype,
 			    unsigned long pgtable_base,
@@ -2253,6 +2256,7 @@ int vcodec_sysmmu_fault_hdl(struct device *dev,
 
 	return 0;
 }
+#endif
 
 static int vcodec_subdev_probe(struct platform_device *pdev,
 			       struct vpu_service_info *pservice)
@@ -2268,7 +2272,9 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	struct platform_device *sub_dev = NULL;
 	struct device_node *sub_np = NULL;
 	const char *name  = np->name;
+#ifdef CONFIG_RK_IOVMM
 	char mmu_dev_dts_name[40];
+#endif
 
 	dev_info(dev, "probe device");
 
@@ -2299,6 +2305,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 		data->mmu_dev = &sub_dev->dev;
 	}
 
+#ifdef CONFIG_RK_IOVMM
 	/* Back to legacy iommu probe */
 	if (!data->mmu_dev) {
 		switch (data->mode) {
@@ -2325,6 +2332,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 		rockchip_iovmm_set_fault_handler
 			(dev, vcodec_sysmmu_fault_hdl);
 	}
+#endif
 
 	dev_info(dev, "vpu mmu dec %p\n", data->mmu_dev);
 
