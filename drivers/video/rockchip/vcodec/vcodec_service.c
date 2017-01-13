@@ -619,10 +619,6 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 static void _vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
-	enum pmu_idle_req type = IDLE_REQ_VIDEO;
-
-	if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC)
-		type = IDLE_REQ_HEVC;
 
 	dev_info(pservice->dev, "resetting...\n");
 	WARN_ON(pservice->reg_codec != NULL);
