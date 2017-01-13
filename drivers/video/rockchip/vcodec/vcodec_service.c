@@ -2488,7 +2488,7 @@ static void vcodec_read_property(struct device_node *np,
 	pservice->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR_OR_NULL(pservice->grf)) {
 		pservice->grf = NULL;
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) && defined(RK_GRF_VIRT)
 		pservice->grf_base = RK_GRF_VIRT;
 #else
 		vpu_err("can't find vpu grf property\n");
