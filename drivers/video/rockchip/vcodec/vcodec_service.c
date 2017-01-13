@@ -29,7 +29,9 @@
 #include <linux/reset.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#ifdef CONFIG_WAKELOCK
 #include <linux/wakelock.h>
+#endif
 #include <linux/cdev.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -40,12 +42,15 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 
+#if 0
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/pmu.h>
 #include <linux/rockchip/grf.h>
 
-#include <linux/dma-buf.h>
 #include <linux/rockchip-iovmm.h>
+#endif
+
+#include <linux/dma-buf.h>
 
 #include "vcodec_hw_info.h"
 #include "vcodec_hw_vpu.h"
@@ -356,7 +361,9 @@ struct vpu_subdev_data {
 };
 
 struct vpu_service_info {
+#ifdef CONFIG_WAKELOCK
 	struct wake_lock wake_lock;
+#endif
 	struct delayed_work power_off_work;
 	ktime_t last; /* record previous power-on time */
 	/* vpu service structure global lock */
@@ -758,7 +765,9 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 #endif
 
 	atomic_add(1, &pservice->power_off_cnt);
+#ifdef CONFIG_WAKELOCK
 	wake_unlock(&pservice->wake_lock);
+#endif
 	dev_dbg(pservice->dev, "power off done\n");
 }
 
@@ -842,7 +851,9 @@ static void vpu_service_power_on(struct vpu_subdev_data *data,
 
 	udelay(5);
 	atomic_add(1, &pservice->power_on_cnt);
+#ifdef CONFIG_WAKELOCK
 	wake_lock(&pservice->wake_lock);
+#endif
 }
 
 static inline bool reg_check_interlace(struct vpu_reg *reg)
@@ -2508,7 +2519,9 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 	pservice->dev_id = VCODEC_DEVICE_ID_VPU;
 	pservice->curr_mode = -1;
 
+#ifdef CONFIG_WAKELOCK
 	wake_lock_init(&pservice->wake_lock, WAKE_LOCK_SUSPEND, "vpu");
+#endif
 	INIT_LIST_HEAD(&pservice->waiting);
 	INIT_LIST_HEAD(&pservice->running);
 	mutex_init(&pservice->lock);
@@ -2616,7 +2629,9 @@ static int vcodec_probe(struct platform_device *pdev)
 err:
 	dev_info(dev, "init failed\n");
 	vpu_service_power_off(pservice);
+#ifdef CONFIG_WAKELOCK
 	wake_lock_destroy(&pservice->wake_lock);
+#endif
 
 	return ret;
 }
