@@ -2554,7 +2554,7 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 	atomic_set(&pservice->reset_request, 0);
 
 	INIT_DELAYED_WORK(&pservice->power_off_work, vpu_power_off_work);
-	pservice->last.tv64 = 0;
+	pservice->last = ktime_set(0, 0);
 
 	pservice->alloc_type = 0;
 }
