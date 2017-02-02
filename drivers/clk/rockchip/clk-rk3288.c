@@ -810,6 +810,7 @@ static const char *const rk3288_critical_clocks[] __initconst = {
 	"aclk_peri",
 	"hclk_peri",
 	"pclk_pd_pmu",
+	"sclk_hdmi_cec",
 };
 
 static void __iomem *rk3288_cru_base;
