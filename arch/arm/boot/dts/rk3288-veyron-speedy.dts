@@ -250,3 +250,7 @@
 	status = "okay";
 	mali-supply = <&vdd_gpu>;
 };
+
+&emmc {
+	status = "disabled";
+};
