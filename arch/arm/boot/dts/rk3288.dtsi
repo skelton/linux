@@ -1257,7 +1257,8 @@
 		hdmi {
 			hdmi_ddc: hdmi-ddc {
 				rockchip,pins = <7 19 RK_FUNC_2 &pcfg_pull_none>,
-						<7 20 RK_FUNC_2 &pcfg_pull_none>;
+						<7 20 RK_FUNC_2 &pcfg_pull_none>,
+						<7 16 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
 
