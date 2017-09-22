@@ -2,6 +2,7 @@
  * MFD core driver for Ricoh RN5T618 PMIC
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2016 Toradex AG
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,11 +16,17 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/rn5t618.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 static const struct mfd_cell rn5t618_cells[] = {
 	{ .name = "rn5t618-regulator" },
 	{ .name = "rn5t618-wdt" },
+};
+
+static const struct mfd_cell rc5t619_cells[] = {
+	{ .name = "rn5t618-rtc" },
+	{ .name = "rn5t618-power" },
 };
 
 static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
@@ -33,6 +40,8 @@ static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
 	case RN5T618_IR_GPF:
 	case RN5T618_MON_IOIN:
 	case RN5T618_INTMON:
+	case RN5T618_RTC_SEC ... RN5T618_RTC_CTRL2:
+	case RN5T618_CHGSTATE:
 		return true;
 	default:
 		return false;
@@ -59,17 +68,33 @@ static void rn5t618_power_off(void)
 			   RN5T618_SLPCNT_SWPWROFF, RN5T618_SLPCNT_SWPWROFF);
 }
 
+static const struct of_device_id rn5t618_of_match[] = {
+	{ .compatible = "ricoh,rn5t567", .data = (void *)RN5T567 },
+	{ .compatible = "ricoh,rn5t618", .data = (void *)RN5T618 },
+	{ .compatible = "ricoh,rc5t619", .data = (void *)RC5T619 },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rn5t618_of_match);
+
 static int rn5t618_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
+	const struct of_device_id *of_id;
 	struct rn5t618 *priv;
 	int ret;
+
+	of_id = of_match_device(rn5t618_of_match, &i2c->dev);
+	if (!of_id) {
+		dev_err(&i2c->dev, "Failed to find matching DT ID\n");
+		return -EINVAL;
+	}
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, priv);
+	priv->variant = (long)of_id->data;
 
 	priv->regmap = devm_regmap_init_i2c(i2c, &rn5t618_regmap_config);
 	if (IS_ERR(priv->regmap)) {
@@ -83,6 +108,15 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c,
 	if (ret) {
 		dev_err(&i2c->dev, "failed to add sub-devices: %d\n", ret);
 		return ret;
+	}
+
+	if(priv->variant == RC5T619) {
+		ret = mfd_add_devices(&i2c->dev, -1, rc5t619_cells,
+				ARRAY_SIZE(rc5t619_cells), NULL, 0, NULL);
+		if (ret) {
+			dev_err(&i2c->dev, "failed to add variant sub-devices: %d\n", ret);
+			return ret;
+		}
 	}
 
 	if (!pm_power_off) {
@@ -106,12 +140,6 @@ static int rn5t618_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct of_device_id rn5t618_of_match[] = {
-	{ .compatible = "ricoh,rn5t618" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, rn5t618_of_match);
-
 static const struct i2c_device_id rn5t618_i2c_id[] = {
 	{ }
 };
@@ -130,5 +158,5 @@ static struct i2c_driver rn5t618_i2c_driver = {
 module_i2c_driver(rn5t618_i2c_driver);
 
 MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
-MODULE_DESCRIPTION("Ricoh RN5T618 MFD driver");
+MODULE_DESCRIPTION("Ricoh RN5T567/618 MFD driver");
 MODULE_LICENSE("GPL v2");
