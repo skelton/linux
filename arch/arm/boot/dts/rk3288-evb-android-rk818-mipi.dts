@@ -334,11 +334,10 @@
 				regulator-always-on;
 			};
 
-			LDO8 {
-				regulator-name = "ricoh619_ldo8";
-				regulator-min-microvolt = <3300000>;
+			vccio_sd: LDO8 {
+				regulator-name = "vccio_sd";
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 			};
 
 			LDO9 {
@@ -638,10 +637,13 @@
 };
 
 &io_domains {
-	sdcard-supply = <&vcc_sd>;
+	sdcard-supply = <&vccio_sd>;
 	wifi-supply = <&vcc_wl>;
 };
 
 &sdmmc {
 	/delete-property/ vqmmc-supply;
+	/delete-property/ vmmc-supply;
+	vmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
 };
