@@ -698,6 +698,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 }
 
 #endif
+struct input_dev *gpio_keys_inputdev;
 
 static int gpio_keys_probe(struct platform_device *pdev)
 {
@@ -728,6 +729,8 @@ static int gpio_keys_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to allocate input device\n");
 		return -ENOMEM;
 	}
+
+	gpio_keys_inputdev = input;
 
 	ddata->pdata = pdata;
 	ddata->input = input;
@@ -791,6 +794,7 @@ static int gpio_keys_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &gpio_keys_attr_group);
 
 	device_init_wakeup(&pdev->dev, 0);
+	gpio_keys_inputdev = NULL;
 
 	return 0;
 }
