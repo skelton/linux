@@ -61,7 +61,7 @@ static int /*__init*/ esp_init(void)
 
 #ifdef DRIVER_VER
         ver = DRIVER_VER;
-        esp_dbg(ESP_SHOW, "\n*****%s %s EAGLE DRIVER VER:%llx*****\n\n", __DATE__, __TIME__, ver);
+        esp_dbg(ESP_SHOW, "\n***** EAGLE DRIVER VER:%llx*****\n\n", ver);
 #endif
         edf_ret = esp_debugfs_init();    /* if failed, continue */
 	if (edf_ret == 0) {
@@ -105,6 +105,7 @@ void rockchip_wifi_exit_module_esp8089(void)
 }
 
 EXPORT_SYMBOL(rockchip_wifi_init_module_esp8089);
+late_initcall(rockchip_wifi_init_module_esp8089);
 EXPORT_SYMBOL(rockchip_wifi_exit_module_esp8089);
 
 //module_init(esp_init);
