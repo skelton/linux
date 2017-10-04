@@ -370,8 +370,14 @@ static int gpd_panel_prepare(struct drm_panel *panel)
 	struct gpd_panel *gpd = to_gpd_panel(panel);
 	int ret;
 	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-	msleep(400);
 
+	ret = regulator_enable(gpd->supply);
+	if (ret < 0)
+		return ret;
+
+	msleep(50);
+
+	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
 	if (gpd->prepared)
 		return 0;
 	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
@@ -382,13 +388,8 @@ static int gpd_panel_prepare(struct drm_panel *panel)
 	if (gpd->reset_gpio) {
 	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
 		gpiod_set_value(gpd->reset_gpio, 0);
-		msleep(5);
+		msleep(20);
 	}
-	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-
-	ret = regulator_enable(gpd->supply);
-	if (ret < 0)
-		return ret;
 	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
 
 	msleep(20);
@@ -397,7 +398,7 @@ static int gpd_panel_prepare(struct drm_panel *panel)
 	if (gpd->reset_gpio) {
 	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
 		gpiod_set_value(gpd->reset_gpio, 1);
-		msleep(10);
+		msleep(20);
 	}
 
 	printk(KERN_WARNING "%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
