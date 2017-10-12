@@ -109,3 +109,4 @@ obj-$(CONFIG_REGULATOR_XZ3216) += xz3216.o
 
 
 ccflags-$(CONFIG_REGULATOR_DEBUG) += -DDEBUG
+obj-y += ricoh619-regulator.o

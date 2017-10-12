@@ -24,6 +24,7 @@
  */
 /*#define DEBUG			1*/
 /*#define VERBOSE_DEBUG		1*/
+#define CONFIG_BATTERY_RICOH619
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>

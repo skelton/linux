@@ -162,3 +162,4 @@ obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
 obj-$(CONFIG_RTC_DRV_XGENE)	+= rtc-xgene.o
 obj-$(CONFIG_RTC_DRV_ZYNQMP)	+= rtc-zynqmp.o
 obj-$(CONFIG_MFD_RN5T618)	+= rtc-rc5t619.o
+obj-y	+= rtc-ricoh619.o

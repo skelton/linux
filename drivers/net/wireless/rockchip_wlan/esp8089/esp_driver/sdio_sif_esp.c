@@ -537,6 +537,9 @@ static int esp_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 	} else {
 		sctrl = sif_sctrl;
 		sif_sctrl = NULL;
+		if(sctrl == NULL) {
+			return -ENOMEM;
+		}
 		epub = sctrl->epub;
 		SET_IEEE80211_DEV(epub->hw, &func->dev);
 		epub->dev = &func->dev;
@@ -867,7 +870,6 @@ int esp_sdio_init(void)
 
 
         esp_register_early_suspend();
-	esp_wake_unlock();
         return err;
 
 _fail:
@@ -881,6 +883,7 @@ void esp_sdio_exit(void)
 {
 	esp_dbg(ESP_SHOW, "%s \n", __func__);
 	
+        esp_wake_unlock();
         esp_unregister_early_suspend();
 
 	sdio_unregister_driver(&esp_sdio_driver);

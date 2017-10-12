@@ -50,7 +50,7 @@
 #define DISABLE_CHARGER_TIMER
 /* #define ENABLE_FG_KEEP_ON_MODE */
 /* #define ENABLE_OCV_TABLE_CALIB */
-//#define SUPPORT_USB_CONNECT_TO_ADP
+#define SUPPORT_USB_CONNECT_TO_ADP
 
 
 /* FG setting */
@@ -167,7 +167,8 @@ struct ricoh619_soca_info {
 
 struct ricoh619_battery_info {
 	struct device      *dev;
-	struct power_supply	battery;
+	struct power_supply	*battery_psy;
+	struct power_supply_desc battery;
 	struct delayed_work	monitor_work;
 	struct delayed_work	displayed_work;
 	struct delayed_work	charge_stable_work;
@@ -242,8 +243,10 @@ struct ricoh619_battery_info {
 	int 		num;
 	};
 
-struct power_supply powerac;
-struct power_supply powerusb;
+static struct power_supply *powerac_psy;
+struct power_supply_desc powerac;
+static struct power_supply *powerusb_psy;
+struct power_supply_desc powerusb;
 
 int g_full_flag;
 int charger_irq;
@@ -271,7 +274,7 @@ static void ricoh619_battery_work(struct work_struct *work)
 		struct ricoh619_battery_info, monitor_work.work);
 
 	RICOH_FG_DBG("PMU: %s\n", __func__);
-	power_supply_changed(&info->battery);
+	power_supply_changed(info->battery_psy);
 	queue_delayed_work(info->monitor_wqueue, &info->monitor_work,
 			   info->monitor_time);
 }
@@ -1591,7 +1594,7 @@ end_flow:
 
 	if((true == is_jeita_updated)
 	|| (info->soca->last_displayed_soc/100 != (info->soca->displayed_soc+50)/100))
-		power_supply_changed(&info->battery);
+		power_supply_changed(info->battery_psy);
 
 	info->soca->last_displayed_soc = info->soca->displayed_soc+50;
 
@@ -1615,7 +1618,7 @@ end_flow:
 		if(info->soca->displayed_soc < 9850 || info->soca->Ibat_ave < -20)
 		{
 			info->chg_complete_tm_ov_flag = 0;
-			power_supply_changed(&info->battery);
+			power_supply_changed(info->battery_psy);
 		}
 	}
 	return;
@@ -2030,7 +2033,7 @@ static void ricoh619_charging_complete_work(struct work_struct *work)
 			info->chg_complete_tm_ov_flag = 1;
 			info->chg_complete_rd_cnt = 0;
 			info->soca->status = RICOH619_SOCA_FULL;
-			power_supply_changed(&info->battery);
+			power_supply_changed(info->battery_psy);
 		}
 		else
 		{
@@ -2063,7 +2066,7 @@ static void ricoh619_changed_work(struct work_struct *work)
 		struct ricoh619_battery_info, changed_work.work);
 
 	RICOH_FG_DBG("PMU: %s\n", __func__);
-	power_supply_changed(&info->battery);
+	power_supply_changed(info->battery_psy);
 
 	return;
 }
@@ -2286,7 +2289,7 @@ static void ricoh619_jeita_work(struct work_struct *work)
 	mutex_unlock(&info->lock);
 
 	if(true == is_jeita_updated)
-		power_supply_changed(&info->battery);
+		power_supply_changed(info->battery_psy);
 
 	return;
 }
@@ -3192,9 +3195,9 @@ static void charger_irq_work(struct work_struct *work)
 	uint8_t reg_val;
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
 
-	power_supply_changed(&info->battery);
-	power_supply_changed(&powerac);
-	power_supply_changed(&powerusb);
+	power_supply_changed(info->battery_psy);
+	power_supply_changed(powerac_psy);
+	power_supply_changed(powerusb_psy);
 
 //	mutex_lock(&info->lock);
 	
@@ -3218,9 +3221,9 @@ static void charger_irq_work(struct work_struct *work)
 				ricoh619_write(info->dev->parent, CHGISET_REG, 0xc4); 
 				}
 				
-				power_supply_changed(&info->battery);
-				power_supply_changed(&powerac);
-				power_supply_changed(&powerusb);
+				power_supply_changed(info->battery_psy);
+				power_supply_changed(powerac_psy);
+				power_supply_changed(powerusb_psy);
 				msleep(100);
 				}
 			#else //support adp and usb chag
@@ -3288,7 +3291,7 @@ static void low_battery_irq_work(struct work_struct *work)
 
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
 
-	power_supply_changed(&info->battery);
+	power_supply_changed(info->battery_psy);
 
 	/* Enable VADP threshold Low interrupt */
 	ricoh619_write(info->dev->parent, RICOH619_INT_EN_ADC1, 0x10);
@@ -3313,8 +3316,8 @@ static void ricoh619_usb_charge_det(void)
 	ricoh619_write(ricoh619->dev,REGISET2_REG,0x04);  //set usb limit current  500ma
 	ricoh619_write(ricoh619->dev,CHGISET_REG,0xC4);  //set charge current	500ma
 	}
-	power_supply_changed(&powerac);
-	power_supply_changed(&powerusb);
+	power_supply_changed(powerac_psy);
+	power_supply_changed(powerusb_psy);
 }
 
 static void usb_det_irq_work(struct work_struct *work)
@@ -3326,9 +3329,9 @@ static void usb_det_irq_work(struct work_struct *work)
 
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
 
-	power_supply_changed(&info->battery);
-	power_supply_changed(&powerac);
-	power_supply_changed(&powerusb);
+	power_supply_changed(info->battery_psy);
+	power_supply_changed(powerac_psy);
+	power_supply_changed(powerusb_psy);
 
 	mutex_lock(&info->lock);
 
@@ -3477,9 +3480,9 @@ static void vadp_drop_irq_work(struct work_struct *work)
 //			printk("PMU charger enable:%s data[4]= %08x data[5]=%08x\n", __func__,data[4],data[5]);
 		}
 	}
-	power_supply_changed(&info->battery);
-	power_supply_changed(&powerac);
-	power_supply_changed(&powerusb);
+	power_supply_changed(info->battery_psy);
+	power_supply_changed(powerac_psy);
+	power_supply_changed(powerusb_psy);
 	mutex_unlock(&info->lock);
 	queue_delayed_work(info->monitor_wqueue, &info->vadp_drop_work,3*HZ);
 
@@ -4011,7 +4014,7 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
 {
-	struct ricoh619_battery_info *info = dev_get_drvdata(psy->dev->parent);
+	struct ricoh619_battery_info *info = dev_get_drvdata(psy->dev.parent);
 	int data = 0;
 	int ret = 0;
 	uint8_t status;
@@ -4028,22 +4031,22 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 			return ret;
 		}
 		#ifdef SUPPORT_USB_CONNECT_TO_ADP
-			if (psy->type == POWER_SUPPLY_TYPE_MAINS){
+			if (psy->desc->type == POWER_SUPPLY_TYPE_MAINS){
 				if((2 == dwc_otg_check_dpdm(0)) && (status & 0x40))
 					val->intval =1;
 				else 
 					val->intval =0;
 			}
-			else if (psy->type == POWER_SUPPLY_TYPE_USB){
+			else if (psy->desc->type == POWER_SUPPLY_TYPE_USB){
 				if((1 == dwc_otg_check_dpdm(0)) && (status & 0x40))
 					val->intval =1;
 				else 
 					val->intval =0;
 			}
 		#else
-			if (psy->type == POWER_SUPPLY_TYPE_MAINS)
+			if (psy->desc->type == POWER_SUPPLY_TYPE_MAINS)
 				val->intval = (status & 0x40 ? 1 : 0);
-			else if (psy->type == POWER_SUPPLY_TYPE_USB)
+			else if (psy->desc->type == POWER_SUPPLY_TYPE_USB)
 				val->intval = (status & 0x80 ? 1 : 0);
 		#endif
 		break;
@@ -4202,7 +4205,7 @@ static enum power_supply_property ricoh619_power_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-struct power_supply	powerac = {
+struct power_supply_desc	powerac = {
 		.name = "acpwr",
 		.type = POWER_SUPPLY_TYPE_MAINS,
 		.properties = ricoh619_power_props,
@@ -4210,7 +4213,7 @@ struct power_supply	powerac = {
 		.get_property = ricoh619_batt_get_prop,
 };
 
-struct power_supply	powerusb = {
+struct power_supply_desc	powerusb = {
 		.name = "usbpwr",
 		.type = POWER_SUPPLY_TYPE_USB,
 		.properties = ricoh619_power_props,
@@ -4408,13 +4411,10 @@ static int ricoh619_battery_probe(struct platform_device *pdev)
 
 #endif
 */
-	ret = power_supply_register(&pdev->dev, &info->battery);
+	info->battery_psy = power_supply_register(&pdev->dev, &info->battery, NULL);
 
-	if (ret<0)
-		info->battery.dev->parent = &pdev->dev;
-
-	ret = power_supply_register(&pdev->dev, &powerac);
-	ret = power_supply_register(&pdev->dev, &powerusb);
+	powerac_psy = power_supply_register(&pdev->dev, &powerac, NULL);
+	powerusb_psy = power_supply_register(&pdev->dev, &powerusb, NULL);
 
 	info->monitor_wqueue
 		= create_singlethread_workqueue("ricoh619_battery_monitor");
@@ -4606,7 +4606,7 @@ static int ricoh619_battery_remove(struct platform_device *pdev)
 	destroy_workqueue(info->factory_mode_wqueue);
 #endif
 
-	power_supply_unregister(&info->battery);
+	power_supply_unregister(info->battery_psy);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
@@ -4914,7 +4914,7 @@ static int ricoh619_battery_resume(struct device *dev)
 		info->chg_complete_sleep_flag = 0;
 	}
 
-	power_supply_changed(&info->battery);
+	power_supply_changed(info->battery_psy);
 	queue_delayed_work(info->monitor_wqueue, &info->displayed_work, HZ);
 
 	if (RICOH619_SOCA_UNSTABLE == info->soca->status) {
