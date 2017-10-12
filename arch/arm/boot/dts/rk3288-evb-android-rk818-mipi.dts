@@ -426,6 +426,7 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-initial-mode = <0x1>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-mode = <0x1>;
 				regulator-state-enabled;
@@ -438,6 +439,7 @@
 			regulator-max-microvolt = <2000000>;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
 				regulator-state-enabled;
@@ -450,6 +452,7 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
 				regulator-state-enabled;
@@ -462,6 +465,7 @@
 			regulator-max-microvolt = <1500000>;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
 				regulator-state-enabled;
@@ -474,6 +478,7 @@
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
 				regulator-state-enabled;
@@ -485,6 +490,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <3300000>;
@@ -495,6 +501,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <3300000>;
@@ -505,6 +512,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <3300000>;
@@ -536,6 +544,7 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <1800000>;
@@ -546,6 +555,7 @@
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <1000000>;
@@ -566,6 +576,7 @@
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <1000000>;
@@ -576,6 +587,7 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-state = <3>;
+			regulator-always-on;
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <1800000>;
@@ -626,6 +638,12 @@
 		#sound-dai-cells = <0>;
 		compatible = "realtek,rt5631";
 		reg = <0x1a>;
+
+		clocks = <&cru SCLK_I2S0_OUT>;
+		clock-names = "mclk";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_mclk>;
 	};
 
 	/delete-node/ rt5640@1c;
@@ -636,16 +654,26 @@
 	/delete-node/ sound;
 	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "gpd-sound-card";
+		simple-audio-card,name = "rockchip,rt5640-codec";
+		//simple-audio-card,name = "gpd-sound-card";
 		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,mclk-fs = <512>;
 
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC1", "Microphone Jack",
+			"MIC2", "Microphone Jack",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+		simple-audio-card,hp-det-gpio = <&gpio7 7 GPIO_ACTIVE_LOW>;
+
+/*
 		simple-audio-card,dai-link@0 {
 			format = "i2s";
 			cpu {
 				sound-dai = <&i2s>;
-				clocks = <&cru SCLK_I2S0_OUT>;
-				clock-names = "mclk";
 			};
 			codec {
 				sound-dai = <&rt5631>;
@@ -661,6 +689,12 @@
 			codec {
 				sound-dai = <&hdmi>;
 			};
+		};*/
+		simple-audio-card,cpu {
+			sound-dai = <&i2s>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rt5631>;
 		};
 	};
 };
