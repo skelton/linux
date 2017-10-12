@@ -31,6 +31,7 @@
 
 struct rt5631_priv {
 	struct regmap *regmap;
+	struct clk *mclk;
 	int codec_version;
 	int master;
 	int sysclk;
@@ -1576,6 +1577,12 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 {
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
+
+	/* Check if MCLK provided */
+	rt5631->mclk = devm_clk_get(codec->dev, "mclk");
+	if (PTR_ERR(rt5631->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	clk_prepare_enable(rt5631->mclk);
 
 	val = rt5631_read_index(codec, RT5631_ADDA_MIXER_INTL_REG3);
 	if (val & 0x0002)
