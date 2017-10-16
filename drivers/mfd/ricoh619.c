@@ -892,7 +892,7 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 			     ricoh619s, ARRAY_SIZE(ricoh619s),
 			      NULL, 0,NULL);
 	g_ricoh619 = ricoh619;
-	if (pdata->pm_off && !pm_power_off) {
+	if (pdata->pm_off /*&& !pm_power_off*/) {
 		pm_power_off = ricoh619_power_off;
 	}
 	ricoh619_debuginit(ricoh619);
