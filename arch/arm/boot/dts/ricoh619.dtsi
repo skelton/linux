@@ -77,8 +77,6 @@
 		ricoh619_dcdc3_reg: regulator@2 {
 			reg = <2>;
 			regulator-compatible = "ricoh619_dc3";
-			regulator-always-on;
-			regulator-boot-on;
 		};
 		ricoh619_dcdc4_reg: regulator@3 {
 			reg = <3>;
@@ -119,8 +117,6 @@
 		ricoh619_ldo5_reg: regulator@9  {
 			reg = <9>;
 			regulator-compatible = "ricoh619_ldo5";
-			regulator-always-on;
-			regulator-boot-on;
 		};
 		ricoh619_ldo6_reg: regulator@10  {
 			reg = <10>;

@@ -450,14 +450,6 @@
 			regulator-name = "vcc_lcd";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			regulator-initial-mode = <0x2>;
-			regulator-initial-state = <3>;
-			regulator-always-on;
-			regulator-state-mem {
-				regulator-state-mode = <0x2>;
-				regulator-state-enabled;
-				regulator-state-uv = <3300000>;
-			};	
 		};
 		ricoh619_dcdc4_reg: regulator@3 {
 			regulator-name = "vdd_logic";
@@ -532,11 +524,9 @@
 			regulator-name = "vcc_wl";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			regulator-initial-state = <3>;
 			regulator-always-on;
 			regulator-state-mem {
-				regulator-state-enabled;
-				regulator-state-uv = <3300000>;
+				regulator-state-disabled;
 			};
 		};
 		ricoh619_ldo6_reg: regulator@10  {
