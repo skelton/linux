@@ -38,9 +38,9 @@
 		ricoh,multiple = <100>;
 		ricoh,monitor-time = <1>;
 
-		ricoh,ch-vfchg = <0xff>;/* VFCHG	= 0 - 4 (4.05v, 4.10v, 4.15v, 4.20v, 4.35v) */
-		ricoh,ch-vrchg = <0xff>;/* VRCHG	= 0 - 4 (3.85v, 3.90v, 3.95v, 4.00v, 4.10v) */
-		ricoh,ch-vbatovset = <0xff>;/* VBATOVSET	= 0 or 1 (0 : 4.38v(up)/3.95v(down) 1: 4.53v(up)/4.10v(down)) */
+		ricoh,ch-vfchg = <0x4>;/* VFCHG	= 0 - 4 (4.05v, 4.10v, 4.15v, 4.20v, 4.35v) */
+		ricoh,ch-vrchg = <0x4>;/* VRCHG	= 0 - 4 (3.85v, 3.90v, 3.95v, 4.00v, 4.10v) */
+		ricoh,ch-vbatovset = <0x1>;/* VBATOVSET	= 0 or 1 (0 : 4.38v(up)/3.95v(down) 1: 4.53v(up)/4.10v(down)) */
 		ricoh,ch-ichg = <0xff>;/* ICHG		= 0 - 0x1D (100mA - 3000mA) */
 		ricoh,ch-ilim-adp = <0xff>;/* ILIM_ADP	= 0 - 0x1D (100mA - 3000mA) */
 		ricoh,ch-ilim-usb = <0xff>;/* ILIM_USB	= 0 - 0x1D (100mA - 3000mA) */
