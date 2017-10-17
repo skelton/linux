@@ -497,7 +497,8 @@ static int esp_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
                         "sdio_func_num: 0x%X, vendor id: 0x%X, dev id: 0x%X, block size: 0x%X/0x%X\n",
                         func->num, func->vendor, func->device, func->max_blksize,
                         func->cur_blksize);
-	if(sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT){
+	if(!sif_sctrl) {
+		sif_sdio_state = ESP_SDIO_STATE_FIRST_INIT;
 		sctrl = kzalloc(sizeof(struct esp_sdio_ctrl), GFP_KERNEL);
 
 		if (sctrl == NULL) {
@@ -537,9 +538,6 @@ static int esp_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 	} else {
 		sctrl = sif_sctrl;
 		sif_sctrl = NULL;
-		if(sctrl == NULL) {
-			return -ENOMEM;
-		}
 		epub = sctrl->epub;
 		SET_IEEE80211_DEV(epub->hw, &func->dev);
 		epub->dev = &func->dev;
