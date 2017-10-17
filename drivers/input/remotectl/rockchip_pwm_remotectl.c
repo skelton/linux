@@ -391,10 +391,12 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	struct clk *clk;
 	struct cpumask cpumask;
-	struct irq_desc *desc;
 	int num;
 	int irq;
+#ifdef CONFIG_ROCKCHIP_SIP
 	int hwirq;
+	struct irq_desc *desc;
+#endif
 	int ret;
 	int i, j;
 	int cpu_id;
@@ -516,6 +518,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	DBG("support_psci=0x%x\n", ddata->support_psci);
 	if (ddata->support_psci == 0)
 		goto end;
+#ifdef CONFIG_ROCKCHIP_SIP
 	desc = irq_to_desc(irq);
 	if (!desc || !desc->irq_data.domain)
 		goto end;
@@ -549,6 +552,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		}
 	}
 	sip_smc_remotectl_config(REMOTECTL_ENABLE, 1);
+#endif
 end:
 	return 0;
 error_irq:
@@ -583,11 +587,14 @@ static int remotectl_resume(struct device *dev)
 	struct cpumask cpumask;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
+#ifdef CONFIG_ROCKCHIP_SIP
 	int state;
+#endif
 
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(ddata->handle_cpu_id, &cpumask);
 	irq_set_affinity(ddata->irq, &cpumask);
+#ifdef CONFIG_ROCKCHIP_SIP
 	if (ddata->support_psci) {
 		/* loop wakeup state */
 		state = sip_smc_remotectl_config(
@@ -598,6 +605,7 @@ static int remotectl_resume(struct device *dev)
 			input_sync(ddata->input);
 		}
 	}
+#endif
 
 	return 0;
 }
