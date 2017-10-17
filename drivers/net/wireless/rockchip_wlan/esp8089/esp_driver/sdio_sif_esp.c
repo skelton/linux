@@ -870,6 +870,7 @@ int esp_sdio_init(void)
 
 
         esp_register_early_suspend();
+        esp_wake_unlock();
         return err;
 
 _fail:
@@ -883,7 +884,6 @@ void esp_sdio_exit(void)
 {
 	esp_dbg(ESP_SHOW, "%s \n", __func__);
 	
-        esp_wake_unlock();
         esp_unregister_early_suspend();
 
 	sdio_unregister_driver(&esp_sdio_driver);
