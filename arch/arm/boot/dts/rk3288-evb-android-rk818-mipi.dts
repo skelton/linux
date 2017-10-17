@@ -865,3 +865,46 @@
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
 };
+
+//Disable psci
+/ {
+	/delete-node/ dmc;
+	/delete-node/ psci;
+	/delete-node/ rockchip-suspend;
+
+	dmc: dmc@ff610000 {
+	     compatible = "rockchip,rk3288-dmc", "syscon";
+	     rockchip,cru = <&cru>;
+	     rockchip,grf = <&grf>;
+	     rockchip,pmu = <&pmu>;
+	     rockchip,sgrf = <&sgrf>;
+	     rockchip,noc = <&noc>;
+	     reg = <0x0 0xff610000 0x0 0x3fc
+		     0x0 0xff620000 0x0 0x294
+		     0x0 0xff630000 0x0 0x3fc
+		     0x0 0xff640000 0x0 0x294>;
+	     rockchip,sram = <&ddr_sram>;
+	     clocks = <&cru PCLK_DDRUPCTL0>, <&cru PCLK_PUBL0>,
+		    <&cru PCLK_DDRUPCTL1>, <&cru PCLK_PUBL1>,
+		    <&cru ARMCLK>, <&cru ACLK_DMAC1>;
+	     clock-names = "pclk_ddrupctl0", "pclk_publ0",
+		     "pclk_ddrupctl1", "pclk_publ1",
+		     "arm_clk", "aclk_dmac1";
+     };
+
+};
+&cpu0 {
+	/delete-property/ enable-method;
+};
+&cpu1 {
+	/delete-property/ enable-method;
+};
+&cpu2 {
+	/delete-property/ enable-method;
+};
+&cpu3 {
+	/delete-property/ enable-method;
+};
+&efuse {
+	compatible = "rockchip,rockchip-efuse";
+};
